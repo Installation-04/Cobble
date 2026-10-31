@@ -16,6 +16,7 @@
 #   --force     start even though packs/v01 already holds generated secrets (they are DELETED
 #               at teardown unless --keep)
 # Environment: E2E_PORT (host port of Caddy, default 18080), E2E_EMAIL, E2E_PASSWORD,
+# E2E_HOST (address CI containers use to reach the stack, default: first address of this host),
 # E2E_BUILD_CA (path of a CA bundle passed to every image build as the optional `ca` BuildKit
 # secret; for hosts behind a TLS-inspecting proxy, unset by default).
 #
@@ -47,7 +48,10 @@ done
 case "$LANG_CODE" in en | fr) ;; *) echo "--lang must be en or fr" >&2; exit 2 ;; esac
 
 PORT="${E2E_PORT:-18080}"
-BASE="http://localhost:$PORT"
+# CI step containers clone from the public URL, so it must be reachable from a container: a
+# non-loopback address of this host (E2E_HOST overrides), not `localhost`.
+HOST="${E2E_HOST:-$(hostname -I 2>/dev/null | awk '{print $1}')}"
+BASE="http://${HOST:-localhost}:$PORT"
 EMAIL="${E2E_EMAIL:-admin@example.com}"
 PASSWORD="${E2E_PASSWORD:-$(head -c 12 /dev/urandom | od -An -tx1 | tr -d ' \n')}"
 WORK="$(mktemp -d)"
