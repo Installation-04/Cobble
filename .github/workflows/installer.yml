@@ -1,0 +1,43 @@
+name: Installer
+
+on:
+  push:
+    paths: ["installer/**", ".github/workflows/installer.yml", "core/**"]
+  pull_request:
+    paths: ["installer/**", ".github/workflows/installer.yml", "core/**"]
+
+permissions:
+  contents: read
+
+jobs:
+  scripts:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: shellcheck
+        run: |
+          shellcheck -x -s bash installer/install.sh installer/cobble installer/lib.sh \
+            installer/messages.en.sh installer/messages.fr.sh \
+            installer/tests/run.sh installer/tests/ci_vm.sh installer/tests/stubs/*
+      - name: Installer unit tests (no root, no Docker)
+        run: installer/tests/run.sh
+
+  install:
+    # Real install on each supported OS, inside a privileged systemd container with a nested
+    # Docker daemon (see installer/tests/ci_vm.sh: overlay2 on a volume-backed /var/lib/docker).
+    # This is the closest to a VM we can get on a GitHub-hosted runner: no kernel of its own,
+    # so the "VM" shares the runner's kernel, and cgroups/iptables come from the host.
+    # Limits: ubuntu:26.04 and debian:13 depend on Docker's apt repository already serving
+    # their codename (resolute / trixie); if it does not, that leg fails at "apt update" and
+    # the failure is real (the installer cannot support the OS yet), not a CI artefact.
+    needs: scripts
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ["ubuntu:24.04", "ubuntu:26.04", "debian:12", "debian:13"]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Install, re-run, doctor, uninstall in a systemd container
+        run: installer/tests/ci_vm.sh "${{ matrix.image }}"

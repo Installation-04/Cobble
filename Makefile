@@ -1,4 +1,4 @@
-.PHONY: activation-link help install lint lint-backend lint-ui test test-backend test-ui test-integration format dev dev-down dev-logs smoke e2e bench cassettes
+.PHONY: test-installer activation-link help install lint lint-backend lint-ui test test-backend test-ui test-integration format dev dev-down dev-logs smoke e2e bench cassettes
 
 RUFF := cd backend && uv run --quiet ruff
 
@@ -25,7 +25,7 @@ lint-backend:
 lint-ui:
 	cd ui && pnpm run lint && pnpm run format:check && pnpm run typecheck
 
-test: test-backend test-ui
+test: test-backend test-ui test-installer
 
 test-backend:
 	cd backend && uv run --quiet pytest -q
@@ -33,6 +33,9 @@ test-backend:
 
 test-ui:
 	cd ui && pnpm test
+
+test-installer:
+	bash installer/tests/run.sh
 
 format:
 	$(RUFF) check --config pyproject.toml --fix $(PY_DIRS)

@@ -14,6 +14,7 @@ x-app-env: &app-env
   COBBLE_LITELLM_URL: http://litellm:4000
   COBBLE_LITELLM_KEY: ${LITELLM_MASTER_KEY}
   COBBLE_LANG: ${COBBLE_LANG:-en}
+  COBBLE_PUBLIC_URL: ${COBBLE_PUBLIC_URL:-http://localhost:8080}
 
 services:
   postgres:
