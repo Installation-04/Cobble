@@ -94,7 +94,8 @@ cassettes:
 e2e:
 	python3 scripts/dev_env.py
 	$(COMPOSE) down -v
-	$(COMPOSE) up --build -d --wait
+	# The browser tests run the whole build loop on in-memory fakes (no Forgejo, Docker-in-Docker...).
+	COBBLE_PACK_MODE=fake COBBLE_FAKE_STEP_S=0.2 $(COMPOSE) up --build -d --wait
 	port=$(HTTP_PORT); cd ui && E2E_BASE_URL=http://localhost:$$port pnpm exec playwright test
 
 bench:

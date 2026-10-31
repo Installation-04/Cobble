@@ -16,6 +16,9 @@ x-app-env: &app-env
   COBBLE_LANG: ${COBBLE_LANG:-en}
   COBBLE_PUBLIC_URL: ${COBBLE_PUBLIC_URL:-http://localhost:8080}
   COBBLE_RUN_TOKEN_SECRET: ${RUN_TOKEN_SECRET:-}
+  # Development and CI only: "fake" replaces Forgejo/Woodpecker/Docker services by in-memory fakes.
+  COBBLE_PACK_MODE: ${COBBLE_PACK_MODE:-}
+  COBBLE_FAKE_STEP_S: ${COBBLE_FAKE_STEP_S:-0.3}
 
 services:
   postgres:
