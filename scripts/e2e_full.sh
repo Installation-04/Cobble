@@ -15,7 +15,9 @@
 #   --comment   after `done`, comment on the last demo and follow the new C-001 task
 #   --force     start even though packs/v01 already holds generated secrets (they are DELETED
 #               at teardown unless --keep)
-# Environment: E2E_PORT (host port of Caddy, default 18080), E2E_EMAIL, E2E_PASSWORD.
+# Environment: E2E_PORT (host port of Caddy, default 18080), E2E_EMAIL, E2E_PASSWORD,
+# E2E_BUILD_CA (path of a CA bundle passed to every image build as the optional `ca` BuildKit
+# secret; for hosts behind a TLS-inspecting proxy, unset by default).
 #
 # Uses only the documented APIs (ADR 0003, 0005, 0006, 0007). Endpoints that answer 404 are
 # reported as SKIPPED instead of failing the run (the harness predates some of them).
@@ -59,7 +61,20 @@ log() { printf '[e2e-full %s] %s\n' "$(date +%H:%M:%S)" "$*"; }
 skip() { printf '[e2e-full] SKIPPED: %s\n' "$*"; }
 die() { printf '[e2e-full] ERROR: %s\n' "$*" >&2; exit 1; }
 
-core() { docker compose -p cobble --env-file "$CORE_ENV" -f "$ROOT/core/compose.yml" "$@"; }
+# Optional build-time CA (see E2E_BUILD_CA): one override file per compose project.
+CA_CORE=() CA_AGENTS=() CA_PREVIEW=() CA_PACK=""
+if [ -n "${E2E_BUILD_CA:-}" ]; then
+  [ -r "$E2E_BUILD_CA" ] || die "E2E_BUILD_CA is not readable: $E2E_BUILD_CA"
+  export BUILDX_BAKE_ENTITLEMENTS_FS=0
+  ca_override() { # ca_override FILE SERVICE...
+    local file="$1"; shift
+    { echo "services:"
+      for svc in "$@"; do printf '  %s:\n    build:\n      secrets: [ca]\n' "$svc"; done
+      printf 'secrets:\n  ca:\n    file: %s\n' "$E2E_BUILD_CA"; } >"$file"
+  }
+fi
+
+core() { docker compose -p cobble --env-file "$CORE_ENV" -f "$ROOT/core/compose.yml" "${CA_CORE[@]}" "$@"; }
 
 # --- preflight ---------------------------------------------------------------------------------
 for tool in docker curl python3; do
@@ -135,6 +150,13 @@ sed -i "s/^COBBLE_HTTP_PORT=.*/COBBLE_HTTP_PORT=$PORT/;s/^COBBLE_LANG=.*/COBBLE_
   echo "COBBLE_ENV=development"
 } >>"$CORE_ENV"
 
+if [ -n "${E2E_BUILD_CA:-}" ]; then
+  ca_override "$WORK/ca-core.yml" fake-llm api worker ui
+  ca_override "$WORK/ca-agents.yml" agent-proxy agent-service agent-runner-image
+  ca_override "$WORK/ca-preview.yml" preview-service
+  CA_CORE=(-f "$WORK/ca-core.yml") CA_AGENTS=(-f "$WORK/ca-agents.yml") CA_PREVIEW=(-f "$WORK/ca-preview.yml")
+fi
+
 log "starting the core (project cobble)"
 core up --build -d --wait
 
@@ -142,12 +164,12 @@ log "installing the pack (Forgejo, Woodpecker)"
 COBBLE_PACK_PUBLIC_URL="$BASE" "$PACK/hooks/install.sh"
 
 log "building and starting agent-service, the egress proxy and the runner image"
-docker compose -f "$PACK/compose.agents.yml" --profile build build
+docker compose -f "$PACK/compose.agents.yml" "${CA_AGENTS[@]}" --profile build build
 "$PACK/agent-service/gen-env.sh"
 docker compose -f "$PACK/compose.agents.yml" up -d
 
 log "building and starting preview-service"
-docker compose -f "$PACK/compose.preview.yml" build
+docker compose -f "$PACK/compose.preview.yml" "${CA_PREVIEW[@]}" build
 "$PACK/preview-service/gen-env.sh"
 docker compose -f "$PACK/compose.preview.yml" up -d
 cp "$PACK/preview-service/demo.caddy" "$PACK/caddy/demo.caddy"
