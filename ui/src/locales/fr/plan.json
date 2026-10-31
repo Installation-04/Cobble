@@ -1,0 +1,60 @@
+{
+  "title": "Plan",
+  "version": "Version {{version}}",
+  "status": {
+    "draft": "Brouillon",
+    "approved": "Approuvé"
+  },
+  "milestone": "Jalon {{id}}",
+  "tasks_one": "{{count}} tâche",
+  "tasks_other": "{{count}} tâches",
+  "estimate": {
+    "title": "Coût estimé",
+    "total": "Total",
+    "tokens": "{{tokens}} jetons",
+    "note": "Estimation du travail des agents, passes de tests et de revue comprises. Le coût réel peut différer."
+  },
+  "task": {
+    "dependsOn": "Dépend de",
+    "files": "Fichiers",
+    "acceptance": "Critères d'acceptation",
+    "tests": "Tests",
+    "none": "Aucune",
+    "size": "Taille {{size}}",
+    "role": {
+      "backend": "Backend",
+      "frontend": "Frontend",
+      "fullstack": "Full stack",
+      "devops": "DevOps",
+      "docs": "Docs"
+    }
+  },
+  "approve": "Approuver le plan",
+  "approveTitle": "Approuver le plan ?",
+  "approveDescription": "Coût estimé : {{cost}} ({{tokens}} jetons). Une fois approuvé, le plan ne peut plus être modifié.",
+  "approveConfirm": "Approuver le plan",
+  "requestChanges": "Demander des modifications",
+  "feedbackLabel": "Que faut-il changer dans le plan ?",
+  "feedbackPlaceholder": "Décrivez les changements souhaités dans le plan…",
+  "feedbackSubmit": "Envoyer les remarques",
+  "cancel": "Annuler",
+  "regenerating": "Rédaction d'une nouvelle version du plan…",
+  "generatePlan": "Générer le plan",
+  "generating": "Génération du plan…",
+  "approved": "Plan approuvé",
+  "approvedNote": "Les agents commenceront à construire à une étape ultérieure de Cobble.",
+  "empty": {
+    "interview": {
+      "title": "Pas encore de plan",
+      "description": "Discutez avec l'assistant, puis approuvez la spécification. Le plan vient ensuite."
+    },
+    "specReview": {
+      "title": "La spécification d'abord",
+      "description": "Approuvez la spécification dans l'onglet Chat, puis générez le plan."
+    },
+    "specApproved": {
+      "title": "Prêt à planifier",
+      "description": "La spécification est approuvée. Générez le plan pour découper le travail en jalons et en tâches."
+    }
+  }
+}

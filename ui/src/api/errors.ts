@@ -11,6 +11,11 @@ export const KNOWN_ERROR_CODES = [
   "csrf_failed",
   "not_found",
   "validation_error",
+  "wrong_phase",
+  "project_paused",
+  "plan_invalid",
+  "llm_error",
+  "budget_reached",
 ] as const;
 
 /** Translate any thrown value into a user-facing message via `errors.<code>`. */

@@ -1,0 +1,38 @@
+{
+  "emptyTitle": "Describe your idea",
+  "emptyDescription": "Tell the planning assistant what you want to build. It will ask a few questions, then write a spec.",
+  "inputLabel": "Message",
+  "inputPlaceholder": "Describe your idea…",
+  "inputHint": "Enter to send, Shift+Enter for a new line.",
+  "send": "Send",
+  "messages": "Conversation",
+  "from": {
+    "user": "You",
+    "assistant": "Assistant"
+  },
+  "typing": "The assistant is typing…",
+  "closed": "The interview is over. The conversation is read-only from now on.",
+  "paused": "This project is paused: no more requests are sent to the models.",
+  "loadError": "The conversation could not be loaded.",
+  "stepper": {
+    "label": "Project progress",
+    "current": "current step",
+    "done": "completed",
+    "interview": "Interview",
+    "spec": "Spec",
+    "plan": "Plan",
+    "ready": "Ready"
+  },
+  "generateSpec": "Generate spec",
+  "generatingSpec": "Generating the spec…",
+  "generateSpecHint": "Enough said? The assistant can now write the spec.",
+  "failure": {
+    "title": "{{job}} failed",
+    "dismiss": "Dismiss",
+    "job": {
+      "reply": "The assistant's reply",
+      "spec": "Spec generation",
+      "plan": "Plan generation"
+    }
+  }
+}

@@ -22,6 +22,8 @@ export interface WorkspaceValue {
   createProject: (name: string, folderId: string | null) => Promise<Project>;
   updateProject: (id: string, body: { name?: string; folder_id?: string | null }) => Promise<void>;
   deleteProject: (id: string) => Promise<void>;
+  /** Merge server-pushed fields (e.g. the phase) into a project already in memory. */
+  patchProject: (id: string, patch: Partial<Project>) => void;
 }
 
 const WorkspaceContext = createContext<WorkspaceValue | null>(null);
@@ -86,6 +88,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         await projectsApi.remove(id);
         setProjects((prev) => prev.filter((p) => p.id !== id));
       },
+      patchProject: (id, patch) =>
+        setProjects((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p))),
     }),
     [folders, projects, loading, error, reload],
   );

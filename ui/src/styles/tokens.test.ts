@@ -20,6 +20,14 @@ const PAIRS: [string, string][] = [
   ["accent-foreground", "accent"],
   ["sidebar-foreground", "sidebar"],
   ["primary", "background"],
+  ["success-foreground", "success"],
+  ["success", "background"],
+  ["success", "card"],
+  ["warning-foreground", "warning"],
+  ["warning", "background"],
+  ["warning", "card"],
+  ["destructive", "card"],
+  ["muted-foreground", "card"],
 ];
 
 describe.each(["light", "dark"] as const)("WCAG AA contrast (%s)", (mode) => {

@@ -4,7 +4,16 @@ import { initReactI18next } from "react-i18next";
 export const LANGS = ["fr", "en"] as const;
 export type Lang = (typeof LANGS)[number];
 export const LANG_STORAGE_KEY = "cobble.lang";
-export const NAMESPACES = ["common", "auth", "shell", "settings", "errors"] as const;
+export const NAMESPACES = [
+  "common",
+  "auth",
+  "shell",
+  "settings",
+  "errors",
+  "chat",
+  "spec",
+  "plan",
+] as const;
 
 const modules = import.meta.glob("../locales/*/*.json", {
   eager: true,

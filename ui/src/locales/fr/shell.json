@@ -52,13 +52,6 @@
     "demo": "Démo",
     "costs": "Coûts"
   },
-  "chat": {
-    "emptyTitle": "Décrivez votre idée",
-    "emptyDescription": "La conversation avec l'assistant de planification apparaîtra ici.",
-    "inputPlaceholder": "Décrivez votre idée…",
-    "inputLabel": "Message",
-    "send": "Envoyer"
-  },
   "home": {
     "title": "Bienvenue sur Cobble",
     "description": "Choisissez un projet dans la barre latérale ou créez-en un nouveau pour commencer."

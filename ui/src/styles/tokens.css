@@ -27,6 +27,10 @@
   --ring: #1d4ed8;
   --sidebar: #f8fafc;
   --sidebar-foreground: #0f172a;
+  --success: #15803d;
+  --success-foreground: #ffffff;
+  --warning: #92400e;
+  --warning-foreground: #ffffff;
   --overlay: rgb(15 23 42 / 0.5);
 }
 
@@ -53,6 +57,10 @@
   --ring: #60a5fa;
   --sidebar: #0f172a;
   --sidebar-foreground: #f1f5f9;
+  --success: #4ade80;
+  --success-foreground: #0b1120;
+  --warning: #fbbf24;
+  --warning-foreground: #0b1120;
   --overlay: rgb(0 0 0 / 0.6);
 }
 
@@ -78,5 +86,9 @@
   --color-ring: var(--ring);
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
   --color-overlay: var(--overlay);
 }

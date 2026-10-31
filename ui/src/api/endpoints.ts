@@ -1,5 +1,5 @@
 import { api } from "./client";
-import type { Folder, Project, User } from "./types";
+import type { ChatMessage, Folder, Plan, Project, Spec, User } from "./types";
 import type { Lang } from "../i18n";
 import type { ThemeMode } from "../theme/store";
 
@@ -26,4 +26,19 @@ export const projectsApi = {
   update: (id: string, body: { name?: string; folder_id?: string | null }) =>
     api.patch<Project>(`/projects/${id}`, body),
   remove: (id: string) => api.delete(`/projects/${id}`),
+};
+
+/** Interview, spec and plan (ADR 0005). Generation endpoints answer 202 and run in the worker. */
+export const flowApi = {
+  messages: (id: string) => api.get<ChatMessage[]>(`/projects/${id}/messages`),
+  sendMessage: (id: string, content: string) =>
+    api.post<{ message: ChatMessage }>(`/projects/${id}/messages`, { content }),
+  spec: (id: string) => api.get<Spec>(`/projects/${id}/spec`),
+  generateSpec: (id: string, feedback?: string) =>
+    api.post<void>(`/projects/${id}/spec/generate`, feedback ? { feedback } : {}),
+  approveSpec: (id: string) => api.post<Spec>(`/projects/${id}/spec/approve`),
+  plan: (id: string) => api.get<Plan>(`/projects/${id}/plan`),
+  generatePlan: (id: string, feedback?: string) =>
+    api.post<void>(`/projects/${id}/plan/generate`, feedback ? { feedback } : {}),
+  approvePlan: (id: string) => api.post<Plan>(`/projects/${id}/plan/approve`),
 };

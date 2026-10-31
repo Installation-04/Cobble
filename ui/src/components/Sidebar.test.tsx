@@ -12,10 +12,38 @@ const FOLDERS = [
   { id: "f1", name: "Clients", position: 0 },
 ];
 const PROJECTS = [
-  { id: "p1", name: "Invoicing", folder_id: "f1", created_at: "2026-01-01T00:00:00Z" },
-  { id: "p2", name: "Inventory", folder_id: "f1", created_at: "2026-01-02T00:00:00Z" },
-  { id: "p3", name: "Recipes", folder_id: "f2", created_at: "2026-01-03T00:00:00Z" },
-  { id: "p4", name: "Scratchpad", folder_id: null, created_at: "2026-01-04T00:00:00Z" },
+  {
+    id: "p1",
+    name: "Invoicing",
+    folder_id: "f1",
+    created_at: "2026-01-01T00:00:00Z",
+    status: "active",
+    phase: "interview",
+  },
+  {
+    id: "p2",
+    name: "Inventory",
+    folder_id: "f1",
+    created_at: "2026-01-02T00:00:00Z",
+    status: "active",
+    phase: "interview",
+  },
+  {
+    id: "p3",
+    name: "Recipes",
+    folder_id: "f2",
+    created_at: "2026-01-03T00:00:00Z",
+    status: "active",
+    phase: "interview",
+  },
+  {
+    id: "p4",
+    name: "Scratchpad",
+    folder_id: null,
+    created_at: "2026-01-04T00:00:00Z",
+    status: "active",
+    phase: "interview",
+  },
 ];
 
 function actions(): SidebarActions {

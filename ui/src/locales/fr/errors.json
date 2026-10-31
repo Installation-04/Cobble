@@ -9,5 +9,14 @@
   "not_found": "Cet élément n'existe plus.",
   "validation_error": "Certains champs sont invalides : {{fields}}.",
   "unknown": "Une erreur est survenue. Veuillez réessayer.",
-  "network": "Impossible de joindre le serveur. Vérifiez votre connexion."
+  "network": "Impossible de joindre le serveur. Vérifiez votre connexion.",
+  "wrong_phase": "Cette action n'est pas disponible à l'étape actuelle du projet.",
+  "project_paused": "Ce projet est en pause, probablement parce que son budget est atteint.",
+  "plan_invalid": "L'assistant n'a pas pu produire un plan valide.",
+  "llm_error": "Le modèle de langage n'a pas pu répondre.",
+  "budget_reached": "Le budget du projet est atteint. Augmentez-le pour continuer.",
+  "job_plan_invalid": "L'assistant n'a pas pu produire un plan valide après plusieurs essais. Réessayez, ou demandez des modifications plus détaillées.",
+  "job_llm_error": "Le modèle de langage n'a pas pu répondre. Réessayez dans un instant.",
+  "job_budget_reached": "Le budget du projet est atteint et le projet est en pause. Augmentez le budget pour continuer.",
+  "job_unknown": "La tâche a échoué pour une raison inconnue. Réessayez."
 }

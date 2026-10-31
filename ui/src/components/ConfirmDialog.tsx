@@ -17,9 +17,21 @@ interface Props {
   title: string;
   description: string;
   onConfirm: () => Promise<void>;
+  /** Defaults to the localized "Delete". */
+  confirmLabel?: string;
+  /** Red confirm button (default); false for non-destructive confirmations. */
+  destructive?: boolean;
 }
 
-export function ConfirmDialog({ open, onOpenChange, title, description, onConfirm }: Props) {
+export function ConfirmDialog({
+  open,
+  onOpenChange,
+  title,
+  description,
+  onConfirm,
+  confirmLabel,
+  destructive = true,
+}: Props) {
   const { t } = useTranslation(["common", "errors"]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -60,12 +72,12 @@ export function ConfirmDialog({ open, onOpenChange, title, description, onConfir
             {t("common:cancel")}
           </Button>
           <Button
-            variant="destructive"
+            variant={destructive ? "destructive" : "default"}
             data-testid="confirm-submit"
             disabled={busy}
             onClick={confirm}
           >
-            {t("common:delete")}
+            {confirmLabel ?? t("common:delete")}
           </Button>
         </DialogFooter>
       </DialogContent>

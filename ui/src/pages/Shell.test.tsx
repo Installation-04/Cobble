@@ -29,11 +29,13 @@ function statefulBackend() {
     },
     "POST /projects": ({ body }) => {
       const b = body as { name: string; folder_id?: string };
-      const p = {
+      const p: Project = {
         id: `p${projects.length + 1}`,
         name: b.name,
         folder_id: b.folder_id ?? null,
         created_at: "2026-01-01T00:00:00Z",
+        status: "active",
+        phase: "interview",
       };
       projects.push(p);
       return { status: 201, body: p };
