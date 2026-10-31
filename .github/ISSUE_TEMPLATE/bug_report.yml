@@ -1,0 +1,29 @@
+name: Bug report / Rapport de bogue
+description: Something does not work as expected / Quelque chose ne fonctionne pas comme prévu
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened? / Que s'est-il passé?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce / Étapes pour reproduire
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior / Comportement attendu
+  - type: input
+    id: version
+    attributes:
+      label: Cobble version and OS / Version de Cobble et système
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs (remove secrets) / Journaux (sans secrets)
+      render: shell
