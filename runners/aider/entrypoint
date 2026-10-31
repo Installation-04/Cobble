@@ -24,6 +24,9 @@ mkdir -p "$HOME" "$TMP" /tmp/cache
 if [ ! -d /tmp/cache/uv ] && [ -d /opt/uv-seed ]; then
   cp -a /opt/uv-seed /tmp/cache/uv 2>/dev/null || true
 fi
+if [ ! -d /tmp/cache/pnpm-store ] && [ -d /opt/pnpm-seed ]; then
+  cp -a /opt/pnpm-seed /tmp/cache/pnpm-store 2>/dev/null || true
+fi
 cd "$WORK" || { echo "[cobble:error] cannot enter $WORK"; exit 70; }
 
 # Local identity only; there are no credentials in this container.

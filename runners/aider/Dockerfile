@@ -55,6 +55,15 @@ RUN --mount=type=secret,id=ca,required=false \
     fi; \
     mkdir -p /opt/uv-seed && chmod -R a+rX /opt/uv-seed
 
+# Same for the frontend: pre-fetch the template's pnpm store from its lockfile.
+RUN --mount=type=secret,id=ca,required=false \
+    --mount=type=bind,from=template,target=/seed \
+    if [ -f /seed/frontend/pnpm-lock.yaml ]; then \
+      if [ -f /run/secrets/ca ]; then export NODE_EXTRA_CA_CERTS=/run/secrets/ca SSL_CERT_FILE=/run/secrets/ca; fi; \
+      cd /seed/frontend && COREPACK_HOME=/opt/corepack pnpm fetch --store-dir /opt/pnpm-seed; \
+    fi; \
+    mkdir -p /opt/pnpm-seed && chmod -R a+rX /opt/pnpm-seed
+
 COPY entrypoint /usr/local/bin/cobble-agent
 COPY test-wrapper /usr/local/bin/cobble-test
 RUN chmod 0755 /usr/local/bin/cobble-agent /usr/local/bin/cobble-test \
@@ -62,7 +71,7 @@ RUN chmod 0755 /usr/local/bin/cobble-agent /usr/local/bin/cobble-test \
     && mkdir /work && chown 10001:10001 /work
 
 ENV HOME=/tmp/home PATH=/opt/aider/bin:$PATH UV_CACHE_DIR=/tmp/cache/uv \
-    npm_config_cache=/tmp/cache/npm PNPM_HOME=/tmp/cache/pnpm XDG_CACHE_HOME=/tmp/cache \
+    npm_config_cache=/tmp/cache/npm PNPM_HOME=/tmp/cache/pnpm npm_config_store_dir=/tmp/cache/pnpm-store XDG_CACHE_HOME=/tmp/cache \
     GIT_TERMINAL_PROMPT=0 AIDER_ANALYTICS_DISABLE=1 LITELLM_LOCAL_MODEL_COST_MAP=True
 WORKDIR /work
 USER 10001

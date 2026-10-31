@@ -52,7 +52,11 @@ def local_test_command(tests: str) -> str:
         return f"uv run pytest -q {tests}"
     if tests == NO_TESTS:
         return "uv run pytest -q"  # a demo task adds no test file: the whole suite must stay green
-    return "pnpm --dir frontend test"
+    # A fresh checkout has no node_modules: install from the lockfile (the runner image ships a
+    # pre-warmed store, so this is offline-friendly) before running the tests.
+    return (
+        "pnpm --dir frontend install --frozen-lockfile --prefer-offline && pnpm --dir frontend test"
+    )
 
 
 def _body(task: PromptTask) -> str:

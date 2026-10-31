@@ -187,3 +187,9 @@ def test_runner_image_does_not_leak_aiders_uv_environment() -> None:
     dockerfile = (ROOT / "runners" / "aider" / "Dockerfile").read_text("utf-8")
     env_blocks = re.findall(r"^ENV\s[^\n]*(?:\\\n[^\n]*)*", dockerfile, re.M)
     assert not any("UV_PROJECT_ENVIRONMENT" in block for block in env_blocks)
+
+
+def test_runner_image_prewarms_the_pnpm_store() -> None:
+    dockerfile = (ROOT / "runners" / "aider" / "Dockerfile").read_text("utf-8")
+    assert "pnpm fetch" in dockerfile and "/opt/pnpm-seed" in dockerfile
+    assert "/opt/pnpm-seed" in (ROOT / "runners" / "aider" / "entrypoint").read_text("utf-8")
