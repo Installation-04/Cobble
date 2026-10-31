@@ -4,7 +4,16 @@ version = "0.1.0.dev0"
 description = "Self-hosted platform that turns an idea into an application."
 requires-python = ">=3.12"
 license = "AGPL-3.0-only"
-dependencies = []
+dependencies = [
+    "alembic>=1.14",
+    "fastapi>=0.115",
+    "httpx>=0.28",
+    "psycopg[binary]>=3.2",
+    "pydantic-settings>=2.6",
+    "redis>=5.2",
+    "sqlalchemy>=2.0",
+    "uvicorn>=0.32",
+]
 
 [dependency-groups]
 dev = [
@@ -38,3 +47,5 @@ files = ["cobble"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests", "../scripts/tests"]
+markers = ["integration: needs Postgres, Redis and the core stack (see make test-integration)"]
+addopts = "-m 'not integration'"

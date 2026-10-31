@@ -1,0 +1,11 @@
+{
+  "cli": {
+    "chat": {
+      "reply": "Reply",
+      "model": "Model",
+      "tokens": "Tokens (prompt / completion)",
+      "cost": "Cost (USD)",
+      "failed": "The model gateway returned an error (HTTP {status})."
+    }
+  }
+}

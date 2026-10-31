@@ -1,0 +1,11 @@
+{
+  "cli": {
+    "chat": {
+      "reply": "Réponse",
+      "model": "Modèle",
+      "tokens": "Jetons (prompt / complétion)",
+      "cost": "Coût (USD)",
+      "failed": "La passerelle de modèles a retourné une erreur (HTTP {status})."
+    }
+  }
+}

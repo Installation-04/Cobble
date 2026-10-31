@@ -8,7 +8,8 @@ import sys
 from pathlib import Path
 
 LANGS = ("fr", "en")
-DEFAULT_ROOT = Path(__file__).resolve().parent.parent / "ui" / "src" / "locales"
+_REPO = Path(__file__).resolve().parent.parent
+DEFAULT_ROOTS = [_REPO / "ui" / "src" / "locales", _REPO / "backend" / "cobble" / "locales"]
 
 
 def flatten(data: object, prefix: str = "") -> dict[str, object]:
@@ -46,8 +47,8 @@ def check(root: Path) -> list[str]:
 
 
 def main(argv: list[str]) -> int:
-    root = Path(argv[1]) if len(argv) > 1 else DEFAULT_ROOT
-    errors = check(root)
+    roots = [Path(a) for a in argv[1:]] or DEFAULT_ROOTS
+    errors = [error for root in roots for error in check(root)]
     for error in errors:
         print(f"i18n: {error}", file=sys.stderr)
     if not errors:
