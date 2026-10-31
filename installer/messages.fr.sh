@@ -78,7 +78,7 @@ M_uninstall_confirm='Ceci arrête Cobble et SUPPRIME %s et toutes ses données (
 M_uninstall_confirm_keep='Ceci arrête Cobble et retire le programme de %s. Le fichier .env et les volumes de données sont conservés. Continuer ?'
 M_uninstall_kept='Conservés dans %s : .env et state.json. Les volumes de données ne sont pas touchés.'
 M_uninstall_done='Cobble est désinstallé.'
-M_reset_confirm='Ceci SUPPRIME le compte admin et affiche un nouveau lien d’activation. Continuer ?'
+M_reset_confirm='Ceci déconnecte l’admin et affiche un lien à usage unique pour définir un nouveau courriel et mot de passe (projets et données conservés). Continuer ?'
 M_version_installed='version installée : %s'
 
 M_doc_docker_missing="Docker n'est pas installé"
@@ -119,7 +119,7 @@ Utilisation : cobble <commande>
   logs [service]       suivre les journaux
   update [--source S]  reconstruire et redémarrer (ou installer la source S : dossier, archive, URL git)
   doctor               diagnostiquer les problèmes et proposer des correctifs (code 1 si échec)
-  reset-admin [--yes]  supprimer le compte admin et afficher un nouveau lien d'activation
+  reset-admin [--yes]  afficher un lien à usage unique pour définir un nouvel admin (courriel, mot de passe)
   uninstall [--keep-data] [--yes]
                        arrêter et retirer Cobble (--keep-data garde .env et les volumes)
   version              afficher les versions

@@ -186,7 +186,9 @@ check_arch() {
 
 ensure_base_packages() {
   local missing=() c
-  for c in curl tar; do command -v "$c" >/dev/null 2>&1 || missing+=("$c"); done
+  for c in curl tar ss; do
+    command -v "$c" >/dev/null 2>&1 || missing+=("${c/ss/iproute2}")
+  done
   if [ "${#missing[@]}" -gt 0 ]; then
     apt-get update -qq && apt-get install -y -qq ca-certificates "${missing[@]}"
   fi
@@ -486,7 +488,7 @@ print_summary() {
   echo
   info done_title
   printf '    %s\n' "$(msg done_url_ip "http://$(primary_ip)$suffix")"
-  printf '    %s\n' "$(msg done_url_host "http://$(hostname)$suffix")"
+  printf '    %s\n' "$(msg done_url_host "http://$(uname -n)$suffix")"
   link="$("${COMPOSE[@]}" exec -T api python -m cobble.cli activation-link 2>/dev/null)" || rc=$?
   if [ "$rc" -eq 0 ] && [ -n "$link" ]; then
     printf '\n%s\n%s\n' "$(msg done_activation)" "$link"

@@ -78,7 +78,7 @@ M_uninstall_confirm='This stops Cobble and DELETES %s and all its data (database
 M_uninstall_confirm_keep='This stops Cobble and removes the program from %s. The .env file and the data volumes are kept. Continue?'
 M_uninstall_kept='Kept in %s: .env and state.json. Data volumes were not touched.'
 M_uninstall_done='Cobble is uninstalled.'
-M_reset_confirm='This DELETES the admin account and prints a new activation link. Continue?'
+M_reset_confirm='This signs the admin out and prints a one-use link to set a new email and password (projects and data are kept). Continue?'
 M_version_installed='installed version: %s'
 
 M_doc_docker_missing='Docker is not installed'
@@ -119,7 +119,7 @@ Usage: cobble <command>
   logs [service]       follow the logs
   update [--source S]  rebuild and restart (or install the source S: dir, tarball, git URL)
   doctor               diagnose problems and suggest fixes (exit 1 if one fails)
-  reset-admin [--yes]  delete the admin account and print a new activation link
+  reset-admin [--yes]  print a one-use link to set a new admin email and password
   uninstall [--keep-data] [--yes]
                        stop and remove Cobble (--keep-data keeps .env and the volumes)
   version              print versions
