@@ -6,7 +6,7 @@ from decimal import Decimal
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import model_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -69,6 +69,12 @@ class Settings(BaseSettings):
     env: str = "development"
     # Fake pack only: seconds between two steps of a simulated agent run.
     fake_step_s: float = 0.3
+
+    @field_validator("pack_mode", mode="before")
+    @classmethod
+    def _empty_pack_mode_means_real(cls, value: object) -> object:
+        # The compose file forwards COBBLE_PACK_MODE even when it is not set: an empty string.
+        return "real" if value is None or str(value).strip() == "" else value
 
     @model_validator(mode="after")
     def _fake_pack_rules(self) -> Settings:

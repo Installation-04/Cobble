@@ -24,3 +24,18 @@ def test_translation_params_and_fallbacks() -> None:
     assert "503" in t("cli.chat.failed", "fr", status=503)
     assert t("cli.chat.reply", "de") == "Reply"  # unknown language -> English
     assert t("no.such.key", "en") == "no.such.key"  # unknown key -> the key
+
+
+def test_empty_pack_mode_defaults_to_real(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Compose forwards COBBLE_PACK_MODE as an empty string when it is not set."""
+    monkeypatch.setenv("COBBLE_PACK_MODE", "")
+    assert Settings().pack_mode == "real"
+    monkeypatch.setenv("COBBLE_PACK_MODE", "fake")
+    assert Settings().pack_mode == "fake"
+
+
+def test_fake_pack_is_refused_in_production(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("COBBLE_PACK_MODE", "fake")
+    monkeypatch.setenv("COBBLE_ENV", "production")
+    with pytest.raises(ValueError):
+        Settings()
