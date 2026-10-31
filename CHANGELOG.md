@@ -15,5 +15,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 - `make dev|dev-down|dev-logs|smoke|test-integration|cassettes`; CI job `core-stack` runs the full chain.
 - Authentication: single admin created from a one-use activation link (`make activation-link`), scrypt passwords, hashed opaque sessions in an HttpOnly cookie, CSRF header, login rate limit. Folders and projects API (ADR 0003).
 - React UI shell in the Open WebUI style: sidebar with project folders, top bar, chat area placeholder, settings dialog, System/Light/Dark theme from CSS tokens, FR/EN switch without reload. Lint rules reject literal UI strings and hard-coded colors; WCAG AA contrast of the tokens is tested.
+- Capability interfaces (`LLMClient`, `GitProvider`, `CIProvider`, `AgentRunner`) with in-memory fakes, and a cost router that maps roles (`planner`, `test-writer`, `worker`, `reviewer`) to models and enforces a hard per-project budget: the project is paused and `budget.reached` is published at the cap (`budget.warning` at 80 %). Projects expose `budget_usd` and `status`.
+- `python -m cobble.cli reset-admin`: new one-use link to set a new email and password without losing projects.
 - `make e2e` (Playwright) against the full stack; CI job `e2e`.
 - i18n key check now also covers backend (`backend/cobble/locales`) messages.

@@ -6,7 +6,7 @@ from datetime import timedelta
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, select
+from sqlalchemy import create_engine, delete, select
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -14,7 +14,7 @@ from cobble.api.app import create_app
 from cobble.auth.activation import create_activation_token
 from cobble.auth.tokens import hash_token, utcnow
 from cobble.config import Settings
-from cobble.db import ActivationToken, AuthSession, Base, make_session_factory
+from cobble.db import ActivationToken, AuthSession, Base, User, make_session_factory
 
 from .fakes import CounterRedis
 
@@ -438,7 +438,9 @@ def test_projects_crud(logged: TestClient) -> None:
     )
     assert created.status_code == 201
     project = created.json()
-    assert set(project) == {"id", "name", "folder_id", "created_at"}
+    assert set(project) == {"id", "name", "folder_id", "created_at", "budget_usd", "status"}
+    assert project["status"] == "active"
+    assert project["budget_usd"] == "5.00"
     assert project["folder_id"] == folder["id"]
 
     loose = logged.post(f"{API}/projects", json={"name": "Loose"}, headers=H).json()
@@ -539,3 +541,55 @@ def test_resources_are_scoped_to_their_owner(
     with sessions() as db:
         assert len(db.scalars(select(Folder)).all()) == 1
         assert len(db.scalars(select(Project)).all()) == 2
+
+
+def test_project_budget_can_be_changed_and_validated(logged: TestClient) -> None:
+    created = logged.post(f"{API}/projects", json={"name": "P"}, headers=H).json()
+    assert created["budget_usd"] == "5.00"
+    url = f"{API}/projects/{created['id']}"
+
+    changed = logged.patch(url, json={"budget_usd": "12.50"}, headers=H)
+    assert changed.status_code == 200
+    assert changed.json()["budget_usd"] == "12.50"
+
+    unlimited = logged.patch(url, json={"budget_usd": None}, headers=H)
+    assert unlimited.json()["budget_usd"] is None
+
+    bad = logged.patch(url, json={"budget_usd": "-1"}, headers=H)
+    assert bad.status_code == 422
+    assert bad.json()["error"]["params"]["fields"] == ["budget_usd"]
+
+
+def test_reset_link_changes_credentials_and_keeps_data(
+    client: TestClient, sessions: sessionmaker[Session]
+) -> None:
+    assert activate(client, sessions).status_code == 201  # type: ignore[attr-defined]
+    project = client.post(f"{API}/projects", json={"name": "Keep me"}, headers=H).json()
+
+    with sessions() as db:
+        user = db.scalars(select(User)).one()
+        reset_token, _ = create_activation_token(db, user_id=user.id)
+        db.execute(delete(AuthSession))  # what the CLI does
+        db.commit()
+
+    assert client.get(f"{API}/auth/me").status_code == 401  # old session is gone
+    body = {"token": reset_token, "email": "new@example.com", "password": "a-new-password-1"}
+    reply = client.post(f"{API}/auth/activate", json=body, headers=H)
+    assert reply.status_code == 201
+    assert reply.json()["email"] == "new@example.com"
+    assert [p["id"] for p in client.get(f"{API}/projects").json()] == [project["id"]]
+
+    again = client.post(f"{API}/auth/activate", json=body, headers=H)
+    assert again.status_code == 409  # single use: now it is just an initialized instance
+
+    client.post(f"{API}/auth/logout", headers=H)
+    old = client.post(
+        f"{API}/auth/login", json={"email": "admin@example.com", "password": PASSWORD}, headers=H
+    )
+    assert old.status_code == 401
+    new = client.post(
+        f"{API}/auth/login",
+        json={"email": "new@example.com", "password": "a-new-password-1"},
+        headers=H,
+    )
+    assert new.status_code == 200

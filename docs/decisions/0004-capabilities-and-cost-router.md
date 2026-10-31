@@ -1,0 +1,8 @@
+# 0004 — Capability interfaces, cost router and admin reset
+
+Status: accepted (v0.1, step 4)
+
+- **Capabilities** (`cobble/capabilities/`): `LLMClient`, `GitProvider`, `CIProvider`, `AgentRunner` are `typing.Protocol`s with small dataclasses. In-memory fakes live in `cobble/capabilities/fakes.py` so any later test can reuse them. A unit test fails if any core module (outside `providers/`) names a product (rule 1).
+- **Roles**: `planner`, `test-writer`, `worker`, `reviewer`. `COBBLE_ROLE_MODELS` (JSON) maps a role to a LiteLLM model name; unmapped roles use `COBBLE_DEFAULT_MODEL`. Escalation to a stronger model arrives with the scheduler (step 7).
+- **Budget**: `projects.budget_usd` (default `COBBLE_DEFAULT_BUDGET_USD`, 5.00; `null` = unlimited) and `projects.status` (`active` | `paused`). Spend is the sum of `llm_calls.cost_usd` for the project. `CostRouter.chat` refuses (`BudgetExceeded`) before calling the model when the project is paused or at its cap; after each call it publishes `budget.warning` once at 80 % and, at 100 %, pauses the project and publishes `budget.reached` once (conditional `UPDATE`, so concurrent callers publish once). Calls already in flight when the cap is hit may overshoot it slightly. Raising the budget (`PATCH /projects/{id}` with `budget_usd`) above the spend resumes the project.
+- **Admin reset**: `python -m cobble.cli reset-admin` closes the admin's sessions and prints a one-use link whose token carries `user_id`. Activating it changes that user's email and password and keeps all projects and data. (Deleting the user would cascade to their projects.)

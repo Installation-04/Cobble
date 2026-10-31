@@ -1,0 +1,304 @@
+#!/usr/bin/env bash
+# cobble: command-line helper for an installed Cobble (status, logs, update, doctor...).
+set -euo pipefail
+
+DEFAULT_DIR="/opt/cobble" # install.sh rewrites this line when --dir is used
+DIR="${COBBLE_DIR:-$DEFAULT_DIR}"
+
+SELF="${BASH_SOURCE[0]}"
+SELF_DIR="$(cd "$(dirname "$SELF")" && pwd)"
+if [ -f "$SELF_DIR/lib.sh" ]; then
+  LIB_DIR="$SELF_DIR"
+else
+  LIB_DIR="$DIR/src/installer"
+fi
+if [ ! -f "$LIB_DIR/lib.sh" ]; then
+  echo "cobble: $LIB_DIR/lib.sh not found (is Cobble installed in $DIR?)" >&2
+  exit 1
+fi
+# shellcheck source=installer/lib.sh
+. "$LIB_DIR/lib.sh"
+
+LANG_CODE="$(detect_lang "")"
+if [ -z "${COBBLE_LANG:-}" ] && [ -z "$(env_get COBBLE_LANG "$DIR/.env")" ]; then
+  LANG_CODE="$(detect_lang "$(state_get lang "$DIR/state.json")")"
+else
+  LANG_CODE="$(detect_lang "" "$DIR/.env")"
+fi
+load_messages "$LIB_DIR" "$LANG_CODE"
+
+UNIT_DIR="${COBBLE_UNIT_DIR:-/etc/systemd/system}"
+BIN_DIR="${COBBLE_BIN_DIR:-/usr/local/bin}"
+
+need_install() {
+  [ -f "$DIR/.env" ] && [ -f "$DIR/src/core/compose.yml" ] || die cli_not_installed "$DIR"
+  set_compose "$DIR"
+}
+
+http_port() {
+  local p
+  p="$(env_get COBBLE_HTTP_PORT "$DIR/.env")"
+  echo "${p:-80}"
+}
+
+health_url() { echo "http://localhost:$(http_port)/api/v1/health"; }
+
+health_ok() {
+  [ "${COBBLE_DOCTOR_FAKE_DOWN:-0}" != 1 ] && curl -fsS -o /dev/null --max-time 10 "$(health_url)" 2>/dev/null
+}
+
+# confirm KEY [ARGS...]: ask unless --yes was given.
+ASSUME_YES=0
+confirm() {
+  [ "$ASSUME_YES" = 1 ] && return 0
+  [ -r /dev/tty ] || die need_yes
+  local answer=""
+  printf '%s [y/N] ' "$(msg "$@")" >/dev/tty
+  read -r answer </dev/tty || true
+  case "$answer" in
+    y | Y | yes | YES | o | O | oui) ;;
+    *) die aborted ;;
+  esac
+}
+
+parse_yes() { # returns the remaining args in REST
+  REST=()
+  local a
+  for a in "$@"; do
+    case "$a" in
+      -y | --yes) ASSUME_YES=1 ;;
+      *) REST+=("$a") ;;
+    esac
+  done
+}
+
+cmd_status() {
+  need_install
+  "${COMPOSE[@]}" ps
+  if health_ok; then info status_healthy "$(health_url)"; else
+    warn status_unhealthy "$(health_url)"
+    return 1
+  fi
+}
+
+cmd_logs() {
+  need_install
+  "${COMPOSE[@]}" logs -f --tail=100 "$@"
+}
+
+cmd_update() {
+  need_install
+  local source=""
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --source) source="${2:-}" ;;
+      --source=*) source="${1#--source=}" ;;
+      *) die usage_error "$1" ;;
+    esac
+    [ "$1" = --source ] && shift
+    shift
+  done
+  local backup
+  backup="$DIR/.env.bak-$(date -u +%Y%m%dT%H%M%SZ)"
+  (umask 077 && cp -p "$DIR/.env" "$backup")
+  info update_backup "$backup"
+  if [ -n "$source" ]; then
+    exec bash "$DIR/src/installer/install.sh" --yes --skip-checks --dir "$DIR" --source "$source"
+  fi
+  info update_rebuild
+  "${COMPOSE[@]}" up -d --build --wait
+}
+
+cmd_uninstall() {
+  local keep=0 a
+  parse_yes "$@"
+  for a in "${REST[@]}"; do
+    case "$a" in
+      --keep-data) keep=1 ;;
+      *) die usage_error "$a" ;;
+    esac
+  done
+  [ -f "$DIR/state.json" ] || [ -f "$DIR/.env" ] || die cli_not_installed "$DIR"
+  case "$DIR" in "" | / | /usr | /usr/* | /etc | /home | /root) die dir_invalid "$DIR" ;; esac
+  if [ "$keep" = 1 ]; then confirm uninstall_confirm_keep "$DIR"; else confirm uninstall_confirm "$DIR"; fi
+
+  if systemd_available; then
+    systemctl disable --now cobble.service 2>/dev/null || true
+    rm -f "$UNIT_DIR/cobble.service"
+    systemctl daemon-reload 2>/dev/null || true
+  fi
+  if [ -f "$DIR/src/core/compose.yml" ] && [ -f "$DIR/.env" ]; then
+    set_compose "$DIR"
+    if [ "$keep" = 1 ]; then
+      "${COMPOSE[@]}" down --remove-orphans || true
+    else
+      "${COMPOSE[@]}" down -v --remove-orphans || true
+    fi
+  fi
+  if [ "$keep" = 1 ]; then
+    rm -rf "$DIR/src" "$DIR/src.new" "$DIR/src.old" "$DIR/compose.install.yml" "$DIR/.steps"
+    info uninstall_kept "$DIR"
+  else
+    rm -rf "$DIR"
+  fi
+  rm -f "$BIN_DIR/cobble"
+  info uninstall_done
+}
+
+# --- doctor ------------------------------------------------------------------------------
+
+DOCTOR_FAILS=0
+# report LEVEL NAME DETAIL [FIX_KEY]
+report() {
+  local level="$1" name="$2" detail="$3" fix="${4:-}"
+  printf '%-5s %-14s %s\n' "$level" "$name" "$detail"
+  if [ "$level" != OK ] && [ -n "$fix" ]; then printf '      -> %s\n' "$(msg "$fix")"; fi
+  if [ "$level" = FAIL ]; then DOCTOR_FAILS=$((DOCTOR_FAILS + 1)); fi
+}
+
+doctor_docker() {
+  local major
+  if ! command -v docker >/dev/null 2>&1; then
+    report FAIL docker "$(msg doc_docker_missing)" fix_docker_install
+    return
+  fi
+  major="$(docker version --format '{{.Server.Version}}' 2>/dev/null | cut -d. -f1 || true)"
+  if [ -z "$major" ]; then
+    report FAIL docker "$(msg doc_docker_down)" fix_docker_start
+  elif [ "$major" -lt 24 ]; then
+    report FAIL docker "$(msg doc_docker_old "$major")" fix_docker_install
+  else
+    report OK docker "$(msg doc_docker_ok "$major")"
+  fi
+}
+
+doctor_containers() {
+  local out line bad=0 total=0 svc state health
+  if ! out="$("${COMPOSE[@]}" ps -a --format '{{.Service}}|{{.State}}|{{.Health}}' 2>/dev/null)" || [ -z "$out" ]; then
+    report FAIL containers "$(msg doc_no_containers)" fix_start
+    return
+  fi
+  while IFS= read -r line; do
+    [ -n "$line" ] || continue
+    total=$((total + 1))
+    IFS='|' read -r svc state health <<<"$line"
+    if [ "$state" != running ] || { [ -n "$health" ] && [ "$health" != healthy ]; }; then
+      bad=$((bad + 1))
+      report FAIL "$svc" "$(msg doc_container_bad "$state" "${health:--}")" fix_container
+    fi
+  done <<<"$out"
+  if [ "$bad" -eq 0 ]; then report OK containers "$(msg doc_containers_ok "$total")"; fi
+}
+
+doctor_http() {
+  if health_ok; then
+    report OK http "$(health_url)"
+  else
+    report FAIL http "$(msg doc_http_down "$(health_url)")" fix_http
+  fi
+}
+
+doctor_disk() {
+  local free_gb
+  free_gb="$(df -Pk "$DIR" | awk 'NR==2 {print int($4/1024/1024)}')"
+  if [ "$free_gb" -lt 2 ]; then
+    report FAIL disk "$(msg doc_disk "$free_gb")" fix_disk
+  elif [ "$free_gb" -lt 10 ]; then
+    report WARN disk "$(msg doc_disk "$free_gb")" fix_disk
+  else
+    report OK disk "$(msg doc_disk "$free_gb")"
+  fi
+}
+
+doctor_port() {
+  local port
+  port="$(http_port)"
+  if ! command -v ss >/dev/null 2>&1; then
+    report WARN port "$(msg doc_port_noss)"
+  elif ss -ltnH "( sport = :$port )" 2>/dev/null | grep -q .; then
+    report OK port "$(msg doc_port_ok "$port")"
+  else
+    report FAIL port "$(msg doc_port_closed "$port")" fix_port
+  fi
+}
+
+doctor_env() {
+  local mode
+  mode="$(stat -c %a "$DIR/.env" 2>/dev/null || echo missing)"
+  if [ "$mode" = 600 ]; then
+    report OK env "$(msg doc_env_ok "$DIR/.env")"
+  else
+    report FAIL env "$(msg doc_env_bad "$mode")" fix_env
+  fi
+}
+
+doctor_unit() {
+  if ! systemd_available; then
+    report WARN systemd "$(msg doc_no_systemd)"
+  elif systemctl is-active --quiet cobble.service; then
+    report OK systemd "$(msg doc_unit_ok)"
+  else
+    report FAIL systemd "$(msg doc_unit_bad)" fix_unit
+  fi
+}
+
+doctor_gpu() {
+  local gpu tk
+  gpu="$(state_get gpu "$DIR/state.json")"
+  tk="$(state_get gpu_toolkit "$DIR/state.json")"
+  report OK gpu "$(msg doc_gpu "${gpu:-none}" "${tk:-n/a}")"
+}
+
+cmd_doctor() {
+  need_install
+  doctor_docker
+  doctor_containers
+  doctor_http
+  doctor_disk
+  doctor_port
+  doctor_env
+  doctor_unit
+  doctor_gpu
+  echo
+  if [ "$DOCTOR_FAILS" -gt 0 ]; then
+    warn doc_summary_fail "$DOCTOR_FAILS"
+    return 1
+  fi
+  info doc_summary_ok
+}
+
+cmd_reset_admin() {
+  need_install
+  parse_yes "$@"
+  confirm reset_confirm
+  "${COMPOSE[@]}" exec -T api python -m cobble.cli reset-admin
+}
+
+cmd_version() {
+  printf 'cobble %s\n' "$COBBLE_VERSION"
+  local v
+  v="$(state_get version "$DIR/state.json")"
+  if [ -n "$v" ]; then printf '%s\n' "$(msg version_installed "$v")"; fi
+}
+
+main() {
+  local cmd="${1:-help}"
+  [ $# -eq 0 ] || shift
+  case "$cmd" in
+    status) cmd_status "$@" ;;
+    logs) cmd_logs "$@" ;;
+    update) cmd_update "$@" ;;
+    uninstall) cmd_uninstall "$@" ;;
+    doctor) cmd_doctor "$@" ;;
+    reset-admin) cmd_reset_admin "$@" ;;
+    backup | restore)
+      warn not_available "$cmd"
+      exit 1
+      ;;
+    version | -v | --version) cmd_version ;;
+    help | -h | --help) printf '%s\n' "$(msg cli_help)" ;;
+    *) die cli_unknown "$cmd" ;;
+  esac
+}
+
+main "$@"

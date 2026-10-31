@@ -97,3 +97,38 @@ def test_activation_link_refuses_when_initialized(
     monkeypatch.setenv("COBBLE_LANG", "fr")
     assert cli.main(["activation-link"]) == 1
     assert "déjà initialisé" in capsys.readouterr().err
+
+
+def test_reset_admin_prints_a_link_and_closes_sessions(
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from sqlalchemy import create_engine, select
+    from sqlalchemy.orm import sessionmaker
+    from sqlalchemy.pool import StaticPool
+
+    from cobble.auth.sessions import create_session
+    from cobble.db import ActivationToken, AuthSession, Base, User, make_session_factory
+
+    engine = create_engine(
+        "sqlite://", poolclass=StaticPool, connect_args={"check_same_thread": False}
+    )
+    Base.metadata.create_all(engine)
+    factory: sessionmaker = make_session_factory(engine)  # type: ignore[type-arg]
+    monkeypatch.setattr(cli, "_session_factory", lambda _s: factory)
+    monkeypatch.setenv("COBBLE_LANG", "en")
+
+    assert cli.main(["reset-admin"]) == 1  # nobody to reset yet
+    assert "No administrator" in capsys.readouterr().err
+
+    with factory() as db:
+        user = User(email="a@b.co", password_hash="x")
+        db.add(user)
+        db.commit()
+        create_session(db, user.id)
+
+    assert cli.main(["reset-admin"]) == 0
+    out = capsys.readouterr().out
+    assert "/activate?token=" in out
+    with factory() as db:
+        assert db.scalars(select(AuthSession)).all() == []
+        assert db.scalars(select(ActivationToken)).one().user_id == user.id

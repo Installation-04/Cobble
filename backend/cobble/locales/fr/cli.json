@@ -11,6 +11,10 @@
       "link": "Lien d'activation",
       "expires": "Expire le {expires} (usage unique, valable {hours} h)",
       "already_initialized": "Cobble est déjà initialisé : un administrateur existe."
+    },
+    "reset": {
+      "done": "Les sessions de l'administrateur ont été fermées. Utilisez ce lien pour définir un nouveau courriel et mot de passe; les projets sont conservés.",
+      "no_admin": "Aucun administrateur n'existe encore. Utilisez plutôt le lien d'activation."
     }
   }
 }
