@@ -1,4 +1,5 @@
 import { defineConfig } from "@playwright/test";
+import { STORAGE_STATE } from "./e2e/scenario";
 
 const executablePath = process.env.PLAYWRIGHT_CHROMIUM_PATH || undefined;
 // Chromium refuses to start its sandbox as root (typical in containers and CI).
@@ -12,6 +13,23 @@ export default defineConfig({
   timeout: 60_000,
   expect: { timeout: 10_000 },
   reporter: [["list"]],
+  // Order matters on a fresh stack: setup activates the admin and saves the session, the plan
+  // spec runs next, and the shell spec goes last because it logs out and changes preferences.
+  projects: [
+    { name: "setup", testMatch: /auth\.setup\.ts/ },
+    {
+      name: "plan",
+      testMatch: /plan\.spec\.ts/,
+      dependencies: ["setup"],
+      use: { storageState: STORAGE_STATE },
+    },
+    {
+      name: "shell",
+      testMatch: /shell\.spec\.ts/,
+      dependencies: ["plan"],
+      use: { storageState: STORAGE_STATE },
+    },
+  ],
   use: {
     baseURL: process.env.E2E_BASE_URL ?? "http://localhost:8080",
     colorScheme: "light",

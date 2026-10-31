@@ -1,23 +1,10 @@
-import { execSync } from "node:child_process";
 import { expect, test, type Page } from "@playwright/test";
+import { ADMIN_EMAIL as EMAIL, ADMIN_PASSWORD as PASSWORD } from "./scenario";
 
-const ACTIVATION_CMD =
-  process.env.E2E_ACTIVATION_CMD ??
-  "docker compose -f ../core/compose.yml exec -T api python -m cobble.cli activation-link";
-
-const EMAIL = "admin@example.com";
-const PASSWORD = "correct-horse-battery-staple";
-const FOLDER = "Clients";
-const PROJECT = "Invoicing";
-
-function activationPath(): string {
-  const out = execSync(ACTIVATION_CMD, { encoding: "utf-8" });
-  const match = /https?:\/\/\S+/.exec(out);
-  if (!match) throw new Error(`no activation URL in command output: ${out}`);
-  // Keep only path + query so the test works whatever public URL the stack advertises.
-  const url = new URL(match[0]);
-  return `${url.pathname}${url.search}`;
-}
+// Unique names so the spec can run again on a stack that already holds data.
+const STAMP = Date.now().toString(36);
+const FOLDER = `Clients ${STAMP}`;
+const PROJECT = `Invoicing ${STAMP}`;
 
 const html = (page: Page) => page.locator("html");
 
@@ -29,15 +16,10 @@ async function patchedMe(page: Page, action: () => Promise<void>) {
   expect((await saved).ok()).toBe(true);
 }
 
-test("activate, organize projects, switch language and theme, log out and back in", async ({
-  page,
-}) => {
-  // 1. Activation
-  await page.goto(activationPath());
-  await page.getByTestId("activate-email").fill(EMAIL);
-  await page.getByTestId("activate-password").fill(PASSWORD);
-  await page.getByTestId("activate-lang").selectOption("en");
-  await page.getByTestId("activate-submit").click();
+// The admin is activated (and that flow asserted) by auth.setup.ts; this spec starts logged in.
+test("organize projects, switch language and theme, log out and back in", async ({ page }) => {
+  // 1. Already signed in thanks to the setup project
+  await page.goto("/");
   await expect(page.getByTestId("app-shell")).toBeVisible();
   await expect(page.getByTestId("new-project-button")).toHaveText("New project");
 
