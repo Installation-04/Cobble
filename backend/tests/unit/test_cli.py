@@ -47,3 +47,53 @@ def test_chat_gateway_error_exits_1(
     monkeypatch.setattr(FakeGateway, "error", GatewayError(502))
     assert cli.main(["chat", "hello"]) == 1
     assert "502" in capsys.readouterr().err
+
+
+def test_activation_link_prints_url_and_expiry(
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from sqlalchemy import create_engine
+    from sqlalchemy.pool import StaticPool
+
+    from cobble.db import ActivationToken, Base, make_session_factory
+
+    engine = create_engine(
+        "sqlite://", poolclass=StaticPool, connect_args={"check_same_thread": False}
+    )
+    Base.metadata.create_all(engine)
+    sessions = make_session_factory(engine)
+    monkeypatch.setattr(cli, "_session_factory", lambda _s: sessions)
+    monkeypatch.setenv("COBBLE_PUBLIC_URL", "https://cobble.example/")
+    monkeypatch.setenv("COBBLE_LANG", "en")
+
+    assert cli.main(["activation-link"]) == 0
+    lines = capsys.readouterr().out.splitlines()
+    assert lines[0].startswith("Activation link: https://cobble.example/activate?token=")
+    assert "24 h" in lines[1]
+    raw = lines[0].rsplit("token=", 1)[1]
+    from cobble.auth.tokens import hash_token
+
+    with sessions() as db:
+        assert db.query(ActivationToken.token_hash).scalar() == hash_token(raw)
+
+
+def test_activation_link_refuses_when_initialized(
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from sqlalchemy import create_engine
+    from sqlalchemy.pool import StaticPool
+
+    from cobble.db import Base, User, make_session_factory
+
+    engine = create_engine(
+        "sqlite://", poolclass=StaticPool, connect_args={"check_same_thread": False}
+    )
+    Base.metadata.create_all(engine)
+    sessions = make_session_factory(engine)
+    with sessions() as db:
+        db.add(User(email="a@b.co", password_hash="x"))
+        db.commit()
+    monkeypatch.setattr(cli, "_session_factory", lambda _s: sessions)
+    monkeypatch.setenv("COBBLE_LANG", "fr")
+    assert cli.main(["activation-link"]) == 1
+    assert "déjà initialisé" in capsys.readouterr().err

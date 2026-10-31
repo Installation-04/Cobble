@@ -7,11 +7,38 @@ import sys
 from collections.abc import Sequence
 
 from redis import Redis
+from sqlalchemy import func, select
+from sqlalchemy.orm import Session, sessionmaker
 
-from cobble.config import get_settings
-from cobble.db import make_engine, make_session_factory
+from cobble.auth.activation import ACTIVATION_LIFETIME, create_activation_token
+from cobble.config import Settings, get_settings
+from cobble.db import User, make_engine, make_session_factory
 from cobble.i18n import t
 from cobble.router.gateway import GatewayError, LiteLLMGateway
+
+
+def _session_factory(settings: Settings) -> sessionmaker[Session]:
+    return make_session_factory(make_engine(settings.database_url))
+
+
+def _activation_link(settings: Settings) -> int:
+    lang = settings.lang
+    with _session_factory(settings)() as db:
+        if db.scalar(select(func.count()).select_from(User)):
+            print(t("cli.activation.already_initialized", lang), file=sys.stderr)
+            return 1
+        token, expires_at = create_activation_token(db)
+    base = settings.public_url.rstrip("/")
+    print(f"{t('cli.activation.link', lang)}: {base}/activate?token={token}")
+    print(
+        t(
+            "cli.activation.expires",
+            lang,
+            expires=expires_at.strftime("%Y-%m-%d %H:%M UTC"),
+            hours=int(ACTIVATION_LIFETIME.total_seconds() // 3600),
+        )
+    )
+    return 0
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -21,12 +48,16 @@ def main(argv: Sequence[str] | None = None) -> int:
     chat = sub.add_parser("chat")
     chat.add_argument("message")
     chat.add_argument("--model", default=settings.default_model)
+    sub.add_parser("activation-link")
     args = parser.parse_args(argv)
+
+    if args.command == "activation-link":
+        return _activation_link(settings)
 
     gateway = LiteLLMGateway(
         settings.litellm_url,
         settings.litellm_key,
-        make_session_factory(make_engine(settings.database_url)),
+        _session_factory(settings),
         events=Redis.from_url(settings.redis_url),
     )
     try:

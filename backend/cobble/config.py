@@ -16,6 +16,8 @@ class Settings(BaseSettings):
     litellm_key: str = ""
     default_model: str = "fake"
     lang: str = "en"
+    public_url: str = "http://localhost:8080"
+    cookie_secure: bool = False
 
 
 @lru_cache

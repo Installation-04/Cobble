@@ -6,6 +6,11 @@
       "tokens": "Jetons (prompt / complétion)",
       "cost": "Coût (USD)",
       "failed": "La passerelle de modèles a retourné une erreur (HTTP {status})."
+    },
+    "activation": {
+      "link": "Lien d'activation",
+      "expires": "Expire le {expires} (usage unique, valable {hours} h)",
+      "already_initialized": "Cobble est déjà initialisé : un administrateur existe."
     }
   }
 }
