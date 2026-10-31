@@ -24,6 +24,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 - Scheduler: tests-first runs (test-writer then worker), parallel only for independent tasks with disjoint files, loop detection, escalation, resume after a worker restart.
 - Milestone demos: build, tag and preview per milestone, validate, comment (becomes a task) or revert to the previous milestone. Preview service for real previews; fake pack mode for development and CI.
 - Agents tab (live logs, diff, pause/resume/stop/retry), Demo tab and Costs tab (USD and tokens by task, model and role).
+- Public documentation is English-first (README, wiki, release notes, CONTRIBUTING, SECURITY) with a French version below each; wiki pages renamed in English.
 - README with screenshots (`make screenshots` regenerates them), bilingual wiki sources in `docs/wiki` and `scripts/publish_wiki.sh`.
 - `make e2e` (Playwright) against the full stack; CI job `e2e`.
 - i18n key check now also covers backend (`backend/cobble/locales`) messages.

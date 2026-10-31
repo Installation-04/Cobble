@@ -1,6 +1,26 @@
-# FAQ et dépannage / FAQ and troubleshooting
+# FAQ and troubleshooting
 
-**Français** · [English](#english)
+**English** · [Français](#français)
+
+**`cobble doctor` reports a problem.** It checks Docker, the containers, `/api/v1/health`, disk, ports, `.env` permissions and the systemd unit, and suggests a fix for each failure.
+
+**I lost the admin password.** `cobble reset-admin` closes the sessions and prints a new link: you change the email and password, and **your projects are kept**.
+
+**The project is "paused".** The budget is reached. Raise it in the API (`PATCH /projects/{id}` with `budget_usd`) above the spend and the project resumes.
+
+**A task is "blocked" or "failed".** A task fails after several attempts (the later ones escalated to a stronger model); its dependents are then blocked. Open it in the Agents tab (log, diff), then **Retry**.
+
+**Building images fails with a certificate error.** TLS-inspecting network: pass your CA bundle as the `ca` build secret (see `docs/en/dev.md`).
+
+**The installer refuses my machine.** Only Ubuntu 24.04/26.04 and Debian 12/13 on amd64 are supported; `--skip-checks` only relaxes the resource checks.
+
+**Can I use local models (Ollama)?** Not in the v0.1 pack (hosted model APIs only). It is planned for the next version (modules).
+
+**Where is the data?** In the Docker volumes `cobble-*` (Postgres, Redis, Caddy) and in `/opt/cobble/.env` (secrets, mode 0600).
+
+---
+
+## Français
 
 **`cobble doctor` signale un problème.** Il vérifie Docker, les conteneurs, `/api/v1/health`, le disque, les ports, les permissions de `.env` et le service systemd, et propose un correctif pour chaque échec.
 
@@ -17,9 +37,3 @@
 **Puis-je utiliser des modèles locaux (Ollama) ?** Pas dans le pack de la v0.1 (API de modèles seulement). C'est prévu dans la version suivante (modules).
 
 **Où sont les données ?** Volumes Docker `cobble-*` (Postgres, Redis, Caddy) et `/opt/cobble/.env` (secrets, mode 0600).
-
----
-
-## English
-
-**`cobble doctor` reports a problem**: it checks Docker, containers, `/api/v1/health`, disk, ports, `.env` permissions and the systemd unit, with a fix for each failure. **Lost the admin password**: `cobble reset-admin` prints a new link; **projects are kept**. **Project "paused"**: the budget is reached; raise `budget_usd` above the spend. **Task blocked/failed**: it failed after several attempts (later ones escalated to a stronger model) and its dependents are blocked; inspect it in the Agents tab, then **Retry**. **Certificate errors while building images**: TLS-inspecting network, pass your CA bundle as the `ca` build secret (`docs/en/dev.md`). **Installer refuses my machine**: only Ubuntu 24.04/26.04 and Debian 12/13 on amd64; `--skip-checks` only relaxes resource checks. **Local models (Ollama)?** Not in the v0.1 pack (hosted model APIs only); planned for the next version. **Where is the data?** Docker volumes `cobble-*` and `/opt/cobble/.env` (mode 0600).

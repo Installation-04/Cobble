@@ -1,6 +1,40 @@
 # Architecture
 
-**Français** · [English](#english)
+**English** · [Français](#français)
+
+## Overview
+
+```
+ Browser ──HTTP──▶ Caddy ──▶ UI (React) · API (FastAPI) ──▶ Postgres · Redis
+                                       │
+              worker ─▶ planner · scheduler ─▶ cost router ─▶ LiteLLM ─▶ models
+                                       │
+   pack service (only one touching Docker) ─▶ isolated Aider agents · Forgejo · Woodpecker · previews
+```
+
+- **Caddy** is the only service that publishes a port; everything else sits on internal networks.
+- **API** (FastAPI, `/api/v1`, OpenAPI): authentication, projects, chat, spec, plan, tasks, milestones, costs. Errors are **codes** that the UI translates.
+- **Worker**: runs the long jobs (planner reply, spec and plan generation) and the **scheduler**.
+- **Redis**: job queue and event streams (server-sent events to the browser). **Postgres**: all state.
+- **LiteLLM** is the only door to models. The **cost router** maps roles (`planner`, `test-writer`, `worker`, `reviewer`) to models, enforces the budget and records tokens and cost per task.
+
+## Capabilities, not products
+
+The core never names Forgejo, Woodpecker, Ollama or Aider: it uses `GitProvider`, `CIProvider`, `AgentRunner`, `LLMClient` and `PreviewProvider`. The **fixed v0.1 pack** implements them: Forgejo (Git), Woodpecker (CI with Semgrep, Trivy, Gitleaks), Aider (agents) and a preview service. An automated test forbids product names in the core.
+
+## A project's lifecycle
+
+Phases: `interview → spec_review → plan_review → ready → building → done`. The plan is checked by a **strict schema** (no task without acceptance criteria, size S or M only, no dependency cycles).
+
+**Scheduler**: a task starts when its dependencies are merged and its files do not overlap a running task. For each task a *test-writer* agent writes the tests, then a *worker* agent implements; CI runs; the merge is refused unless CI is green. Guardrails: maximum iterations and duration, loop detection, **escalation** to a stronger model after N failures, then `failed` (dependents become `blocked`). All state lives in the database, so a restarted worker **resumes** without redoing anything.
+
+## Architecture decisions
+
+Short, dated records in [`docs/decisions/`](https://github.com/Installation-04/Cobble/tree/main/docs/decisions) (0001 to 0007).
+
+---
+
+## Français
 
 ## Vue d'ensemble
 
@@ -31,13 +65,3 @@ Phases: `interview → spec_review → plan_review → ready → building → do
 ## Décisions d'architecture
 
 Courtes et datées dans [`docs/decisions/`](https://github.com/Installation-04/Cobble/tree/main/docs/decisions) (0001 à 0007).
-
----
-
-## English
-
-**Overview**: Caddy is the only service publishing a port. The FastAPI API (`/api/v1`, OpenAPI) handles auth, projects, chat, spec, plan, tasks, milestones and costs (errors are **codes** translated by the UI). The worker runs long jobs and the **scheduler**. Redis carries the job queue and event streams (SSE to the browser); Postgres holds all state. **LiteLLM** is the only door to models; the **cost router** maps roles to models, enforces the budget and records tokens and cost per task.
-
-**Capabilities, not products**: the core never names Forgejo, Woodpecker, Ollama or Aider; it uses `GitProvider`, `CIProvider`, `AgentRunner`, `LLMClient`, `PreviewProvider`. The fixed v0.1 pack implements them (Forgejo, Woodpecker with Semgrep/Trivy/Gitleaks, Aider agents, a preview service). A test forbids product names in the core.
-
-**Project lifecycle**: `interview → spec_review → plan_review → ready → building → done`. The plan is validated by a strict schema. The scheduler starts a task when its dependencies are merged and its files do not overlap a running task; a test-writer agent writes the tests, then a worker agent implements; CI runs and the merge is refused unless green. Guardrails: max iterations and duration, loop detection, escalation to a stronger model after N failures. All state is in the database, so a restarted worker resumes without redoing anything. Architecture decisions: [`docs/decisions/`](https://github.com/Installation-04/Cobble/tree/main/docs/decisions).
