@@ -2,6 +2,7 @@
 # Shared helpers for install.sh and the cobble CLI. Sourced, never executed.
 # User-facing text lives in messages.<lang>.sh (identical keys, see tests/run.sh).
 
+# shellcheck disable=SC2034
 COBBLE_VERSION="0.1.0-dev"
 
 # env_get KEY FILE: last value of KEY in an env file (empty if missing).
@@ -29,10 +30,10 @@ detect_lang() {
 
 # load_messages DIR LANG: English first, then the requested language on top.
 load_messages() {
-  # shellcheck source=installer/messages.en.sh
+  # shellcheck source=messages.en.sh
   . "$1/messages.en.sh"
   if [ "$2" != "en" ] && [ -f "$1/messages.$2.sh" ]; then
-    # shellcheck source=installer/messages.fr.sh
+    # shellcheck source=messages.fr.sh
     . "$1/messages.$2.sh"
   fi
 }

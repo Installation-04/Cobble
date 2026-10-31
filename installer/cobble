@@ -16,7 +16,7 @@ if [ ! -f "$LIB_DIR/lib.sh" ]; then
   echo "cobble: $LIB_DIR/lib.sh not found (is Cobble installed in $DIR?)" >&2
   exit 1
 fi
-# shellcheck source=installer/lib.sh
+# shellcheck source=lib.sh
 . "$LIB_DIR/lib.sh"
 
 LANG_CODE="$(detect_lang "")"

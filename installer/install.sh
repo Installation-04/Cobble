@@ -71,7 +71,7 @@ if [ -z "$SCRIPT_DIR" ] || [ ! -f "$SCRIPT_DIR/lib.sh" ]; then
   exec bash "$boot_dir/src/installer/install.sh" "${ORIG_ARGS[@]}" --source "$boot_dir/src"
 fi
 
-# shellcheck source=installer/lib.sh
+# shellcheck source=lib.sh
 . "$SCRIPT_DIR/lib.sh"
 
 # --- defaults and argument parsing -------------------------------------------------------
@@ -160,10 +160,13 @@ require_root() {
 }
 
 check_os() {
-  OS_ID="" OS_VERSION=""
+  OS_ID="" OS_VERSION="" OS_CODENAME=""
   if [ -r "$OS_RELEASE" ]; then
+    # shellcheck source=/dev/null
     OS_ID="$(. "$OS_RELEASE" && echo "${ID:-}")"
+    # shellcheck source=/dev/null
     OS_VERSION="$(. "$OS_RELEASE" && echo "${VERSION_ID:-}")"
+    # shellcheck source=/dev/null
     OS_CODENAME="$(. "$OS_RELEASE" && echo "${VERSION_CODENAME:-}")"
   fi
   case "$OS_ID:$OS_VERSION" in
