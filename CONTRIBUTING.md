@@ -1,16 +1,4 @@
-# Contribuer à Cobble / Contributing to Cobble
-
-## Français
-
-1. Lire `PLAN.md` et `CLAUDE.md`. Travailler uniquement sur la version en cours; les idées hors portée vont dans une issue avec l'étiquette `idée`.
-2. Installer: `make install`. Vérifier: `make lint test`.
-3. Commits petits, style Conventional Commits (`feat:`, `fix:`, `docs:`…), **signés DCO**: `git commit -s`.
-4. Toute chaîne visible passe par les fichiers i18n, en `fr` et en `en` dans le même commit. Couleurs uniquement via les jetons de thème.
-5. Toute fonctionnalité arrive avec ses tests; les tests n'appellent jamais un vrai modèle.
-6. Mettre à jour `CHANGELOG.md` (section « Unreleased »).
-7. Nouvelle dépendance: licence compatible AGPL-3.0, signalée dans la PR.
-
-Code, commentaires et commits en anglais; documentation utilisateur en français et en anglais.
+# Contributing to Cobble / Contribuer à Cobble
 
 ## English
 
@@ -23,3 +11,15 @@ Code, commentaires et commits en anglais; documentation utilisateur en français
 7. New dependency: AGPL-3.0-compatible license, flagged in the PR.
 
 Code, comments and commits in English; user documentation in French and English.
+
+## Français
+
+1. Lire `PLAN.md` et `CLAUDE.md`. Travailler uniquement sur la version en cours; les idées hors portée vont dans une issue avec l'étiquette `idée`.
+2. Installer: `make install`. Vérifier: `make lint test`.
+3. Commits petits, style Conventional Commits (`feat:`, `fix:`, `docs:`…), **signés DCO**: `git commit -s`.
+4. Toute chaîne visible passe par les fichiers i18n, en `fr` et en `en` dans le même commit. Couleurs uniquement via les jetons de thème.
+5. Toute fonctionnalité arrive avec ses tests; les tests n'appellent jamais un vrai modèle.
+6. Mettre à jour `CHANGELOG.md` (section « Unreleased »).
+7. Nouvelle dépendance: licence compatible AGPL-3.0, signalée dans la PR.
+
+Code, commentaires et commits en anglais; documentation utilisateur en français et en anglais.

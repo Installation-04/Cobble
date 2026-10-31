@@ -1,6 +1,37 @@
-# Agents et coûts / Agents and costs
+# Agents and costs
 
-**Français** · [English](#english)
+**English** · [Français](#français)
+
+## Model roles
+
+| Role | What it does | Model |
+|---|---|---|
+| `planner` | interview, spec, plan | a strong model |
+| `test-writer` | writes a task's tests from its criteria | inexpensive |
+| `worker` | implements until the tests pass | inexpensive |
+| `reviewer` | review (planned, not active in v0.1) | strong |
+
+Set each role's model with `COBBLE_ROLE_MODELS` (JSON); roles you do not list use the default model. **Escalation**: after a few failures of the same agent, the task moves up to the stronger model (`COBBLE_ESCALATION_MODEL`, by default the planner's).
+
+## The budget
+
+Every project has a **budget** in dollars (\$5.00 by default; editable or unlimited). At 80 % a `budget.warning` event is published; at 100 % the project is **paused** (`budget.reached`) and no further model call is accepted. Raising the budget above the spend **resumes** the project. Calls already in flight when the cap is hit may overshoot it slightly.
+
+## Where every call goes
+
+All model calls, including those of the coding agents, go through the **cost router**. Agents never call LiteLLM directly: they use an internal endpoint with a **signed per-run token** (project, task, role, expiry), so the budget applies and the cost is attributed to the right task.
+
+## Task control
+
+In the **Agents** tab: **pause** (no new run; a running run continues), **resume**, **stop** (stops the current run) and **retry** (resets the attempts). Invalid transitions return a clear error.
+
+## Guardrails
+
+Maximum iterations and duration per run; **loop detection** (the same output line repeated, or the same test failure twice in a row) stops the agent instead of burning tokens; limited attempts per task.
+
+---
+
+## Français
 
 ## Les rôles de modèles
 
@@ -28,15 +59,3 @@ Dans l'onglet **Agents**: **pause** (aucune nouvelle exécution; une exécution 
 ## Garde-fous
 
 Itérations maximales et durée maximale par exécution; **détection de boucle** (même ligne de sortie répétée, ou même échec de test deux fois de suite) qui arrête l'agent au lieu de brûler des jetons; tentatives limitées par tâche.
-
----
-
-## English
-
-**Model roles**: `planner` (interview, spec, plan — a strong model), `test-writer` and `worker` (inexpensive), `reviewer` (planned, not active in v0.1). Set per-role models with `COBBLE_ROLE_MODELS` (JSON). **Escalation**: after a few failures a task moves up to the stronger model (`COBBLE_ESCALATION_MODEL`, default the planner's).
-
-**Budget**: each project has a dollar budget (default \$5.00, editable or unlimited). At 80 % a `budget.warning` event is published; at 100 % the project is **paused** (`budget.reached`) and no further model call is accepted. Raising the budget above the spend resumes it. Calls in flight at the cap may overshoot it slightly.
-
-**Every call is routed**: all model calls, including those of coding agents, go through the **cost router**. Agents never call LiteLLM directly; they use an internal endpoint with a **signed per-run token** (project, task, role, expiry), so the budget applies and cost is attributed to the right task.
-
-**Task control** (Agents tab): pause, resume, stop, retry; invalid transitions return a clear error. **Guardrails**: max iterations and duration per run, **loop detection** (same output line repeated, or the same test failure twice in a row), limited attempts per task.

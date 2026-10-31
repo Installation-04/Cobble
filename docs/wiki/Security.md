@@ -1,6 +1,40 @@
-# Sécurité / Security
+# Security
 
-**Français** · [English](#english)
+**English** · [Français](#français)
+
+Generated code is treated as **untrusted** and runs isolated.
+
+## Coding agents
+
+- **Non-root** container, **no Docker socket**, no Linux capabilities, `no-new-privileges`.
+- **CPU, memory, process and time** limits; **read-only** root filesystem, only the task's worktree is writable.
+- **Network**: an internal network whose only exit is an **allowlist proxy** (the internal API and package registries). No direct Internet access.
+- **No Git credentials inside the container**: the pack service clones and pushes outside it, from a bare copy (the `.git` written by the agent is never executed).
+- Model calls use a **signed, expiring token** bound to a project, a task and a role.
+
+## Who touches Docker?
+
+Only the **pack services** (agent-service, preview service) mount the Docker socket. The core (API, worker) never does.
+
+## Authentication and network
+
+A single admin account, created from a single-use link (hashed in the database, valid 24 h). Passwords use `scrypt`. Sessions are opaque tokens in an `HttpOnly`, `SameSite=Lax` cookie, with an anti-CSRF header on every state-changing request and login rate limiting. Caddy is the only published port.
+
+## Supply chain
+
+Docker images **pinned by digest**, **locked** dependencies, **generated** secrets (never in code, logs or cassettes). Generated projects run **Semgrep**, **Trivy** and **Gitleaks** in CI.
+
+## Demos
+
+Previews run in a non-root container with no published port, on an internal network, and stop when idle. The preview embedded in the UI is sandboxed; for a demo that calls its own API, open it in a new tab.
+
+## Reporting a vulnerability
+
+Do not open a public issue: use GitHub's **private security advisories**. See [SECURITY.md](https://github.com/Installation-04/Cobble/blob/main/SECURITY.md).
+
+---
+
+## Français
 
 Le code généré est considéré comme **non fiable** et s'exécute isolé.
 
@@ -31,9 +65,3 @@ Les aperçus tournent dans un conteneur non-root, sans port publié, sur un rés
 ## Signaler une faille
 
 Pas d'issue publique: utilisez les **avis de sécurité privés** de GitHub. Voir [SECURITY.md](https://github.com/Installation-04/Cobble/blob/main/SECURITY.md).
-
----
-
-## English
-
-Generated code is treated as **untrusted** and runs isolated. **Coding agents**: non-root container, no Docker socket, no Linux capabilities, `no-new-privileges`, CPU/memory/PID/time limits, read-only root filesystem (only the task's worktree is writable), an internal network whose only exit is an **allowlist proxy**, **no Git credentials inside the container** (the pack service clones and pushes outside it, from a bare copy; the agent's `.git` is never executed), model calls through a **signed, expiring, per-run token**. **Docker access**: only pack services mount the Docker socket, never the core. **Auth**: one admin created from a hashed, single-use 24 h link; `scrypt` passwords; opaque `HttpOnly`/`SameSite=Lax` session cookies; anti-CSRF header on every unsafe request; login rate limiting; Caddy is the only published port. **Supply chain**: images pinned by digest, locked dependencies, generated secrets; generated projects run Semgrep, Trivy and Gitleaks in CI. **Demos** run non-root with no published port, on an internal network, stopped when idle. **Report a vulnerability** through GitHub's private security advisories ([SECURITY.md](https://github.com/Installation-04/Cobble/blob/main/SECURITY.md)).

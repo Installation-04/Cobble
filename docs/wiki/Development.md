@@ -1,6 +1,42 @@
-# Développement / Development
+# Development
 
-**Français** · [English](#english)
+**English** · [Français](#français)
+
+## Setup
+
+Python 3.12+ (uv), Node 22 (pnpm), Docker with Compose v2, and `make`.
+
+```bash
+make install     # locked dependencies (uv, pnpm)
+make dev         # the whole core with a fake model provider (no key)
+make smoke       # one chat request through LiteLLM + the cost row in the database
+make lint test   # ruff, strict mypy, eslint, i18n, colors; unit tests
+```
+
+## Tests
+
+| Command | What it covers |
+|---|---|
+| `make test` | unit tests (backend, fake provider, agent-service, preview service, UI, installer) |
+| `make test-integration` | real Postgres, Redis and LiteLLM (migrations up and down, full flows) |
+| `make e2e` | browser (Playwright) on a fresh stack, in **fake pack** mode |
+| `make e2e-full` | the full real chain (manual, 20 minutes or more) |
+| `make screenshots` | regenerate `docs/images/` |
+
+Tests **never call a real model**: they use the fake provider and its **cassettes** (JSON; the key is a hash of the model and messages, or a task marker for agents). Re-record a cassette on purpose with `make cassettes` (secrets are scrubbed automatically).
+
+## Repository rules
+
+- Code, comments and commits in **English**; user documentation in **English and French**.
+- No hard-coded visible string (`en` and `fr` i18n files, enforced by `make lint`); colors **only through theme tokens**.
+- Every database schema change goes through an **Alembic migration** tested both ways.
+- **Conventional Commits**, signed off (**DCO**, `git commit -s`); update `CHANGELOG.md`.
+
+See [CONTRIBUTING.md](https://github.com/Installation-04/Cobble/blob/main/CONTRIBUTING.md).
+
+---
+
+## Français
 
 ## Mise en place
 
@@ -33,9 +69,3 @@ Les tests **n'appellent jamais un vrai modèle**: ils utilisent le faux fourniss
 - Commits **Conventional Commits**, signés **DCO** (`git commit -s`); mettre à jour `CHANGELOG.md`.
 
 Voir [CONTRIBUTING.md](https://github.com/Installation-04/Cobble/blob/main/CONTRIBUTING.md).
-
----
-
-## English
-
-Needs Python 3.12+ (uv), Node 22 (pnpm), Docker with Compose v2 and `make`. `make install`, `make dev` (no API key), `make smoke`, `make lint test`. Tests: `make test` (unit), `make test-integration` (real Postgres/Redis/LiteLLM), `make e2e` (Playwright in fake pack mode), `make e2e-full` (manual full real chain), `make screenshots`. Tests **never call a real model**: they use the fake provider and its cassettes; re-record on purpose with `make cassettes` (secrets are scrubbed). Rules: English code/commits, FR+EN user docs, no hard-coded UI strings, colors only via theme tokens, every schema change through a tested Alembic migration, Conventional Commits with DCO sign-off, update `CHANGELOG.md`.
