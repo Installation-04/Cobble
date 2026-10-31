@@ -89,6 +89,14 @@ class AgentRunner(Protocol):
 
     def stop(self, run_id: str) -> None: ...
 
+    def logs(self, run_id: str, offset: int = 0) -> tuple[str, int]:
+        """The log of a run from `offset` on, and the offset to ask for next (ADR 0007).
+
+        Raises AgentRunNotFound for an unknown run and AgentUnavailable when the service
+        cannot be reached; callers fall back to the log tail stored with the run.
+        """
+        ...
+
     def run(self, task: AgentTask) -> AgentResult:
         """Blocking convenience: start, then poll until the run ends."""
         ...

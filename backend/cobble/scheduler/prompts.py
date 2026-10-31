@@ -12,6 +12,8 @@ from dataclasses import dataclass
 TEST_WRITER = "test-writer"
 WORKER = "worker"
 FAILURE_TAIL_CHARS = 4000
+NO_TESTS = "n/a"  # `tests` of a demo task: the test-writer step is skipped
+ANY_FILE = "*"
 
 CONVENTIONS = (
     "Repository conventions:\n"
@@ -48,12 +50,16 @@ def local_test_command(tests: str) -> str:
     """How the agent runs the task's tests locally."""
     if tests.endswith(".py"):
         return f"uv run pytest -q {tests}"
+    if tests == NO_TESTS:
+        return "uv run pytest -q"  # a demo task adds no test file: the whole suite must stay green
     return "pnpm --dir frontend test"
 
 
 def _body(task: PromptTask) -> str:
     criteria = "\n".join(f"- {item}" for item in task.acceptance)
-    files = "\n".join(f"- {path}" for path in task.files)
+    files = "\n".join(
+        "- any file the change needs" if path == ANY_FILE else f"- {path}" for path in task.files
+    )
     return (
         f"Task {task.ref}: {task.title}\n"
         f"Milestone: {task.milestone}. Size: {task.size}. Area: {task.role}.\n\n"
@@ -84,6 +90,29 @@ def worker_instructions(task: PromptTask, attempt: int, failure: str | None = No
         f"You are the implementer (attempt {attempt}). The tests in {task.tests} are already "
         "written: do not weaken or delete them. Implement the feature until they pass locally "
         "with the test command, then stop.\n\n"
+        f"{_body(task)}"
+    )
+    if failure:
+        text += (
+            "\nThe previous attempt failed. End of its log:\n"
+            f"```\n{tail(failure)}\n```\n"
+            "Fix the cause of this failure.\n"
+        )
+    return text
+
+
+def demo_instructions(task: PromptTask, attempt: int, failure: str | None = None) -> str:
+    """Demo data task: no test-writer step, the agent only edits `app/seed.py`."""
+    text = (
+        f"{marker(task.ref, WORKER, attempt)}\n"
+        f"You prepare the demo of milestone {task.milestone} (attempt {attempt}). "
+        "Edit app/seed.py so that `seed()` fills an EMPTY database with realistic, varied "
+        "sample data that shows what the application does at this milestone: plausible names, "
+        "dates and quantities, a mix of states, enough rows to fill a screen. Never lorem "
+        "ipsum. `seed()` runs once when the demo container starts and must be idempotent: "
+        "insert only when the tables are empty. No network access, no secrets, no real "
+        "personal data. Do not change other files and do not weaken any test; the existing "
+        "test suite must keep passing (there is no new test file for this task).\n\n"
         f"{_body(task)}"
     )
     if failure:

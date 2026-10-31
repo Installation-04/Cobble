@@ -134,6 +134,19 @@ def make_job_handler(
                         {"kind": "start", "code": "scheduler_unavailable"},
                     )
             return
+        if kind == "revert":
+            if scheduler is not None:
+                scheduler.run_revert_job(project_id, str(job.get("ref", "")))
+            else:
+                log.warning("revert job dropped: the scheduler is not configured")
+                if events is not None:
+                    publish_project(
+                        events,
+                        project_id,
+                        "job.failed",
+                        {"kind": "revert", "code": "scheduler_unavailable"},
+                    )
+            return
         planner.run_job(
             kind, project_id, feedback=job.get("feedback"), message_id=job.get("message_id")
         )

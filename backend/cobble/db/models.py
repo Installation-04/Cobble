@@ -209,6 +209,10 @@ class Task(Base):
     tests: Mapped[str] = mapped_column(Text, nullable=False)
     size: Mapped[str] = mapped_column(String(5), nullable=False)
     role: Mapped[str] = mapped_column(String(20), nullable=False)
+    # plan (from the approved plan), demo (DEMO-Mx), comment (C-001...), revert (R-001...)
+    kind: Mapped[str] = mapped_column(
+        String(10), nullable=False, default="plan", server_default="plan"
+    )
     # todo, writing_tests, implementing, ci, merged, failed, blocked, paused, stopped
     state: Mapped[str] = mapped_column(
         String(20), nullable=False, default="todo", server_default="todo"
@@ -251,3 +255,29 @@ class TaskRun(Base):
     started_at: Mapped[datetime] = _now_col()
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     log_tail: Mapped[str | None] = mapped_column(Text)
+
+
+class Milestone(Base):
+    """A milestone of the plan with its demo (ADR 0007)."""
+
+    __tablename__ = "milestones"
+    __table_args__ = (UniqueConstraint("project_id", "ref"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    ref: Mapped[str] = mapped_column(String(20), nullable=False)  # M1
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    # pending -> built -> validated; a revert returns to pending
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="pending", server_default="pending"
+    )
+    tag: Mapped[str | None] = mapped_column(String(100))  # milestone-M1, milestone-M1-r2...
+    preview_path: Mapped[str | None] = mapped_column(Text)
+    # building | running | failed: last known state of the deployed preview
+    preview_state: Mapped[str | None] = mapped_column(String(20))
+    # Incremented each time the milestone is re-opened (comment, revert): names the next tag.
+    revision: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    built_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    validated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

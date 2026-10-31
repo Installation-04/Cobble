@@ -45,10 +45,16 @@ class TaskView:
     files: tuple[str, ...] = ()
 
 
+# A task whose files contain this may touch anything: it never runs beside another active task.
+ANY_FILE = "*"
+_KIND_OFFSETS = (("DEMO-", 300_000), ("C-", 100_000), ("R-", 200_000))
+
+
 def ref_key(ref: str) -> tuple[int, str]:
-    """Sort key putting T-2 before T-10."""
+    """Sort key putting T-2 before T-10, then comments (C-), restores (R-) and demos (DEMO-)."""
     digits = "".join(ch for ch in ref if ch.isdigit())
-    return (int(digits) if digits else 0, ref)
+    offset = next((o for prefix, o in _KIND_OFFSETS if ref.startswith(prefix)), 0)
+    return (offset + (int(digits) if digits else 0), ref)
 
 
 def _norm(path: str) -> str:
@@ -56,7 +62,11 @@ def _norm(path: str) -> str:
 
 
 def overlap(a: Iterable[str], b: Iterable[str]) -> bool:
-    return bool({_norm(p) for p in a} & {_norm(p) for p in b})
+    first = {_norm(p) for p in a}
+    second = {_norm(p) for p in b}
+    if (ANY_FILE in first and second) or (ANY_FILE in second and first):
+        return True
+    return bool(first & second)
 
 
 def runnable(tasks: Iterable[TaskView], max_parallel: int) -> list[str]:
@@ -81,7 +91,7 @@ def runnable(tasks: Iterable[TaskView], max_parallel: int) -> list[str]:
         waiting = task.state == TODO and not all(
             dep in views and views[dep].state == MERGED for dep in task.depends_on
         )
-        if waiting or files & taken:
+        if waiting or overlap(files, taken):
             if task.state == PAUSED:
                 taken |= files  # keep its files for it: nobody else may jump in
             continue

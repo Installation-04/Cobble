@@ -274,3 +274,83 @@ def test_migration_0006_up_and_down(database_url: str) -> None:
         engine.dispose()
     command.upgrade(config, "head")
     assert tables(database_url) >= STEP7_TABLES
+
+
+def test_migration_0007_milestones_and_task_kind(database_url: str) -> None:
+    config = alembic_config(database_url)
+    command.downgrade(config, "base")
+    command.upgrade(config, "0006")
+    assert "milestones" not in tables(database_url)
+    engine = create_engine(database_url)
+    try:
+        assert "kind" not in {c["name"] for c in inspect(engine).get_columns("tasks")}
+        with engine.begin() as conn:  # a task that exists before the migration
+            conn.execute(
+                text(
+                    "INSERT INTO users (id, email, password_hash) VALUES "
+                    "('00000000-0000-0000-0000-0000000000b1', 'm@example.com', 'x')"
+                )
+            )
+            conn.execute(
+                text(
+                    "INSERT INTO projects (id, owner_id, name) VALUES "
+                    "('00000000-0000-0000-0000-0000000000a7', "
+                    "'00000000-0000-0000-0000-0000000000b1', 'p')"
+                )
+            )
+            conn.execute(
+                text(
+                    "INSERT INTO tasks (id, project_id, ref, title, milestone, depends_on, "
+                    "files, acceptance, tests, size, role) VALUES "
+                    "('00000000-0000-0000-0000-0000000000c7', "
+                    "'00000000-0000-0000-0000-0000000000a7', 'T-001', 't', 'M1', '[]', '[]', "
+                    "'[]', 'x', 'S', 'backend')"
+                )
+            )
+
+        command.upgrade(config, "0007")
+        inspector = inspect(engine)
+        assert "milestones" in tables(database_url)
+        assert {
+            "project_id",
+            "ref",
+            "title",
+            "status",
+            "tag",
+            "preview_path",
+            "preview_state",
+            "revision",
+            "built_at",
+            "validated_at",
+        } <= {c["name"] for c in inspector.get_columns("milestones")}
+        with engine.begin() as conn:
+            assert conn.execute(text("SELECT kind FROM tasks")).scalar_one() == "plan"
+            conn.execute(
+                text(
+                    "INSERT INTO milestones (id, project_id, ref, title) VALUES "
+                    "('00000000-0000-0000-0000-0000000000e7', "
+                    "'00000000-0000-0000-0000-0000000000a7', 'M1', 'First')"
+                )
+            )
+            row = conn.execute(text("SELECT status, revision, tag FROM milestones")).one()
+            assert tuple(row) == ("pending", 0, None)
+        with pytest.raises(IntegrityError), engine.begin() as conn:  # (project_id, ref) unique
+            conn.execute(
+                text(
+                    "INSERT INTO milestones (id, project_id, ref, title) VALUES "
+                    "('00000000-0000-0000-0000-0000000000e8', "
+                    "'00000000-0000-0000-0000-0000000000a7', 'M1', 'Again')"
+                )
+            )
+        with engine.begin() as conn:
+            conn.execute(text("DELETE FROM projects"))  # cascades to the milestones
+            assert conn.execute(text("SELECT count(*) FROM milestones")).scalar_one() == 0
+            conn.execute(text("DELETE FROM users"))
+
+        command.downgrade(config, "0006")
+        assert "milestones" not in tables(database_url)
+        assert "kind" not in {c["name"] for c in inspect(engine).get_columns("tasks")}
+    finally:
+        engine.dispose()
+    command.upgrade(config, "head")
+    assert "milestones" in tables(database_url)

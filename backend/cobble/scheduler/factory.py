@@ -27,6 +27,21 @@ def build_scheduler(
     settings: Settings, sessions: sessionmaker[Session], redis: Redis | None
 ) -> Scheduler | None:
     """A scheduler wired to the pack, or None (and a log line) when it is not available."""
+    if settings.pack_mode == "fake":
+        from .fakepack import FAKE_RUN_TOKEN_SECRET, build_fake_services
+
+        if not settings.run_token_secret:
+            settings = settings.model_copy(update={"run_token_secret": FAKE_RUN_TOKEN_SECRET})
+        fake = build_fake_services(settings)
+        return Scheduler(
+            sessions,
+            fake.git,
+            fake.ci,
+            fake.agents,
+            settings,
+            redis=redis,
+            preview=fake.preview,
+        )
     if not settings.run_token_secret:
         log.warning("scheduler disabled: COBBLE_RUN_TOKEN_SECRET is not set")
         return None
@@ -56,4 +71,5 @@ def build_scheduler(
         settings,
         redis=redis,
         model_for=model_for,
+        preview=services.preview,
     )

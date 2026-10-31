@@ -22,6 +22,7 @@ from urllib.parse import urlsplit
 import httpx
 
 from cobble.capabilities import CIProvider, CIState, MergeRefused, MergeRequestRef, RepoRef
+from cobble.capabilities.git import TagExists, cap_diff
 
 from .errors import ProviderConflict, ProviderError, ProviderNotFound
 from .http import Api
@@ -32,6 +33,11 @@ _PLACEHOLDER = re.compile(r"\{\{\s*project_name\s*\}\}")
 _SKIP_DIRS = {".git", "node_modules", ".venv", "__pycache__", ".pytest_cache", ".ruff_cache"}
 # Statuses of a merge attempt that mean "the rules do not allow it" rather than "broken".
 _MERGE_REFUSED_STATUSES = {403, 405, 409, 422}
+_TAG_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$")
+
+
+class ProviderTagExists(ProviderConflict, TagExists):
+    """`tag` found the tag already there."""
 
 
 def render_template(template_dir: Path, dest: Path, project_name: str) -> None:
@@ -119,7 +125,7 @@ class ForgejoGit:
     def _basic_header(self) -> str:
         return base64.b64encode(f"{self.owner}:{self._token}".encode()).decode()
 
-    def _git(self, args: list[str], cwd: Path, home: Path) -> None:
+    def _git(self, args: list[str], cwd: Path, home: Path) -> str:
         """Run git without persisting credentials: the token travels in the environment of
         this process only (never on the command line, never written to .git/config)."""
         env = {
@@ -140,7 +146,7 @@ class ForgejoGit:
             if key in os.environ:
                 env[key] = os.environ[key]
         try:
-            subprocess.run(  # noqa: S603 - fixed argv, no shell
+            done = subprocess.run(  # noqa: S603 - fixed argv, no shell
                 ["git", *args],  # noqa: S607
                 cwd=cwd,
                 env=env,
@@ -149,6 +155,7 @@ class ForgejoGit:
                 text=True,
                 timeout=self.settings.git_timeout_s,
             )
+            return done.stdout.strip()
         except subprocess.CalledProcessError as exc:
             raise ProviderError(
                 f"git {args[0]} failed: {self._scrub(exc.stderr.strip())[:500]}"
@@ -321,9 +328,71 @@ class ForgejoGit:
             raise MergeRefused(f"CI is {bad[0].get('status')}: {bad[0].get('context')}")
 
     def tag(self, repo: RepoRef, name: str, ref: str) -> None:
-        self._api.request(
-            "POST", f"{self._repo_path(repo)}/tags", json={"tag_name": name, "target": ref}
+        try:
+            self._api.request(
+                "POST", f"{self._repo_path(repo)}/tags", json={"tag_name": name, "target": ref}
+            )
+        except ProviderConflict as exc:
+            raise ProviderTagExists(str(exc), status=exc.status) from None
+
+    def restore_tag(self, repo: RepoRef, tag: str, message: str) -> MergeRequestRef | None:
+        """A merge request whose result has exactly the tree of `tag` (ADR 0007).
+
+        A commit with the tag's tree and the current head of the default branch as its parent
+        is pushed to `restore/<tag>`; merging it (the normal path: CI, protection) makes the
+        default branch look like the tag without rewriting history. None when it already does.
+        """
+        if not _TAG_NAME.match(tag):
+            raise ValueError(f"invalid tag name: {tag!r}")
+        branch = f"restore/{tag}"
+        default = self.settings.default_branch
+        with tempfile.TemporaryDirectory(prefix="cobble-restore-") as tmp:
+            home = Path(tmp) / "home"
+            home.mkdir()
+            work = Path(tmp) / "work"
+            work.mkdir()
+            self._git(["clone", "-q", "--no-checkout", repo.clone_url, str(work)], work, home)
+            self._git(["fetch", "-q", "--tags", "origin"], work, home)
+            tag_tree = self._git(["rev-parse", f"refs/tags/{tag}^{{tree}}"], work, home)
+            head = self._git(["rev-parse", f"origin/{default}"], work, home)
+            if tag_tree == self._git(["rev-parse", f"{head}^{{tree}}"], work, home):
+                return None
+            commit = self._git(["commit-tree", tag_tree, "-p", head, "-m", message], work, home)
+            self._git(
+                ["push", "-q", "--force", "origin", f"{commit}:refs/heads/{branch}"], work, home
+            )
+        request = self.open_merge_request(repo, branch, default, message)
+        return MergeRequestRef(
+            request.repo, request.number, request.source_branch, request.target_branch, commit
         )
+
+    def diff(
+        self, repo: RepoRef, base: str, head: str, *, request_number: int | None = None
+    ) -> tuple[str, bool]:
+        """Unified diff of `head` against `base`, cut at DIFF_LIMIT.
+
+        Order: the pull request given by number (still answers after a merge deleted the
+        branch), the pull request of the (base, head) pair, then a plain comparison. A branch
+        that does not exist yet has an empty diff.
+        """
+        path = self._repo_path(repo)
+        candidates: list[str] = []
+        if request_number is not None:
+            candidates.append(f"{path}/pulls/{request_number}.diff")
+        else:
+            try:
+                pull = self._api.request("GET", f"{path}/pulls/{base}/{head}")
+                candidates.append(f"{path}/pulls/{int(pull['number'])}.diff")
+            except (ProviderNotFound, KeyError, TypeError, ValueError):
+                pass
+        candidates.append(f"{path}/compare/{base}...{head}.diff")
+        for candidate in candidates:
+            try:
+                text = self._api.request("GET", candidate)
+            except ProviderNotFound:
+                continue
+            return cap_diff(text if isinstance(text, str) else "")
+        return "", False
 
     # -- conveniences used by the orchestrator tests and tooling ---------------------------
 

@@ -41,13 +41,26 @@ from cobble.capabilities.agent import (
     AgentUnavailable,
 )
 from cobble.capabilities.ci import CIProvider, CIState
-from cobble.capabilities.git import GitProvider, MergeRefused, MergeRequestRef, RepoRef
+from cobble.capabilities.git import (
+    GitProvider,
+    MergeRefused,
+    MergeRequestRef,
+    RepoRef,
+    TagExists,
+)
 from cobble.capabilities.llm import Role
+from cobble.capabilities.preview import (
+    PreviewProvider,
+    PreviewRejected,
+    PreviewRequest,
+    PreviewState,
+    PreviewUnavailable,
+)
 from cobble.config import Settings
-from cobble.db import Project, Task, TaskRun
+from cobble.db import Milestone, Project, Task, TaskRun
 from cobble.events import publish_project
 
-from . import prompts, rules
+from . import control, demo, prompts, rules
 from .materialize import NoApprovedPlan, materialize_tasks
 
 log = logging.getLogger(__name__)
@@ -110,6 +123,7 @@ class Scheduler:
         redis: Redis | None = None,
         model_for: Callable[[Role], str] | None = None,
         clock: Callable[[], datetime] = _now,
+        preview: PreviewProvider | None = None,
     ) -> None:
         self._sessions = sessions
         self._git = git
@@ -119,6 +133,9 @@ class Scheduler:
         self._redis = redis
         self._model_for = model_for or self._default_model_for
         self._clock = clock
+        # Without a preview provider the demo flow is off: the project is `done` as soon as every
+        # task is merged (the behaviour of ADR 0006).
+        self._preview = preview
 
     # --- helpers --------------------------------------------------------------------------
 
@@ -157,7 +174,12 @@ class Scheduler:
 
     def _views(self, session: Session, project_id: uuid.UUID) -> list[rules.TaskView]:
         return [
-            rules.TaskView(t.ref, t.state, tuple(t.depends_on), tuple(t.files))
+            rules.TaskView(
+                t.ref,
+                control.HELD if control.is_held(t.state, t.last_error) else t.state,
+                tuple(t.depends_on),
+                tuple(t.files),
+            )
             for t in session.scalars(select(Task).where(Task.project_id == project_id))
         ]
 
@@ -192,9 +214,19 @@ class Scheduler:
                 project.repo_name = repo.name
                 project.repo_clone_url = repo.clone_url
                 session.commit()  # remember the repository before anything else can fail
+            if self._preview is not None:
+                try:  # the state a revert of the first milestone goes back to (idempotent)
+                    self._git.tag(
+                        self._repo(project), demo.TEMPLATE_TAG, self._settings.base_branch
+                    )
+                except TagExists:
+                    pass
+                except Exception as exc:
+                    log.warning("could not tag the template state of %s", project_id, exc_info=True)
+                    raise StartError("repo_error") from exc
             try:
                 self._ci.activate(self._repo(project))
-                materialize_tasks(session, project_id)
+                materialize_tasks(session, project_id, with_demo=self._preview is not None)
             except NoApprovedPlan as exc:
                 session.rollback()
                 raise StartError("no_plan") from exc
@@ -259,6 +291,7 @@ class Scheduler:
             project_ids = self._building_projects(session)
         for project_id in project_ids:
             self._advance_existing(project_id)
+            self._advance_milestones(project_id)
         return ReconcileReport(lost, reattached, waiting)
 
     def run_forever(self, stop: threading.Event, interval_s: float | None = None) -> None:
@@ -292,6 +325,7 @@ class Scheduler:
             try:
                 self._advance_existing(project_id)
                 self._start_runnable(project_id)
+                self._advance_milestones(project_id)
                 self._check_done(project_id)
             except Exception:
                 log.exception("scheduler step failed for project %s", project_id)
@@ -367,7 +401,10 @@ class Scheduler:
         if last is not None and last.state in ACTIVE_RUNS:
             return
         if last is None:
-            self._launch_or_hold(session, project, task, "test-writer")
+            # A demo task has no test-writer step (nothing to test first: it only seeds data).
+            self._launch_or_hold(
+                session, project, task, "worker" if task.kind == "demo" else "test-writer"
+            )
         elif last.state == AgentOutcome.STOPPED.value:
             self._set_state(session, task, rules.STOPPED)
         elif last.state == AgentOutcome.BUDGET.value:
@@ -400,6 +437,9 @@ class Scheduler:
 
     def _launch_or_hold(self, session: Session, project: Project, task: Task, kind: str) -> None:
         """Start the next run now, or park the task as `paused` (budget reached / no free slot)."""
+        if task.kind == "revert":
+            self._start_restore(session, project, task)
+            return
         if (
             project.status != "active"
             or self._running_elsewhere(session, task) >= self._settings.max_parallel_agents
@@ -433,7 +473,8 @@ class Scheduler:
             task.size,
         )
         if worker:
-            instructions = prompts.worker_instructions(view, attempt, task.last_error)
+            make = prompts.demo_instructions if task.kind == "demo" else prompts.worker_instructions
+            instructions = make(view, attempt, task.last_error)
         else:
             instructions = prompts.writer_instructions(view)
         limits = AgentLimits(
@@ -566,17 +607,20 @@ class Scheduler:
         """CI (or the merge) said no: this attempt failed, try again with the log."""
         run.state = REJECTED
         task.last_error = detail[:LOG_TAIL_CHARS]
+        if task.kind == "revert":  # no agent can fix a restore: the operator decides
+            self._set_state(session, task, rules.FAILED)
+            return
         self._set_state(session, task, rules.IMPLEMENTING)
         self._launch_or_hold(session, project, task, "worker")
 
     # --- starting tasks, blocking, completion ---------------------------------------------
 
     @staticmethod
-    def _next_kind(runs: list[TaskRun]) -> str | None:
+    def _next_kind(runs: list[TaskRun], task_kind: str = "plan") -> str | None:
         """The kind of run a task needs next, or None when it needs a merge request instead."""
         last = runs[-1] if runs else None
         if last is None:
-            return "test-writer"
+            return "worker" if task_kind == "demo" else "test-writer"
         if last.kind == "test-writer":
             return "worker" if last.state == AgentOutcome.DONE.value else "test-writer"
         return None if last.state == AgentOutcome.DONE.value else "worker"
@@ -599,7 +643,10 @@ class Scheduler:
                 task = session.get(Task, by_ref[ref])
                 if project is None or task is None or task.state not in (rules.TODO, rules.PAUSED):
                     continue
-                kind = self._next_kind(self._runs(session, task))
+                if task.kind == "revert":
+                    self._start_restore(session, project, task)
+                    continue
+                kind = self._next_kind(self._runs(session, task), task.kind)
                 if kind is None:
                     continue  # a finished worker waits for its merge request, not for a run
                 self._launch(session, project, task, kind)
@@ -619,6 +666,9 @@ class Scheduler:
             project = session.get(Project, project_id)
             if project is None or project.phase != "building":
                 return
+            if self._preview is not None:  # demo flow: the user's validations finish the project
+                demo.finish_if_validated(session, self._emit, project)
+                return
             views = self._views(session, project_id)
             if not rules.all_merged(views):
                 return
@@ -627,3 +677,147 @@ class Scheduler:
             total = len(views)
         self._emit(project_id, "phase.changed", {"phase": "done"})
         self._emit(project_id, "project.done", {"tasks": total})
+
+    # --- restore (revert of a milestone) --------------------------------------------------
+
+    def _start_restore(self, session: Session, project: Project, task: Task) -> None:
+        """Open the merge request that brings a tagged tree back; CI and merge go the usual way.
+
+        The tag to restore is the first acceptance item (`restore:<tag>`). Idempotent: opening
+        the same request twice returns it, so a crash right after this call is harmless.
+        """
+        tag = (task.acceptance[0] if task.acceptance else "").removeprefix(demo.RESTORE_PREFIX)
+        try:
+            request = self._git.restore_tag(self._repo(project), tag, task.title)
+        except Exception:
+            log.warning("could not restore %s for %s", tag, task.ref, exc_info=True)
+            return  # retried on the next tick
+        if request is None:  # the default branch already has that tree
+            task.last_error = None
+            self._set_state(session, task, rules.MERGED)
+            return
+        task.branch = request.source_branch
+        task.pr_number = request.number
+        session.add(
+            TaskRun(
+                task_id=task.id,
+                kind="worker",
+                attempt=1,
+                model="-",
+                state=AgentOutcome.DONE.value,
+                head_sha=request.head_sha,
+                finished_at=self._clock(),
+                log_tail=f"restored {tag}",
+            )
+        )
+        session.commit()
+        self._set_state(session, task, rules.CI)
+
+    # --- milestones and demo --------------------------------------------------------------
+
+    def _advance_milestones(self, project_id: uuid.UUID) -> None:
+        """Build the milestones whose tasks are all merged; follow the previews being built."""
+        if self._preview is None:
+            return
+        with self._sessions() as session:
+            project = session.get(Project, project_id)
+            if project is None or project.phase != "building":
+                return
+            tasks = list(session.scalars(select(Task).where(Task.project_id == project_id)))
+            for milestone in demo.milestones_of(session, project_id):
+                try:
+                    mine = [t for t in tasks if t.milestone == milestone.ref]
+                    if milestone.status == demo.PENDING:
+                        self._build_milestone(session, project, milestone, mine)
+                    elif milestone.preview_state == PreviewState.BUILDING.value:
+                        self._follow_preview(session, project, milestone)
+                except Exception:
+                    session.rollback()
+                    log.exception("milestone step failed for %s %s", project_id, milestone.ref)
+
+    def _build_milestone(
+        self, session: Session, project: Project, milestone: Milestone, tasks: list[Task]
+    ) -> None:
+        """pending -> built: tag the default branch, deploy the tag, remember the path.
+
+        Resumable: the tag is stored only once git has it, and a milestone with a tag but not
+        `built` yet is simply deployed again (deploying twice is a no-op for the service).
+        """
+        if self._preview is None or not any(t.kind == "demo" for t in tasks):
+            return
+        if not tasks or any(t.state != rules.MERGED for t in tasks):
+            return
+        if milestone.tag is None:
+            name = demo.tag_name(milestone)
+            try:
+                self._git.tag(self._repo(project), name, self._settings.base_branch)
+            except TagExists:
+                pass  # tagged by an attempt that died before storing the name
+            except Exception:
+                log.warning("could not tag %s of %s", milestone.ref, project.id, exc_info=True)
+                return
+            milestone.tag = name
+            session.commit()
+        request = PreviewRequest(
+            project.id, milestone.ref, project.repo_clone_url or "", milestone.tag
+        )
+        try:
+            status = self._preview.deploy(request)
+            state, path = status.state.value, status.path
+        except PreviewUnavailable:
+            log.warning("preview service unreachable, %s will be deployed later", milestone.ref)
+            return
+        except PreviewRejected:
+            log.warning("preview service refused %s of %s", milestone.ref, project.id)
+            state, path = PreviewState.FAILED.value, f"/demo/{project.id}/{milestone.ref}/"
+        milestone.status = demo.BUILT
+        milestone.built_at = self._clock()
+        milestone.preview_path = path
+        milestone.preview_state = state
+        session.commit()
+        demo.emit_milestone(self._emit, project.id, milestone)
+
+    def _follow_preview(self, session: Session, project: Project, milestone: Milestone) -> None:
+        if self._preview is None:
+            return
+        try:
+            status = self._preview.status(project.id, milestone.ref)
+            if status is None:  # the service forgot it (reset): ask again
+                status = self._preview.deploy(
+                    PreviewRequest(
+                        project.id, milestone.ref, project.repo_clone_url or "", milestone.tag or ""
+                    )
+                )
+        except (PreviewUnavailable, PreviewRejected):
+            return
+        if status.state.value != milestone.preview_state:
+            milestone.preview_state = status.state.value
+            session.commit()
+            demo.emit_milestone(self._emit, project.id, milestone)
+
+    def run_revert_job(self, project_id: uuid.UUID, ref: str) -> bool:
+        """The `revert` job: re-open the milestone (and later ones) and queue the restore."""
+        self._emit(project_id, "job.started", {"kind": "revert"})
+        try:
+            with self._sessions() as session:
+                project = session.get(Project, project_id)
+                if project is None:
+                    raise demo.DemoError(404, "not_found")
+                reopened = demo.apply_revert(session, self._emit, project, ref, self._stop_run)
+            if self._preview is not None:
+                for name in reopened:
+                    try:
+                        self._preview.remove(project_id, name)
+                    except Exception:
+                        log.warning("could not remove the preview of %s", name, exc_info=True)
+        except demo.DemoError as exc:
+            self._emit(project_id, "job.failed", {"kind": "revert", "code": exc.code})
+            return False
+        except Exception:
+            log.exception("unexpected error while reverting %s", project_id)
+            self._emit(project_id, "job.failed", {"kind": "revert", "code": "internal_error"})
+            return False
+        return True
+
+    def _stop_run(self, run_id: str) -> None:
+        self._agents.stop(run_id)

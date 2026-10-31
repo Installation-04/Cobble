@@ -14,7 +14,10 @@ from cobble.config import Settings, get_settings
 from cobble.db import make_engine, make_session_factory
 
 from . import (
+    routes_agents,
     routes_auth,
+    routes_costs,
+    routes_demo,
     routes_folders,
     routes_internal_llm,
     routes_planning,
@@ -94,7 +97,22 @@ def create_app(
         routes_projects.router,
         routes_planning.router,
         routes_tasks.router,
+        routes_agents.router,
+        routes_costs.router,
+        routes_demo.router,
     ):
         app.include_router(router, prefix="/api/v1")
     app.include_router(routes_internal_llm.router)
+    if settings.pack_mode == "fake":
+        # The API and the worker are two processes: the fake services keep no state, so an
+        # instance here answers like the worker's (logs, diff of a run the worker started).
+        from cobble.scheduler.fakepack import build_fake_services
+
+        from . import routes_fakedemo
+
+        fake = build_fake_services(settings)
+        app.state.agents = fake.agents
+        app.state.git = fake.git
+        app.state.preview = fake.preview
+        app.include_router(routes_fakedemo.router)  # /demo/... served by the API itself
     return app

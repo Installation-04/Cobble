@@ -23,6 +23,7 @@ class HealthResponse(BaseModel):
     database: Status
     redis: Status
     version: str
+    pack_mode: Literal["real", "fake"]
 
 
 def _run(check: Check, name: str) -> Status:
@@ -47,4 +48,5 @@ def health(request: Request, response: Response) -> HealthResponse:
         database=database,
         redis=redis,
         version=cobble.__version__,
+        pack_mode=request.app.state.settings.pack_mode,
     )

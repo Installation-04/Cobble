@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from cobble.capabilities.agent import AgentOutcome
 from cobble.capabilities.ci import CIState
 from cobble.capabilities.fakes import FakeAgentRunner, FakeCIProvider, FakeGitProvider
+from cobble.capabilities.fakes_preview import FakePreviewProvider
 from cobble.capabilities.git import RepoRef
 from cobble.config import Settings
 from cobble.db import Plan, Project, Task, TaskRun, User
@@ -97,7 +98,9 @@ class Harness:
         redis: FakeStreamRedis | None = None,
         settings: Settings | None = None,
         clock: Clock | None = None,
+        preview: FakePreviewProvider | None = None,
     ) -> None:
+        self.preview = preview
         self.sessions = sessions
         self.settings = settings or make_settings()
         self.ci = ci or FakeCIProvider(default=CIState.SUCCESS)
@@ -116,6 +119,7 @@ class Harness:
             self.settings,
             redis=self.redis,  # type: ignore[arg-type]
             clock=self.clock,
+            preview=self.preview,
         )
 
     # --- driving ---------------------------------------------------------------------------

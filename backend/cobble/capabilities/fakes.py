@@ -18,7 +18,7 @@ from .agent import (
     run_blocking,
 )
 from .ci import CIState, CIStatus
-from .git import MergeRefused, MergeRequestRef, RepoRef
+from .git import MergeRefused, MergeRequestRef, RepoRef, cap_diff
 from .llm import ChatResult, Role
 
 
@@ -37,6 +37,10 @@ class FakeGitProvider:
         self.merge_calls: list[MergeRequestRef] = []
         self.opened: dict[tuple[str, str, str], MergeRequestRef] = {}
         self.tags: list[tuple[str, str, str]] = []
+        self.restores: list[tuple[str, str, str]] = []  # (repo name, tag, message)
+        self.restore_nothing = False  # restore_tag finds the tree already in place
+        self.diffs: dict[tuple[str, str], str] = {}  # (repo name, head branch) -> unified diff
+        self.diff_calls: list[tuple[str, str, str, int | None]] = []
         self._numbers = 0
 
     def create_repo_from_template(self, name: str, template_dir: Path) -> RepoRef:
@@ -64,6 +68,32 @@ class FakeGitProvider:
 
     def tag(self, repo: RepoRef, name: str, ref: str) -> None:
         self.tags.append((repo.name, name, ref))
+
+    def restore_tag(self, repo: RepoRef, tag: str, message: str) -> MergeRequestRef | None:
+        self.restores.append((repo.name, tag, message))
+        if self.restore_nothing:
+            return None
+        return self.open_merge_request(repo, f"restore/{tag}", "main", message)
+
+    def diff(
+        self, repo: RepoRef, base: str, head: str, *, request_number: int | None = None
+    ) -> tuple[str, bool]:
+        """`diffs[(repo, head)]` when set, else a small deterministic diff for a branch that
+        has a merge request, else nothing (the branch was never pushed)."""
+        self.diff_calls.append((repo.name, base, head, request_number))
+        text = self.diffs.get((repo.name, head))
+        if text is None:
+            if (repo.name, head, base) not in self.opened:
+                return "", False
+            text = (
+                f"diff --git a/{head}.txt b/{head}.txt\n"
+                "new file mode 100644\n"
+                "--- /dev/null\n"
+                f"+++ b/{head}.txt\n"
+                "@@ -0,0 +1 @@\n"
+                f"+change on {head}\n"
+            )
+        return cap_diff(text)
 
 
 class FakeCIProvider:
@@ -165,6 +195,23 @@ class FakeAgentRunner:
 
     def stop(self, run_id: str) -> None:
         self.stopped.append(run_id)
+
+    def logs(self, run_id: str, offset: int = 0) -> tuple[str, int]:
+        """Deterministic log lines; the first line is the one `poll` reports as the log."""
+        if self.unavailable:
+            raise AgentUnavailable("fake agent service is down")
+        if run_id in self.lost or run_id not in self._results:
+            raise AgentRunNotFound(run_id)
+        task = self.runs[int(run_id.removeprefix("run-")) - 1]
+        lines = [
+            f"fake log of {run_id}",
+            f"$ {task.role.value} on {task.branch}",
+            f"iteration 1: {self._results[run_id].outcome.value}",
+        ]
+        if run_id in self.stopped:
+            lines.append("stopped on request")
+        text = "\n".join(lines) + "\n"
+        return text[max(offset, 0) :], len(text)
 
     def run(self, task: AgentTask) -> AgentResult:
         return run_blocking(self, task, sleep=lambda _s: None)

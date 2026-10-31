@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from decimal import Decimal
 from functools import lru_cache
+from typing import Literal
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -56,6 +58,26 @@ class Settings(BaseSettings):
     agent_cpu: float = 1.0
     agent_memory_mb: int = 2048
     agent_pids: int = 256
+    # --- demo (ADR 0007) ---
+    # Internal HTTP API of the preview-service (the component that builds and runs the demos).
+    preview_service_url: str = "http://preview-service:8091"
+    preview_service_token: str = ""
+    # `real`: the fixed pack (git server, CI, agent-service, preview-service). `fake`:
+    # in-memory fakes that play the whole loop in seconds, for development and browser tests.
+    # Refused when `env` is `production`.
+    pack_mode: Literal["real", "fake"] = "real"
+    env: str = "development"
+    # Fake pack only: seconds between two steps of a simulated agent run.
+    fake_step_s: float = 0.3
+
+    @model_validator(mode="after")
+    def _fake_pack_rules(self) -> Settings:
+        if self.pack_mode == "fake":
+            if self.env.lower() == "production":
+                raise ValueError("COBBLE_PACK_MODE=fake is refused when COBBLE_ENV=production")
+            if "scheduler_interval_s" not in self.model_fields_set:
+                self.scheduler_interval_s = 0.5  # the fake loop should feel quick
+        return self
 
 
 @lru_cache

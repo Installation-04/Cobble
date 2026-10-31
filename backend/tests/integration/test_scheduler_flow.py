@@ -159,3 +159,69 @@ def test_start_job_then_scheduler_completes_with_a_resume(
     types = [t for t, _ in events(redis, project_id)]
     assert types.count("project.done") == 1
     assert types.index("project.building") < types.index("project.done")
+
+
+def test_milestone_flow_validate_comment_revert_on_postgres(
+    stack: tuple[sessionmaker[Session], Redis, uuid.UUID, Settings],
+) -> None:
+    """Build -> demo -> validate; comment re-opens; revert restores; resume after a crash."""
+    from cobble.capabilities.fakes_preview import FakePreviewProvider
+    from cobble.scheduler import demo
+
+    sessions, redis, project_id, settings = stack
+    ci = FakeCIProvider(default=CIState.SUCCESS)
+    git = FakeGitProvider(ci)
+    agents = FakeAgentRunner()
+    preview = FakePreviewProvider()
+
+    def scheduler() -> Scheduler:
+        return Scheduler(sessions, git, ci, agents, settings, redis=redis, preview=preview)
+
+    emit = demo.redis_emitter(redis)
+
+    def statuses() -> list[str]:
+        with sessions() as db:
+            return [m.status for m in demo.milestones_of(db, project_id)]
+
+    def tick_until(sched: Scheduler, wanted: list[str]) -> None:
+        for _ in range(300):
+            sched.tick()
+            if statuses() == wanted:
+                return
+        pytest.fail(f"never reached {wanted}: {statuses()}")
+
+    first = scheduler()
+    assert first.start_project(project_id)
+    assert statuses() == ["pending"]
+    for _ in range(8):
+        first.tick()
+    second = scheduler()  # crash and restart in the middle
+    second.reconcile()
+    tick_until(second, ["built"])
+    with sessions() as db:
+        milestone = demo.get_milestone(db, project_id, "M1")
+        assert (milestone.tag, milestone.preview_path) == (
+            "milestone-M1",
+            f"/demo/{project_id}/M1/",
+        )
+        project = db.get(Project, project_id)
+        assert project is not None and project.phase == "building"
+        demo.add_comment(db, emit, project, "M1", "Rename the title")
+    tick_until(second, ["built"])
+    with sessions() as db:
+        assert demo.get_milestone(db, project_id, "M1").tag == "milestone-M1-r2"
+        project = db.get(Project, project_id)
+        assert project is not None
+        demo.validate_milestone(db, emit, project, "M1")
+        assert project.phase == "done"
+    assert second.run_revert_job(project_id, "M1")
+    assert statuses() == ["pending"]
+    tick_until(second, ["built"])
+    assert git.restores and git.restores[0][1] == demo.TEMPLATE_TAG
+    with sessions() as db:
+        assert demo.get_milestone(db, project_id, "M1").tag == "milestone-M1-r3"
+        tasks = {t.ref: t for t in db.scalars(select(Task).where(Task.project_id == project_id))}
+    assert {t.state for t in tasks.values()} == {"merged"}
+    assert tasks["DEMO-M1"].kind == "demo" and tasks["R-001"].kind == "revert"
+    types = [t for t, _ in events(redis, project_id)]
+    assert "milestone.updated" in types

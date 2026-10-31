@@ -23,7 +23,27 @@ def test_health_ok() -> None:
         "database": "ok",
         "redis": "ok",
         "version": cobble.__version__,
+        "pack_mode": "real",
     }
+
+
+def test_health_reports_the_fake_pack_mode() -> None:
+    from cobble.config import Settings
+
+    app = create_app(
+        {"database": ok, "redis": ok}, settings=Settings(pack_mode="fake"), redis=object()
+    )
+    assert TestClient(app).get("/api/v1/health").json()["pack_mode"] == "fake"
+
+
+def test_fake_pack_mode_is_refused_in_production() -> None:
+    import pytest
+    from pydantic import ValidationError
+
+    from cobble.config import Settings
+
+    with pytest.raises(ValidationError, match="production"):
+        Settings(pack_mode="fake", env="production")
 
 
 def test_health_reports_failing_component_with_503() -> None:

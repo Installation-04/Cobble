@@ -31,6 +31,7 @@ from cobble.capabilities.agent import (
 )
 from cobble.capabilities.ci import CIProvider
 from cobble.capabilities.git import GitProvider
+from cobble.capabilities.preview import PreviewProvider
 from cobble.config import Settings
 
 log = logging.getLogger(__name__)
@@ -70,10 +71,16 @@ class HttpAgentRunner:
         self._client.close()
 
     def _request(
-        self, method: str, path: str, *, json: dict[str, Any] | None = None
+        self,
+        method: str,
+        path: str,
+        *,
+        json: dict[str, Any] | None = None,
+        params: dict[str, Any] | None = None,
+        headers: dict[str, str] | None = None,
     ) -> httpx.Response:
         try:
-            return self._client.request(method, path, json=json)
+            return self._client.request(method, path, json=json, params=params, headers=headers)
         except httpx.HTTPError as exc:
             # The message must not echo headers: only the exception type is kept.
             raise AgentUnavailable(f"agent service unreachable: {type(exc).__name__}") from None
@@ -145,6 +152,24 @@ class HttpAgentRunner:
             return
         raise AgentUnavailable(f"agent service answered HTTP {response.status_code}")
 
+    def logs(self, run_id: str, offset: int = 0) -> tuple[str, int]:
+        response = self._request(
+            "GET",
+            f"/v1/runs/{run_id}/logs",
+            params={"offset": max(offset, 0)},
+            headers={"Accept": "text/plain"},
+        )
+        if response.status_code == 404:
+            raise AgentRunNotFound(run_id)
+        if response.status_code != 200:
+            raise AgentUnavailable(f"agent service answered HTTP {response.status_code}")
+        text = response.text
+        try:
+            next_offset = int(response.headers["X-Next-Offset"])
+        except (KeyError, ValueError):
+            next_offset = max(offset, 0) + len(response.content)
+        return text, next_offset
+
     def run(self, task: AgentTask) -> AgentResult:
         return run_blocking(self, task, timeout_s=task.limits.max_seconds + 60.0, sleep=self._sleep)
 
@@ -154,6 +179,9 @@ class PackServices:
     git: GitProvider
     ci: CIProvider
     agents: HttpAgentRunner
+    # None: no preview service configured, the demo flow is off (the project is `done` when
+    # every task is merged).
+    preview: PreviewProvider | None = None
 
 
 def build_pack_services(settings: Settings, env_file: Path | None = None) -> PackServices | None:
@@ -173,4 +201,13 @@ def build_pack_services(settings: Settings, env_file: Path | None = None) -> Pac
         log.warning("COBBLE_AGENT_SERVICE_TOKEN is empty")
         return None
     ci = WoodpeckerCI(pack)
-    return PackServices(ForgejoGit(pack, ci=ci), ci, HttpAgentRunner.from_settings(settings))
+    preview: PreviewProvider | None = None
+    if settings.preview_service_token:
+        from .preview_service import HttpPreviewProvider
+
+        preview = HttpPreviewProvider.from_settings(settings)
+    else:
+        log.warning("COBBLE_PREVIEW_SERVICE_TOKEN is empty: milestone demos are disabled")
+    return PackServices(
+        ForgejoGit(pack, ci=ci), ci, HttpAgentRunner.from_settings(settings), preview
+    )
