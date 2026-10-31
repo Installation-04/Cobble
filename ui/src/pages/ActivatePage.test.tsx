@@ -46,9 +46,9 @@ describe("ActivatePage", () => {
     await userEvent.type(await screen.findByTestId("activate-email"), "admin@example.com");
     await userEvent.type(screen.getByTestId("activate-password"), "short");
     // bypass native minlength validation by submitting the form directly
-    screen.getByTestId("activate-form").dispatchEvent(
-      new Event("submit", { bubbles: true, cancelable: true }),
-    );
+    screen
+      .getByTestId("activate-form")
+      .dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
     expect(await screen.findByTestId("activate-error")).toHaveTextContent("at least 10");
     expect(calls.some((c) => c.path === "/auth/activate")).toBe(false);
   });

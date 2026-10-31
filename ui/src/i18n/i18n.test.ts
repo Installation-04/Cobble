@@ -1,4 +1,3 @@
-
 import { describe, expect, it, vi } from "vitest";
 import i18n, { detectLang, LANG_STORAGE_KEY, setLang } from "./index";
 

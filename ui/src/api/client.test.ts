@@ -46,9 +46,15 @@ describe("api client", () => {
   });
 
   it("falls back to an unknown code on a non-JSON error and maps network failures", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => new Response("<html>", { status: 502 })));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("<html>", { status: 502 })),
+    );
     await expect(api.get("/x")).rejects.toMatchObject({ status: 502, code: "unknown" });
-    vi.stubGlobal("fetch", vi.fn(async () => Promise.reject(new TypeError("offline"))));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Promise.reject(new TypeError("offline"))),
+    );
     await expect(api.get("/x")).rejects.toBeInstanceOf(NetworkError);
   });
 
@@ -61,7 +67,9 @@ describe("api client", () => {
     });
     await expect(api.get("/folders")).rejects.toMatchObject({ code: "unauthenticated" });
     expect(handler).toHaveBeenCalledTimes(1);
-    await expect(api.post("/auth/login", {})).rejects.toMatchObject({ code: "invalid_credentials" });
+    await expect(api.post("/auth/login", {})).rejects.toMatchObject({
+      code: "invalid_credentials",
+    });
     expect(handler).toHaveBeenCalledTimes(1);
     await expect(api.get("/folders", { skipUnauthorizedHandler: true })).rejects.toBeInstanceOf(
       ApiError,
