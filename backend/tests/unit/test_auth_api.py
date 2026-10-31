@@ -438,7 +438,15 @@ def test_projects_crud(logged: TestClient) -> None:
     )
     assert created.status_code == 201
     project = created.json()
-    assert set(project) == {"id", "name", "folder_id", "created_at", "budget_usd", "status"}
+    assert set(project) == {
+        "id",
+        "name",
+        "folder_id",
+        "created_at",
+        "budget_usd",
+        "status",
+        "phase",
+    }
     assert project["status"] == "active"
     assert project["budget_usd"] == "5.00"
     assert project["folder_id"] == folder["id"]

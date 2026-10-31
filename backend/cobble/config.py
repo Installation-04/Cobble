@@ -21,6 +21,11 @@ class Settings(BaseSettings):
     role_models: dict[str, str] = {}
     # Hard cap applied to every new project, in USD (0 or unset in a project = see API).
     default_budget_usd: Decimal = Decimal("5.00")
+    # Cost estimate shown with a plan: tokens per task size (before the x1.5 test-writer and
+    # reviewer passes) and the price per 1000 tokens in USD.
+    estimate_tokens_s: int = 20_000
+    estimate_tokens_m: int = 50_000
+    estimate_usd_per_1k_tokens: Decimal = Decimal("0.002")
     lang: str = "en"
     public_url: str = "http://localhost:8080"
     cookie_secure: bool = False

@@ -1,5 +1,15 @@
 from .base import Base, make_engine, make_session_factory
-from .models import ActivationToken, AuthSession, Folder, LLMCall, Project, User
+from .models import (
+    ActivationToken,
+    AuthSession,
+    Folder,
+    LLMCall,
+    Message,
+    Plan,
+    Project,
+    Spec,
+    User,
+)
 
 __all__ = [
     "ActivationToken",
@@ -7,7 +17,10 @@ __all__ = [
     "Base",
     "Folder",
     "LLMCall",
+    "Message",
+    "Plan",
     "Project",
+    "Spec",
     "User",
     "make_engine",
     "make_session_factory",

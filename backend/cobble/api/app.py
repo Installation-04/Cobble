@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from cobble.config import Settings, get_settings
 from cobble.db import make_engine, make_session_factory
 
-from . import routes_auth, routes_folders, routes_projects
+from . import routes_auth, routes_folders, routes_planning, routes_projects
 from .errors import error_response, install_error_handlers
 from .health import Check
 from .health import router as health_router
@@ -75,6 +75,11 @@ def create_app(
 
     install_error_handlers(app)
     app.include_router(health_router, prefix="/api/v1")
-    for router in (routes_auth.router, routes_folders.router, routes_projects.router):
+    for router in (
+        routes_auth.router,
+        routes_folders.router,
+        routes_projects.router,
+        routes_planning.router,
+    ):
         app.include_router(router, prefix="/api/v1")
     return app

@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "request": {
+    "key": "de27868c5e947ac3f9229bd7f914c521d03c4df5f91cb6fedcd761f2eb045539",
+    "model": "fake",
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are the planner of Cobble. From the interview below, write the specification of the application.\nRules:\n- Write in English, the user's language.\n- Reply with the Markdown document only, with no text before or after it.\n- Start with a level-1 title (the application name), then a short summary, then these level-2 sections in this order: Features, Screens, Data model, Constraints, Out of scope.\n- Be concrete and testable. Do not invent features the user did not ask for.\n- The only project template available is a FastAPI backend (Python) with a simple web front end. Never propose another stack."
+      },
+      {
+        "role": "user",
+        "content": "Interview:\n\n[user] I want a simple to-do list app\n\n[assistant] Nice idea! Three quick questions. Will only you use it, or several people? Which device: phone, computer, or both? Does a task need more than a title and a done checkbox (due date, category)? I suggest a simple stack: a FastAPI backend with a light web page.\n\n[user] Just for me, on my phone. I want to add tasks, tick them off and delete them. No account needed.\n\n[assistant] Perfect. Summary: a personal to-do list for your phone, to add, tick off and delete tasks, with no account. Stack: FastAPI plus a simple web page. You can now generate the specification.\n\nWrite the specification now."
+      }
+    ]
+  },
+  "response": {
+    "content": "# Simple to-do list\n\nA personal to-do list used from a phone. One user, no account.\n\n## Features\n- Add a task with a title.\n- List all tasks, oldest first.\n- Tick a task as done, or untick it.\n- Delete a task.\n\n## Screens\n- A single page: a form to add a task, then the list.\n- Each task has a checkbox and a delete button.\n\n## Data model\n- Todo: id (integer), title (text, 1 to 200 characters), done (boolean, false by default).\n\n## Constraints\n- FastAPI backend with a simple web page; data survives a restart.\n- Usable on a phone screen (375 px wide).\n\n## Out of scope\n- Accounts, sharing, due dates, categories, notifications.",
+    "finish_reason": "stop"
+  }
+}

@@ -6,7 +6,7 @@ import re
 import uuid
 from datetime import datetime
 from decimal import Decimal
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -14,6 +14,8 @@ from cobble.auth.passwords import MIN_PASSWORD_LENGTH
 
 Lang = Literal["fr", "en"]
 Theme = Literal["system", "light", "dark"]
+Phase = Literal["interview", "spec_review", "plan_review", "ready"]
+Approval = Literal["draft", "approved"]
 
 _EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
@@ -138,3 +140,57 @@ class ProjectOut(BaseModel):
     created_at: datetime
     budget_usd: Decimal | None
     status: Literal["active", "paused"]
+    phase: Phase
+
+
+class MessageIn(BaseModel):
+    content: str
+
+    @field_validator("content")
+    @classmethod
+    def _content(cls, value: str) -> str:
+        value = value.strip()
+        if not 1 <= len(value) <= 8000:
+            raise ValueError("content must be 1-8000 characters")
+        return value
+
+
+class MessageOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    role: Literal["user", "assistant"]
+    content: str
+    created_at: datetime
+
+
+class MessageAccepted(BaseModel):
+    message: MessageOut
+
+
+class GenerateIn(BaseModel):
+    feedback: str | None = Field(default=None, max_length=8000)
+
+    @field_validator("feedback")
+    @classmethod
+    def _feedback(cls, value: str | None) -> str | None:
+        return (value or "").strip() or None
+
+
+class SpecOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    version: int
+    content: str
+    status: Approval
+    created_at: datetime
+
+
+class PlanOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    version: int
+    status: Approval
+    plan: dict[str, Any]
+    estimate: dict[str, Any]
+    created_at: datetime
