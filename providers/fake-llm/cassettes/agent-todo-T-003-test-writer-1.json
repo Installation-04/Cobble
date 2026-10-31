@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "match": {
+    "marker": "[cobble-task:T-003:test-writer:1]"
+  },
+  "response": {
+    "content": "I will write the tests of T-003 first, one per acceptance criterion.\n\ntests/test_todos_create_list.py\n```\nimport pytest\nfrom fastapi.testclient import TestClient\n\nfrom app import db\nfrom app.main import app\n\nclient = TestClient(app)\n\n\n@pytest.fixture(autouse=True)\ndef fresh_db() -> None:\n    db.reset()\n\n\ndef test_post_with_a_title_returns_201_and_the_created_todo() -> None:\n    response = client.post(\"/api/todos\", json={\"title\": \"Buy milk\"})\n    assert response.status_code == 201\n    body = response.json()\n    assert isinstance(body[\"id\"], int)\n    assert body[\"title\"] == \"Buy milk\"\n    assert body[\"done\"] is False\n\n\ndef test_post_with_an_empty_title_returns_422() -> None:\n    assert client.post(\"/api/todos\", json={\"title\": \"\"}).status_code == 422\n    assert client.post(\"/api/todos\", json={\"title\": \"   \"}).status_code == 422\n    assert client.post(\"/api/todos\", json={}).status_code == 422\n\n\ndef test_post_with_a_title_over_200_characters_returns_422() -> None:\n    assert client.post(\"/api/todos\", json={\"title\": \"x\" * 201}).status_code == 422\n\n\ndef test_get_returns_all_todos_oldest_first() -> None:\n    for title in (\"first\", \"second\", \"third\"):\n        client.post(\"/api/todos\", json={\"title\": title})\n    response = client.get(\"/api/todos\")\n    assert response.status_code == 200\n    assert [todo[\"title\"] for todo in response.json()] == [\"first\", \"second\", \"third\"]\n\n\ndef test_get_with_no_todo_returns_an_empty_list() -> None:\n    response = client.get(\"/api/todos\")\n    assert response.status_code == 200\n    assert response.json() == []\n```\n",
+    "finish_reason": "stop"
+  }
+}

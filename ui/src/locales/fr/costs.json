@@ -1,0 +1,39 @@
+{
+  "paused": "Le projet est en pause : plus aucune requête n'est envoyée aux modèles. Augmentez le budget pour continuer.",
+  "budget": {
+    "title": "Budget",
+    "none": "Aucun budget défini",
+    "of": "sur {{budget}}",
+    "bar": "Budget utilisé",
+    "percent": "{{percent}} % utilisé",
+    "level": {
+      "ok": "{{percent}} % du budget utilisé.",
+      "warning": "{{percent}} % du budget utilisé : proche de la limite.",
+      "danger": "Le budget est atteint ({{percent}} %)."
+    }
+  },
+  "totals": {
+    "tokens": "Jetons",
+    "split": "{{prompt}} en entrée · {{completion}} en sortie",
+    "estimate": "Estimation",
+    "noEstimate": "Non disponible",
+    "actual": "Coût réel",
+    "over": "{{percent}} % au-dessus de l'estimation",
+    "under": "{{percent}} % en dessous de l'estimation"
+  },
+  "table": {
+    "byTask": "Coût par tâche",
+    "byModel": "Coût par modèle",
+    "byRole": "Coût par rôle",
+    "task": "Tâche",
+    "model": "Modèle",
+    "role": "Rôle",
+    "calls": "Appels",
+    "tokensIn": "Jetons en entrée",
+    "tokensOut": "Jetons en sortie",
+    "cost": "Coût",
+    "planner": "Planification (sans tâche)",
+    "unknown": "Inconnu",
+    "empty": "Aucun appel de modèle pour l'instant."
+  }
+}

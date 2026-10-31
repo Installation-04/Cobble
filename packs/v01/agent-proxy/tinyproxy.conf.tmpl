@@ -1,0 +1,16 @@
+# Generated into /tmp by entrypoint.sh. Default deny: the filter file lists the only
+# destination host names that may be reached (matched against the host, not the URL path).
+Port 3128
+Listen 0.0.0.0
+Timeout 600
+MaxClients 100
+LogLevel Info
+DisableViaHeader Yes
+# HTTPS tunnels (CONNECT) are only allowed to port 443. Plain HTTP goes to allowed hosts only
+# (the Cobble API internal endpoint is plain HTTP on the private core network).
+ConnectPort 443
+Filter "@FILTER_FILE@"
+FilterType ere
+FilterURLs Off
+FilterCaseSensitive Off
+FilterDefaultDeny Yes

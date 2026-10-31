@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "match": {
+    "marker": "[cobble-task:T-003:worker:1]"
+  },
+  "response": {
+    "content": "Here is the implementation of T-003 (attempt 1).\n\napp/api/todos.py\n```\n\"\"\"Create and list todos.\"\"\"\n\nfrom fastapi import APIRouter\n\nfrom app import db\nfrom app.models import Todo, TodoCreate\n\nrouter = APIRouter(prefix=\"/api/todos\", tags=[\"todos\"])\n\n\n@router.post(\"\", status_code=201)\ndef create_todo(payload: TodoCreate) -> Todo:\n    return db.create_todo(payload.title)\n\n\n@router.get(\"\")\ndef list_todos() -> list[Todo]:\n    \"\"\"All todos, oldest first.\"\"\"\n    return db.list_todos()\n```\n",
+    "finish_reason": "stop"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "match": {
+    "marker": "[cobble-task:T-005:test-writer:1]"
+  },
+  "response": {
+    "content": "I will write the tests of T-005 first, one per acceptance criterion.\n\nfrontend/src/App.test.tsx\n```\nimport { render, screen } from \"@testing-library/react\";\n\nimport { App } from \"./App\";\n\ntest(\"renders the application title as the heading\", () => {\n  render(<App />);\n  expect(screen.getByRole(\"heading\", { name: \"To-do list\" })).toBeTruthy();\n});\n```\n\ntests/test_web_served.py\n```\nfrom fastapi.testclient import TestClient\n\nfrom app.main import app\n\nclient = TestClient(app)\n\n\ndef test_root_returns_200_with_the_html_page() -> None:\n    response = client.get(\"/\")\n    assert response.status_code == 200\n    assert response.headers[\"content-type\"].startswith(\"text/html\")\n\n\ndef test_the_page_contains_the_application_title() -> None:\n    assert \"To-do list\" in client.get(\"/\").text\n\n\ndef test_the_page_can_be_used_on_a_phone() -> None:\n    assert 'name=\"viewport\"' in client.get(\"/\").text\n\n\ndef test_an_unknown_page_returns_404() -> None:\n    assert client.get(\"/no-such-page\").status_code == 404\n```\n",
+    "finish_reason": "stop"
+  }
+}

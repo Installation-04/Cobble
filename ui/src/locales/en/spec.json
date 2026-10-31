@@ -1,0 +1,19 @@
+{
+  "title": "Spec",
+  "version": "Version {{version}}",
+  "status": {
+    "draft": "Draft",
+    "approved": "Approved"
+  },
+  "approve": "Approve spec",
+  "approving": "Approving…",
+  "requestChanges": "Request changes",
+  "feedbackLabel": "What should change?",
+  "feedbackPlaceholder": "Describe the changes you want in the spec…",
+  "feedbackSubmit": "Send feedback",
+  "cancel": "Cancel",
+  "regenerating": "Writing a new version of the spec…",
+  "approvedNote": "Spec approved. The next step is the plan.",
+  "generatePlan": "Generate plan",
+  "generatingPlan": "Generating the plan…"
+}

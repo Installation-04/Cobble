@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Test stub for ss: pretends the web port is listening.
+if [ -z "${STUB_NO_LISTEN:-}" ]; then echo "LISTEN 0 4096 0.0.0.0:80 0.0.0.0:*"; fi
+exit 0

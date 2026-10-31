@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "match": {
+    "marker": "[cobble-task:T-001:test-writer:1]"
+  },
+  "response": {
+    "content": "I will write the tests of T-001 first, one per acceptance criterion.\n\ntests/test_health.py\n```\nfrom fastapi.testclient import TestClient\n\nfrom app.main import app\n\nclient = TestClient(app)\n\n\ndef test_health_returns_ok() -> None:\n    response = client.get(\"/api/health\")\n    assert response.status_code == 200\n    assert response.json() == {\"status\": \"ok\"}\n\n\ndef test_health_is_served_as_json() -> None:\n    response = client.get(\"/api/health\")\n    assert response.headers[\"content-type\"].startswith(\"application/json\")\n\n\ndef test_application_is_named_after_the_project() -> None:\n    assert app.title == \"To-do list\"\n```\n",
+    "finish_reason": "stop"
+  }
+}

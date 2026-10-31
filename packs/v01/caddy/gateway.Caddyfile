@@ -1,0 +1,10 @@
+# Pack-internal gateway (see compose.yml, service pack-gateway).
+{
+	auto_https off
+	admin off
+}
+
+http://:{$PACK_PUBLIC_PORT:80} {
+	import /etc/caddy/pack.caddy
+	respond "cobble pack gateway" 200
+}

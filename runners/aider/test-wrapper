@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# Runs COBBLE_TEST_COMMAND for the agent and prints machine-readable lines that
+# agent-service reads from the container log:
+#   [cobble:test-run N]            one local test iteration
+#   [cobble:test-fail <hash>]      failure fingerprint (digits/paths/addresses normalised)
+#   [cobble:test-pass]
+set -u
+STATE="${COBBLE_TEST_STATE:-/tmp/cobble}"
+mkdir -p "$STATE"
+n=$(( $(cat "$STATE/test-count" 2>/dev/null || echo 0) + 1 ))
+echo "$n" > "$STATE/test-count"
+echo "[cobble:test-run $n]"
+out="$STATE/test-output.$n"
+bash -c "${COBBLE_TEST_COMMAND:?no test command}" > "$out" 2>&1
+rc=$?
+cat "$out"
+echo "$rc" > "$STATE/test-last-exit"
+if [ "$rc" -eq 0 ]; then
+  echo "[cobble:test-pass]"
+else
+  fp="$(grep -iE 'FAILED|FAIL|error|assert|exception' "$out" \
+        | sed -E 's/[0-9]+(\.[0-9]+)?/N/g; s/0x[0-9a-f]+/ADDR/g; s#/tmp/[^ ]+#TMP#g' \
+        | sort -u | head -n 30 | sha256sum | cut -c1-16)"
+  echo "[cobble:test-fail $fp]"
+fi
+exit "$rc"

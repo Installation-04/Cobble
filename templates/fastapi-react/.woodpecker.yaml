@@ -1,0 +1,63 @@
+# CI of the generated project. Every step must pass for a change to be merged.
+# All images are pinned by digest. Network needs: PyPI and npm (tests), the Trivy
+# vulnerability database, the Semgrep rule registry. Gitleaks works offline.
+# COBBLE_SKIP_STEPS (set by the instance operator, never by the repository) can name scanners
+# to skip on hosts without internet access, e.g. "trivy,semgrep".
+when:
+  - event: pull_request
+  - event: push
+    branch: main
+
+steps:
+  - name: lint
+    image: python:3.12-slim@sha256:aa943ce411423c7582288f18707ff66eddcbaeb510502d747a72aeb34f30d159
+    commands:
+      - pip install --no-cache-dir --quiet uv==0.11.32
+      - uv sync --locked
+      - uv run ruff check .
+      - uv run ruff format --check .
+
+  - name: backend-tests
+    image: python:3.12-slim@sha256:aa943ce411423c7582288f18707ff66eddcbaeb510502d747a72aeb34f30d159
+    depends_on: [lint]
+    commands:
+      - pip install --no-cache-dir --quiet uv==0.11.32
+      - uv sync --locked
+      - uv run pytest -q
+
+  - name: frontend-tests
+    image: node:22-alpine@sha256:fe4f6d74e20370acb04ad889077d14d0f64a9c8ea6a42bc60cddf1e844699914
+    depends_on: []
+    commands:
+      - cd frontend
+      - corepack enable
+      - pnpm install --frozen-lockfile
+      - pnpm test
+      - pnpm build
+
+  # Static analysis: fails on ERROR severity findings.
+  - name: semgrep
+    image: semgrep/semgrep:1.183.0@sha256:2e45517a85e13a9cca14a2a00df6bb48affd66b8ebfae1b0991cd57578362fb0
+    depends_on: [lint]
+    when:
+      - evaluate: 'not (COBBLE_SKIP_STEPS contains "semgrep")'
+    commands:
+      - semgrep scan --config p/default --metrics off --severity ERROR --error --exclude node_modules --exclude .venv .
+
+  # Dependency vulnerabilities (lockfiles): fails on HIGH and CRITICAL with a known fix.
+  - name: trivy
+    image: aquasec/trivy:0.76.1@sha256:790fd66d1697395d8693d1acaa1ea702406a20f109b6fc7bac8db623eca6c06c
+    depends_on: [lint]
+    when:
+      - evaluate: 'not (COBBLE_SKIP_STEPS contains "trivy")'
+    commands:
+      - trivy fs --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 --no-progress --skip-dirs node_modules --skip-dirs .venv .
+
+  # Secrets in the working tree and history: any finding fails.
+  - name: gitleaks
+    image: zricethezav/gitleaks:v8.30.1@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f
+    depends_on: []
+    when:
+      - evaluate: 'not (COBBLE_SKIP_STEPS contains "gitleaks")'
+    commands:
+      - gitleaks dir . --no-banner --redact --exit-code 1

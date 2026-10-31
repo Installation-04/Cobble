@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "match": {
+    "marker": "[cobble-task:T-005:worker:1]"
+  },
+  "response": {
+    "content": "Here is the implementation of T-005 (attempt 1).\n\napp/api/web.py\n```\n\"\"\"Serve the web page: the built frontend when it exists, a small notice otherwise.\"\"\"\n\nfrom pathlib import Path\n\nfrom fastapi import APIRouter\nfrom fastapi.responses import FileResponse, HTMLResponse, Response\n\nrouter = APIRouter()\n\nBUILT_PAGE = Path(__file__).resolve().parents[2] / \"frontend\" / \"dist\" / \"index.html\"\n\nNOTICE_PAGE = \"\"\"<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"UTF-8\" />\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\n    <title>To-do list</title>\n  </head>\n  <body>\n    <h1>To-do list</h1>\n    <p>The page is not built yet: run \"pnpm build\" in the frontend folder.</p>\n  </body>\n</html>\n\"\"\"\n\n\n@router.get(\"/\", include_in_schema=False)\ndef index() -> Response:\n    if BUILT_PAGE.is_file():\n        return FileResponse(BUILT_PAGE)\n    return HTMLResponse(NOTICE_PAGE)\n```\n\nfrontend/index.html\n```\n<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"UTF-8\" />\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\n    <title>To-do list</title>\n  </head>\n  <body>\n    <div id=\"root\"></div>\n    <script type=\"module\" src=\"/src/main.tsx\"></script>\n  </body>\n</html>\n```\n\nfrontend/vite.config.ts\n```\n/// <reference types=\"vitest/config\" />\nimport react from \"@vitejs/plugin-react\";\nimport { defineConfig } from \"vite\";\n\nexport default defineConfig({\n  // Relative asset URLs: the page also works under a prefix (the milestone previews).\n  base: \"./\",\n  plugins: [react()],\n  server: { proxy: { \"/api\": \"http://localhost:8000\" } },\n  test: { environment: \"jsdom\", globals: true },\n});\n```\n\nfrontend/src/App.tsx\n```\nexport function App() {\n  return (\n    <main className=\"page\">\n      <h1>To-do list</h1>\n    </main>\n  );\n}\n```\n",
+    "finish_reason": "stop"
+  }
+}

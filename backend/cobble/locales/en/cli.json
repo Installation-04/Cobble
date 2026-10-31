@@ -1,0 +1,20 @@
+{
+  "cli": {
+    "chat": {
+      "reply": "Reply",
+      "model": "Model",
+      "tokens": "Tokens (prompt / completion)",
+      "cost": "Cost (USD)",
+      "failed": "The model gateway returned an error (HTTP {status})."
+    },
+    "activation": {
+      "link": "Activation link",
+      "expires": "Expires on {expires} (single use, valid {hours} h)",
+      "already_initialized": "Cobble is already initialized: an administrator exists."
+    },
+    "reset": {
+      "done": "The administrator's sessions were closed. Use this link to set a new email and password; projects are kept.",
+      "no_admin": "No administrator exists yet. Use the activation link instead."
+    }
+  }
+}

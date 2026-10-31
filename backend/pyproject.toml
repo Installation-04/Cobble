@@ -1,0 +1,52 @@
+[project]
+name = "cobble"
+version = "0.1.0.dev0"
+description = "Self-hosted platform that turns an idea into an application."
+requires-python = ">=3.12"
+license = "AGPL-3.0-only"
+dependencies = [
+    "alembic>=1.14",
+    "fastapi>=0.115",
+    "httpx>=0.28",
+    "psycopg[binary]>=3.2",
+    "pydantic-settings>=2.6",
+    "redis>=5.2",
+    "sqlalchemy>=2.0",
+    "uvicorn>=0.32",
+]
+
+[dependency-groups]
+dev = [
+    "mypy>=1.13",
+    "pytest>=8.3",
+    "pyyaml>=6.0",
+    "ruff>=0.8",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["cobble"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "S", "C4", "SIM", "RUF"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "S105", "S106"]
+"../providers/fake-llm/tests/**" = ["S101", "S105"]
+"../scripts/**" = ["S101", "S105", "S106"]
+
+[tool.mypy]
+strict = true
+files = ["cobble"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests", "../scripts/tests"]
+markers = ["integration: needs Postgres, Redis and the core stack (see make test-integration)"]
+addopts = "-m 'not integration'"

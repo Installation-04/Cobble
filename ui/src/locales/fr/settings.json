@@ -1,0 +1,11 @@
+{
+  "title": "Réglages",
+  "description": "Ajustez l'apparence et la langue de Cobble.",
+  "tabs": { "general": "Général", "appearance": "Apparence", "about": "À propos" },
+  "general": { "language": "Langue" },
+  "appearance": {
+    "theme": "Thème",
+    "options": { "system": "Système", "light": "Clair", "dark": "Sombre" }
+  },
+  "about": { "version": "Version", "license": "Logiciel libre publié sous la licence AGPL-3.0." }
+}

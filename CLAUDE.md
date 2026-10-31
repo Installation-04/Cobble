@@ -35,12 +35,24 @@ docs/fr/  docs/en/
 ## Commandes
 
 ```
+make install      # uv sync + pnpm install (versions verrouillées)
+make format       # ruff + prettier (écriture)
 make dev          # lance le noyau en local avec le faux fournisseur LLM (aucune clé requise)
+make dev-down     # arrête le noyau; make dev-logs suit les journaux
+make activation-link  # lien à usage unique pour créer le compte admin
+make smoke        # une requête de chat via LiteLLM + la ligne de coût enregistrée
+make test-integration  # Postgres/Redis/LiteLLM réels (pile + core/compose.test.yml)
+make cassettes    # réenregistre des cassettes contre un vrai fournisseur (coûte des tokens)
 make test         # tests unitaires backend + frontend
 make lint         # ruff, mypy, eslint, vérification des clés i18n
-make e2e          # Playwright sur l'UI + boucle complète avec cassettes
+make e2e          # Playwright sur l'UI, pile neuve (efface les volumes de dev); boucle complète avec cassettes à venir
+make e2e-full       # chaîne réelle complète (Forgejo, Woodpecker, Aider...), manuel, long
 make bench        # banc d'essai des agents (vrais modèles, coûte des tokens: ne pas lancer en CI)
 ```
+
+Les cibles `lint-backend`, `lint-ui`, `test-backend` et `test-ui` existent aussi (utilisées par la CI). `make bench` échoue avec un message tant que leur étape n'est pas livrée.
+
+`COMPOSE_FLAGS="-f autre.yml"` ajoute des fichiers compose (voir `docs/fr/dev.md`).
 
 Tenir cette section à jour quand une commande change.
 

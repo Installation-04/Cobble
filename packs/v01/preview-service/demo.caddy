@@ -1,0 +1,14 @@
+# Route of the milestone demos to the preview-service (ADR 0007). Optional snippet:
+#
+#   cp packs/v01/preview-service/demo.caddy packs/v01/caddy/demo.caddy
+#
+# The core Caddy imports every packs/v01/caddy/*.caddy inside its site block, before its own
+# routes. Without this file `/demo/*` goes to the API (which only serves it in the fake pack
+# mode). Copy it when the real preview-service runs (compose.preview.yml, `core` network).
+#
+# No path stripping here: the service reads `/demo/<project_id>/<milestone>/...` itself.
+handle /demo/* {
+	reverse_proxy preview-service:8091 {
+		flush_interval -1
+	}
+}

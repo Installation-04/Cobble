@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Test stub for systemctl.
+echo "systemctl $*" >>"${STUB_LOG:-/dev/null}"
+if [ "${1:-}" = is-active ] && [ -n "${STUB_UNIT_DOWN:-}" ]; then exit 3; fi
+exit 0

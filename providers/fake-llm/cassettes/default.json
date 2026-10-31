@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "default": true,
+  "response": {
+    "content": "This is a canned reply from the Cobble fake LLM provider.",
+    "finish_reason": "stop"
+  }
+}

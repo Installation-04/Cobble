@@ -1,0 +1,16 @@
+# LiteLLM routes every model call. In v0.1 dev the only model is the fake provider.
+# The prices are fictional: they make cost recording observable without real spend.
+model_list:
+  - model_name: fake
+    litellm_params:
+      model: openai/fake
+      api_base: http://fake-llm:8000/v1
+      api_key: not-needed
+      input_cost_per_token: 0.000001
+      output_cost_per_token: 0.000002
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
+
+litellm_settings:
+  drop_params: true

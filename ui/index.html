@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cobble</title>
+    <script>
+      // Apply the saved theme and language before first paint (avoids a flash).
+      (function () {
+        try {
+          var mode = localStorage.getItem("cobble.theme");
+          var dark =
+            mode === "dark" ||
+            ((mode === "system" || !mode) &&
+              window.matchMedia("(prefers-color-scheme: dark)").matches);
+          if (dark) document.documentElement.classList.add("dark");
+          var lang = localStorage.getItem("cobble.lang");
+          if (!lang) lang = (navigator.language || "en").slice(0, 2) === "fr" ? "fr" : "en";
+          document.documentElement.lang = lang;
+        } catch (e) {
+          /* storage unavailable: defaults apply */
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

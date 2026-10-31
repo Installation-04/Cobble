@@ -1,0 +1,6 @@
+# Test-only override (never used by the installer): publishes the pack gateway on ONE high
+# loopback port so a test on the host can reach the git server and the CI under /git and /ci.
+#   docker compose -f compose.yml -f compose.test.yml up -d
+services:
+  pack-gateway:
+    ports: ["127.0.0.1:${PACK_TEST_PORT:-18081}:${PACK_PUBLIC_PORT:-80}"]

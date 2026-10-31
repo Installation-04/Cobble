@@ -1,0 +1,19 @@
+{
+  "title": "Spécification",
+  "version": "Version {{version}}",
+  "status": {
+    "draft": "Brouillon",
+    "approved": "Approuvée"
+  },
+  "approve": "Approuver la spécification",
+  "approving": "Approbation…",
+  "requestChanges": "Demander des modifications",
+  "feedbackLabel": "Que faut-il changer ?",
+  "feedbackPlaceholder": "Décrivez les changements souhaités dans la spécification…",
+  "feedbackSubmit": "Envoyer les remarques",
+  "cancel": "Annuler",
+  "regenerating": "Rédaction d'une nouvelle version de la spécification…",
+  "approvedNote": "Spécification approuvée. L'étape suivante est le plan.",
+  "generatePlan": "Générer le plan",
+  "generatingPlan": "Génération du plan…"
+}

@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "match": {
+    "marker": "[cobble-task:T-009:test-writer:1]"
+  },
+  "response": {
+    "content": "I will write the tests of T-009 first, one per acceptance criterion.\n\ntests/test_persistence.py\n```\nimport importlib\nfrom pathlib import Path\n\nimport pytest\nfrom fastapi.testclient import TestClient\n\nfrom app import config, db\nfrom app.main import app\n\n\n@pytest.fixture(autouse=True)\ndef database(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:\n    path = tmp_path / \"todos.db\"\n    monkeypatch.setenv(\"TODO_DB\", str(path))\n    db.reset()\n    return path\n\n\ndef test_the_database_path_comes_from_the_environment(database: Path) -> None:\n    assert config.database_path() == database\n\n\ndef test_the_default_database_is_a_file_in_the_data_folder(\n    monkeypatch: pytest.MonkeyPatch,\n) -> None:\n    monkeypatch.delenv(\"TODO_DB\")\n    assert config.database_path() == Path(\"data/todos.db\")\n\n\ndef test_todos_created_before_a_restart_are_listed_after_it(database: Path) -> None:\n    client = TestClient(app)\n    client.post(\"/api/todos\", json={\"title\": \"Water the plants\"})\n    client.post(\"/api/todos\", json={\"title\": \"Pay the rent\"})\n\n    importlib.reload(db)  # a restart: nothing stays in the memory of the process\n\n    restarted = TestClient(app)\n    titles = [todo[\"title\"] for todo in restarted.get(\"/api/todos\").json()]\n    assert titles == [\"Water the plants\", \"Pay the rent\"]\n    assert database.is_file()\n\n\ndef test_the_done_flag_survives_a_restart() -> None:\n    todo = db.create_todo(\"Buy milk\")\n    db.set_done(todo.id, True)\n\n    importlib.reload(db)\n\n    stored = db.get_todo(todo.id)\n    assert stored is not None\n    assert stored.done is True\n```\n",
+    "finish_reason": "stop"
+  }
+}

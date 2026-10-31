@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "request": {
+    "key": "202fd0b80c3c90e1f4fd879cb150ec9f4d6585493b81ebaf878800fcb74b6ebc",
+    "model": "fake",
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are the planner of Cobble. From the interview below, write the specification of the application.\nRules:\n- Write in French, the user's language.\n- Reply with the Markdown document only, with no text before or after it.\n- Start with a level-1 title (the application name), then a short summary, then these level-2 sections in this order: Features, Screens, Data model, Constraints, Out of scope.\n- Be concrete and testable. Do not invent features the user did not ask for.\n- The only project template available is a FastAPI backend (Python) with a simple web front end. Never propose another stack."
+      },
+      {
+        "role": "user",
+        "content": "Interview:\n\n[user] Je veux une application simple de liste de tâches\n\n[assistant] Belle idée! Trois questions rapides. Sera-t-elle utilisée par vous seul ou par plusieurs personnes? Sur quel appareil: téléphone, ordinateur ou les deux? Une tâche a-t-elle besoin de plus qu'un titre et d'une case à cocher (date d'échéance, catégorie)? Je propose une pile simple: un serveur FastAPI avec une page web légère.\n\n[user] Juste pour moi, sur mon téléphone. Je veux ajouter des tâches, les cocher et les supprimer. Pas de compte.\n\n[assistant] Parfait. Résumé: une liste de tâches personnelle pour votre téléphone, pour ajouter, cocher et supprimer des tâches, sans compte. Pile: FastAPI et une page web simple. Vous pouvez maintenant générer la spécification.\n\nWrite the specification now."
+      }
+    ]
+  },
+  "response": {
+    "content": "# Liste de tâches simple\n\nUne liste de tâches personnelle utilisée depuis un téléphone. Un seul utilisateur, sans compte.\n\n## Fonctionnalités\n- Ajouter une tâche avec un titre.\n- Lister toutes les tâches, de la plus ancienne à la plus récente.\n- Cocher une tâche comme faite, ou la décocher.\n- Supprimer une tâche.\n\n## Écrans\n- Une seule page: un formulaire d'ajout, puis la liste.\n- Chaque tâche a une case à cocher et un bouton de suppression.\n\n## Modèle de données\n- Tâche: id (entier), titre (texte, 1 à 200 caractères), faite (booléen, faux par défaut).\n\n## Contraintes\n- Serveur FastAPI avec une page web simple; les données survivent à un redémarrage.\n- Utilisable sur un écran de téléphone (375 px de large).\n\n## Hors périmètre\n- Comptes, partage, échéances, catégories, notifications.",
+    "finish_reason": "stop"
+  }
+}

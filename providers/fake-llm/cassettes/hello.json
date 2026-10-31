@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "request": {
+    "model": "fake",
+    "messages": [{ "role": "user", "content": "hello" }]
+  },
+  "response": {
+    "content": "Hello! I am the Cobble fake LLM. Tell me about your app idea.",
+    "finish_reason": "stop"
+  }
+}

@@ -1,0 +1,16 @@
+name: Idea / Idée
+description: Propose an idea (triaged at each release) / Proposer une idée (triée à chaque version)
+labels: [idée]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: Idea / Idée
+      description: What problem does it solve? / Quel problème résout-elle?
+    validations:
+      required: true
+  - type: dropdown
+    id: version
+    attributes:
+      label: Suggested version / Version suggérée
+      options: [Unknown / Inconnue, v0.2, v0.3, v0.4, v0.5, v1.0, After 1.0 / Après 1.0]

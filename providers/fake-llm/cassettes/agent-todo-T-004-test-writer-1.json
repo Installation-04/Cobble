@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "match": {
+    "marker": "[cobble-task:T-004:test-writer:1]"
+  },
+  "response": {
+    "content": "I will write the tests of T-004 first, one per acceptance criterion.\n\ntests/test_todo_item.py\n```\nimport pytest\nfrom fastapi.testclient import TestClient\n\nfrom app import db\nfrom app.main import app\n\nclient = TestClient(app)\n\n\n@pytest.fixture(autouse=True)\ndef fresh_db() -> None:\n    db.reset()\n\n\ndef test_patch_with_done_true_returns_200_and_the_todo_marked_done() -> None:\n    todo = db.create_todo(\"Buy milk\")\n    response = client.patch(f\"/api/todos/{todo.id}\", json={\"done\": True})\n    assert response.status_code == 200\n    body = response.json()\n    assert (body[\"id\"], body[\"title\"], body[\"done\"]) == (todo.id, \"Buy milk\", True)\n    assert db.get_todo(todo.id) == todo.model_copy(update={\"done\": True})\n\n\ndef test_patch_with_done_false_unticks_the_todo() -> None:\n    todo = db.create_todo(\"Buy milk\")\n    db.set_done(todo.id, True)\n    response = client.patch(f\"/api/todos/{todo.id}\", json={\"done\": False})\n    assert response.status_code == 200\n    assert response.json()[\"done\"] is False\n\n\ndef test_patch_without_done_returns_422() -> None:\n    todo = db.create_todo(\"Buy milk\")\n    assert client.patch(f\"/api/todos/{todo.id}\", json={}).status_code == 422\n\n\ndef test_delete_returns_204_and_the_todo_is_gone() -> None:\n    kept = db.create_todo(\"Keep me\")\n    gone = db.create_todo(\"Delete me\")\n    response = client.delete(f\"/api/todos/{gone.id}\")\n    assert response.status_code == 204\n    assert response.content == b\"\"\n    assert db.list_todos() == [kept]\n\n\ndef test_patch_or_delete_on_an_unknown_id_returns_404() -> None:\n    assert client.patch(\"/api/todos/999\", json={\"done\": True}).status_code == 404\n    assert client.delete(\"/api/todos/999\").status_code == 404\n```\n",
+    "finish_reason": "stop"
+  }
+}

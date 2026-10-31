@@ -1,0 +1,65 @@
+{
+  "title": "Plan",
+  "version": "Version {{version}}",
+  "status": {
+    "draft": "Draft",
+    "approved": "Approved"
+  },
+  "milestone": "Milestone {{id}}",
+  "tasks_one": "{{count}} task",
+  "tasks_other": "{{count}} tasks",
+  "estimate": {
+    "title": "Estimated cost",
+    "total": "Total",
+    "tokens": "{{tokens}} tokens",
+    "note": "Estimate for the agents' work, including test-writing and review passes. The real cost may differ."
+  },
+  "task": {
+    "dependsOn": "Depends on",
+    "files": "Files",
+    "acceptance": "Acceptance criteria",
+    "tests": "Tests",
+    "none": "None",
+    "size": "Size {{size}}",
+    "role": {
+      "backend": "Backend",
+      "frontend": "Frontend",
+      "fullstack": "Full stack",
+      "devops": "DevOps",
+      "docs": "Docs"
+    }
+  },
+  "approve": "Approve plan",
+  "approveTitle": "Approve the plan?",
+  "approveDescription": "Estimated cost: {{cost}} ({{tokens}} tokens). Once approved, the plan can no longer be changed.",
+  "approveConfirm": "Approve plan",
+  "requestChanges": "Request changes",
+  "feedbackLabel": "What should change in the plan?",
+  "feedbackPlaceholder": "Describe the changes you want in the plan…",
+  "feedbackSubmit": "Send feedback",
+  "cancel": "Cancel",
+  "regenerating": "Writing a new version of the plan…",
+  "generatePlan": "Generate plan",
+  "generating": "Generating the plan…",
+  "approved": "Plan approved",
+  "approvedNote": "Review the plan one last time, then start building.",
+  "empty": {
+    "interview": {
+      "title": "No plan yet",
+      "description": "Chat with the assistant, then approve the spec. The plan comes after."
+    },
+    "specReview": {
+      "title": "The spec comes first",
+      "description": "Approve the spec in the Chat tab, then generate the plan."
+    },
+    "specApproved": {
+      "title": "Ready to plan",
+      "description": "The spec is approved. Generate the plan to split the work into milestones and tasks."
+    }
+  },
+  "startBuilding": "Start building",
+  "starting": "Starting…",
+  "building": "The agents are building the project.",
+  "done": "The project is done: every milestone is validated.",
+  "viewAgents": "Follow them in the Agents tab"
+}

@@ -1,0 +1,41 @@
+{
+  "emptyTitle": "Décrivez votre idée",
+  "emptyDescription": "Dites à l'assistant de planification ce que vous voulez construire. Il posera quelques questions, puis rédigera une spécification.",
+  "inputLabel": "Message",
+  "inputPlaceholder": "Décrivez votre idée…",
+  "inputHint": "Entrée pour envoyer, Maj+Entrée pour un retour à la ligne.",
+  "send": "Envoyer",
+  "messages": "Conversation",
+  "from": {
+    "user": "Vous",
+    "assistant": "Assistant"
+  },
+  "typing": "L'assistant écrit…",
+  "closed": "L'entretien est terminé. La conversation est désormais en lecture seule.",
+  "paused": "Ce projet est en pause : plus aucune requête n'est envoyée aux modèles.",
+  "loadError": "Impossible de charger la conversation.",
+  "stepper": {
+    "label": "Avancement du projet",
+    "current": "étape en cours",
+    "done": "terminée",
+    "interview": "Entretien",
+    "spec": "Spécification",
+    "plan": "Plan",
+    "ready": "Prêt",
+    "building": "Construction",
+    "finished": "Terminé"
+  },
+  "generateSpec": "Générer la spécification",
+  "generatingSpec": "Génération de la spécification…",
+  "generateSpecHint": "C'est assez ? L'assistant peut maintenant rédiger la spécification.",
+  "failure": {
+    "title": "Échec : {{job}}",
+    "dismiss": "Ignorer",
+    "job": {
+      "reply": "Réponse de l'assistant",
+      "spec": "Génération de la spécification",
+      "plan": "Génération du plan",
+      "start": "Démarrage de la construction"
+    }
+  }
+}

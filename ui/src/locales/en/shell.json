@@ -1,0 +1,88 @@
+{
+  "sidebar": {
+    "label": "Projects",
+    "toggle": "Show or hide the sidebar",
+    "newProject": "New project",
+    "newFolder": "New folder",
+    "search": "Search projects",
+    "searchPlaceholder": "Search…",
+    "unfiled": "Unfiled",
+    "empty": "No project yet. Create your first one.",
+    "noResults": "No project matches your search.",
+    "expandFolder": "Expand or collapse the folder {{name}}",
+    "global": "Global views",
+    "agents": "Agents",
+    "demos": "Demos",
+    "costs": "Costs"
+  },
+  "topbar": {
+    "projectSelector": "Project",
+    "noProject": "Select a project",
+    "settings": "Settings",
+    "profile": "Profile menu",
+    "logout": "Sign out",
+    "switchLanguage": "Switch language",
+    "switchTheme": "Switch between light and dark theme"
+  },
+  "folder": {
+    "menu": "Actions for the folder {{name}}",
+    "createTitle": "New folder",
+    "renameTitle": "Rename the folder",
+    "name": "Folder name",
+    "namePlaceholder": "Clients",
+    "deleteTitle": "Delete the folder?",
+    "deleteDescription": "The folder “{{name}}” will be deleted. Its projects are kept and become unfiled."
+  },
+  "project": {
+    "menu": "Actions for the project {{name}}",
+    "createTitle": "New project",
+    "renameTitle": "Rename the project",
+    "name": "Project name",
+    "namePlaceholder": "Invoicing",
+    "folder": "Folder",
+    "noFolder": "No folder",
+    "deleteTitle": "Delete the project?",
+    "deleteDescription": "The project “{{name}}” will be deleted. This cannot be undone."
+  },
+  "tabs": {
+    "label": "Project sections",
+    "chat": "Chat",
+    "plan": "Plan",
+    "agents": "Agents",
+    "demo": "Demo",
+    "costs": "Costs"
+  },
+  "home": {
+    "title": "Welcome to Cobble",
+    "description": "Select a project in the sidebar or create a new one to get started."
+  },
+  "notFound": {
+    "title": "Project not found",
+    "description": "This project does not exist or was deleted."
+  },
+  "global": {
+    "empty": "No project yet. Create one from the sidebar.",
+    "agents": {
+      "description": "Your projects and where their agents stand.",
+      "open": "Open the agents of"
+    },
+    "demos": {
+      "description": "Your projects and their demos.",
+      "open": "Open the demos of"
+    },
+    "costs": {
+      "description": "What each project has spent so far.",
+      "caption": "Spending by project",
+      "project": "Project",
+      "spent": "Spent",
+      "budget": "Budget",
+      "status": "Status",
+      "total": "Total",
+      "noBudget": "No budget",
+      "state": {
+        "active": "Active",
+        "paused": "Paused"
+      }
+    }
+  }
+}

@@ -1,0 +1,130 @@
+{
+  "$defs": {
+    "Milestone": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^M\\d+$",
+          "title": "Id",
+          "type": "string"
+        },
+        "title": {
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "title"
+      ],
+      "title": "Milestone",
+      "type": "object"
+    },
+    "Task": {
+      "additionalProperties": false,
+      "properties": {
+        "acceptance": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Acceptance",
+          "type": "array"
+        },
+        "depends_on": {
+          "items": {
+            "pattern": "^T-\\d+$",
+            "type": "string"
+          },
+          "title": "Depends On",
+          "type": "array"
+        },
+        "files": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Files",
+          "type": "array"
+        },
+        "id": {
+          "pattern": "^T-\\d+$",
+          "title": "Id",
+          "type": "string"
+        },
+        "milestone": {
+          "pattern": "^M\\d+$",
+          "title": "Milestone",
+          "type": "string"
+        },
+        "role": {
+          "enum": [
+            "backend",
+            "frontend",
+            "fullstack",
+            "devops",
+            "docs"
+          ],
+          "title": "Role",
+          "type": "string"
+        },
+        "size": {
+          "enum": [
+            "S",
+            "M"
+          ],
+          "title": "Size",
+          "type": "string"
+        },
+        "tests": {
+          "minLength": 1,
+          "title": "Tests",
+          "type": "string"
+        },
+        "title": {
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "milestone",
+        "files",
+        "acceptance",
+        "tests",
+        "size",
+        "role"
+      ],
+      "title": "Task",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "milestones": {
+      "items": {
+        "$ref": "#/$defs/Milestone"
+      },
+      "minItems": 1,
+      "title": "Milestones",
+      "type": "array"
+    },
+    "tasks": {
+      "items": {
+        "$ref": "#/$defs/Task"
+      },
+      "minItems": 1,
+      "title": "Tasks",
+      "type": "array"
+    }
+  },
+  "required": [
+    "milestones",
+    "tasks"
+  ],
+  "title": "Plan",
+  "type": "object"
+}

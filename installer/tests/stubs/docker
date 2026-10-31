@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Test stub for docker: logs every call and fakes the few answers the scripts rely on.
+case "$*" in
+  "compose version") echo "Docker Compose version v2.29.0" ; exit 0 ;;
+  version*) echo "27.1.0" ; exit 0 ;;
+esac
+echo "$*" >>"${STUB_LOG:-/dev/null}"
+case "$*" in
+  *" ps -q caddy") exit 0 ;;
+  *" ps -a --format"*)
+    for s in postgres redis litellm api worker ui caddy; do
+      if [ "${STUB_BAD_CONTAINER:-}" = "$s" ]; then echo "$s|exited|"; else echo "$s|running|healthy"; fi
+    done
+    ;;
+  *"cobble.cli activation-link")
+    if [ -n "${STUB_NO_ADMIN_LINK:-}" ]; then exit 1; fi
+    echo "Activation link: http://10.0.0.5/activate?token=stubtoken"
+    ;;
+  *"cobble.cli reset-admin")
+    echo "Activation link: http://10.0.0.5/activate?token=newtoken"
+    ;;
+esac
+exit 0

@@ -1,0 +1,94 @@
+{
+  "summary": "{{merged}} of {{total}} tasks merged",
+  "reload": "Reload",
+  "group": {
+    "todo": "To do",
+    "running": "Running",
+    "ci": "CI",
+    "merged": "Merged",
+    "attention": "Needs attention"
+  },
+  "state": {
+    "todo": "To do",
+    "writing_tests": "Writing tests",
+    "implementing": "Implementing",
+    "ci": "CI running",
+    "merged": "Merged",
+    "failed": "Failed",
+    "blocked": "Blocked",
+    "paused": "Paused",
+    "stopped": "Stopped"
+  },
+  "runState": {
+    "pending": "Starting",
+    "running": "Running",
+    "done": "Done",
+    "failed": "Failed",
+    "timeout": "Timed out",
+    "loop_detected": "Loop detected",
+    "stopped": "Stopped",
+    "budget": "Budget reached",
+    "rejected": "Rejected",
+    "lost": "Lost",
+    "retired": "Superseded"
+  },
+  "escalated": "Escalated",
+  "attempts_one": "{{count}} attempt",
+  "attempts_other": "{{count}} attempts",
+  "size": "Size {{size}}",
+  "empty": {
+    "notStarted": {
+      "title": "Nothing to build yet",
+      "description": "The agents start working once the plan is approved and you start building."
+    },
+    "ready": {
+      "title": "Ready to build",
+      "description": "The plan is approved. Start building to put the agents to work.",
+      "link": "Go to the Plan tab"
+    },
+    "preparing": {
+      "title": "Preparing the project",
+      "description": "Creating the repository and the tasks. The first cards appear in a moment."
+    },
+    "noTasks": {
+      "title": "No tasks",
+      "description": "This project has no task."
+    }
+  },
+  "drawer": {
+    "description": "Runs, live log and changes of this task.",
+    "views": "Task details"
+  },
+  "runs": {
+    "title": "Runs",
+    "empty": "No run yet.",
+    "kind": "Agent",
+    "attempt": "Attempt",
+    "model": "Model",
+    "state": "State",
+    "iterations": "Iterations",
+    "started": "Started"
+  },
+  "actions": {
+    "label": "Task actions",
+    "pause": "Pause",
+    "resume": "Resume",
+    "stop": "Stop",
+    "retry": "Retry",
+    "working": "Working…",
+    "stopTitle": "Stop task {{ref}}?",
+    "stopDescription": "The current agent run is stopped and the task is parked as stopped. You can retry it later."
+  },
+  "log": {
+    "title": "Live log",
+    "label": "Agent log",
+    "empty": "No log output yet.",
+    "live": "Updating every 2 seconds…"
+  },
+  "diff": {
+    "title": "Changes",
+    "label": "Diff of the task branch",
+    "empty": "No changes pushed yet.",
+    "truncated": "The diff is too large and was truncated."
+  }
+}

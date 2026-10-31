@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "match": {
+    "marker": "[cobble-task:X-LOOP:worker:4]"
+  },
+  "response": {
+    "content": "Here is the implementation of X-LOOP (attempt 4).\n\napp/loop_demo.py\n```\ndef add(a: int, b: int) -> int:\n    return a - b\n```\n",
+    "finish_reason": "stop"
+  }
+}

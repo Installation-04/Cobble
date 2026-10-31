@@ -1,0 +1,11 @@
+{
+  "title": "Settings",
+  "description": "Adjust how Cobble looks and speaks.",
+  "tabs": { "general": "General", "appearance": "Appearance", "about": "About" },
+  "general": { "language": "Language" },
+  "appearance": {
+    "theme": "Theme",
+    "options": { "system": "System", "light": "Light", "dark": "Dark" }
+  },
+  "about": { "version": "Version", "license": "Free software released under the AGPL-3.0 license." }
+}
