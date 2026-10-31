@@ -15,7 +15,7 @@ export const PROJECT_NAME = "Todo list";
 
 export const USER_MESSAGES = [
   "I want a simple to-do list app",
-  "Just for me, on the web, with tasks I can add, complete and delete",
+  "Just for me, on my phone. I want to add tasks, tick them off and delete them. No account needed.",
 ] as const;
 
 const ACTIVATION_CMD =
