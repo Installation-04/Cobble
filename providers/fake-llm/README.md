@@ -18,6 +18,7 @@ Un fichier JSON par cassette dans `cassettes/`. La clé est le SHA-256 du modèl
 
 - `{"version": 1, "default": true, "response": {...}}`: réponse par défaut, utilisée seulement si `FAKE_LLM_ALLOW_DEFAULT=1` (le cas de `make dev`).
 - Sans cassette ni défaut, le serveur répond 404 `cassette_not_found` avec la clé manquante (mode strict, utilisé par les tests).
+- Cassette « marqueur » (agents de code): `{"version": 1, "match": {"marker": "[cobble-task:T-001:worker:1]"}, "response": {...}}` répond à toute requête dont un message contient ce marqueur, quel que soit le reste du prompt (carte du dépôt, contenu des fichiers). Le runner d'agents insère le marqueur dans ses instructions. Priorité: clé exacte, puis marqueur, puis enregistrement, puis cassette par défaut.
 - Les jetons sont comptés par mots (déterministe) sauf si la cassette fournit `prompt_tokens` et `completion_tokens`.
 
 ### Réenregistrer (`make cassettes`)
@@ -47,6 +48,7 @@ One JSON file per cassette in `cassettes/`. The key is the SHA-256 of the model 
 
 - `{"version": 1, "default": true, "response": {...}}`: fallback reply, used only when `FAKE_LLM_ALLOW_DEFAULT=1` (what `make dev` does).
 - With no matching or default cassette the server answers 404 `cassette_not_found` with the missing key (strict mode, used by tests).
+- Marker cassette (coding agents): `{"version": 1, "match": {"marker": "[cobble-task:T-001:worker:1]"}, "response": {...}}` answers any request where a message contains that marker, whatever the rest of the prompt says (repo map, file contents). The agent runner puts the marker in its instructions. Priority: exact key, then marker, then recording, then the default cassette.
 - Tokens are counted by words (deterministic) unless the cassette provides `prompt_tokens` and `completion_tokens`.
 
 ### Re-recording (`make cassettes`)

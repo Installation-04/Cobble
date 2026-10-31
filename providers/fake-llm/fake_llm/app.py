@@ -125,7 +125,7 @@ def create_app(
             return _error(400, "invalid chat completion request", "invalid_request_error")
 
         key = request_key(model, messages)
-        cassette = store.get(key)
+        cassette = store.get(key) or store.find_marker(messages)
         if cassette is None and recorder is not None:
             try:
                 cassette = await recorder.record(body)

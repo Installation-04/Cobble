@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 import httpx
+import pytest
 from fake_llm.app import create_app
 from fake_llm.cassettes import CassetteStore
 
@@ -79,3 +80,38 @@ async def test_repository_cassettes_are_valid_and_hello_matches() -> None:
         )
     assert reply.status_code == 200
     assert "Cobble fake LLM" in reply.json()["choices"][0]["message"]["content"]
+
+
+async def test_marker_cassette_matches_whatever_the_rest_of_the_prompt_says(tmp_path: Path) -> None:
+    (tmp_path / "t1.json").write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "match": {"marker": "[cobble-task:T-001:worker:1]"},
+                "response": {"content": "file.py\n```python\nprint(1)\n```"},
+            }
+        )
+    )
+    app = create_app(CassetteStore(tmp_path))
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://f") as c:
+        body = {
+            "model": "whatever",
+            "messages": [
+                {"role": "system", "content": "repo map: lots of text that changes"},
+                {"role": "user", "content": "Do the task. [cobble-task:T-001:worker:1] Thanks."},
+            ],
+        }
+        hit = await c.post("/v1/chat/completions", json=body)
+        other = {**body, "messages": [{"role": "user", "content": "[cobble-task:T-002:worker:1]"}]}
+        miss = await c.post("/v1/chat/completions", json=other)
+    assert hit.status_code == 200
+    assert "print(1)" in hit.json()["choices"][0]["message"]["content"]
+    assert miss.status_code == 404
+
+
+def test_invalid_marker_is_rejected(tmp_path: Path) -> None:
+    (tmp_path / "bad.json").write_text(
+        json.dumps({"version": 1, "match": {"marker": "T-001"}, "response": {"content": "x"}})
+    )
+    with pytest.raises(ValueError):
+        CassetteStore(tmp_path)
