@@ -19,5 +19,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 - `python -m cobble.cli reset-admin`: new one-use link to set a new email and password without losing projects.
 - Interview, spec and plan: per-project chat with the `planner` role (answers in the user's language), spec generation and approval, plan generation validated against a strict schema (every task has acceptance criteria and a size S or M; dependencies are acyclic), cost estimate shown before approval. Work runs in the worker; progress is pushed to the browser over server-sent events. Reference project `reference-projects/todo` and cassettes replay the whole flow.
 - Installer (`installer/install.sh`) and `cobble` CLI (`status`, `logs`, `update`, `uninstall`, `doctor`, `reset-admin`), idempotent, FR/EN, with a CI matrix on Ubuntu 24.04/26.04 and Debian 12/13.
+- Fixed pack (`packs/v01`): Forgejo and Woodpecker wired automatically, `ForgejoGit` and `WoodpeckerCI` providers, project template `templates/fastapi-react` with lint, tests, Semgrep, Trivy and Gitleaks; merge refused unless CI is green.
+- Agent runner (Aider in a locked-down container, one per task) and `agent-service`, an egress allowlist proxy, and an internal LLM endpoint with signed per-run tokens so agent calls go through the cost router.
+- Scheduler: tests-first runs (test-writer then worker), parallel only for independent tasks with disjoint files, loop detection, escalation, resume after a worker restart.
+- Milestone demos: build, tag and preview per milestone, validate, comment (becomes a task) or revert to the previous milestone. Preview service for real previews; fake pack mode for development and CI.
+- Agents tab (live logs, diff, pause/resume/stop/retry), Demo tab and Costs tab (USD and tokens by task, model and role).
 - `make e2e` (Playwright) against the full stack; CI job `e2e`.
 - i18n key check now also covers backend (`backend/cobble/locales`) messages.
