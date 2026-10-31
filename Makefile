@@ -71,6 +71,8 @@ smoke:
 test-integration:
 	python3 scripts/dev_env.py
 	$(COMPOSE) -f core/compose.test.yml up --build -d --wait
+	# The planning tests drive the job queue themselves: the stack's worker must not compete.
+	$(COMPOSE) -f core/compose.test.yml stop worker
 	set -a; . core/.env; set +a; cd backend && \
 	COBBLE_TEST_DATABASE_URL="postgresql+psycopg://cobble:$$POSTGRES_PASSWORD@127.0.0.1:55432/cobble" \
 	COBBLE_TEST_REDIS_URL="redis://:$$REDIS_PASSWORD@127.0.0.1:56379/0" \
