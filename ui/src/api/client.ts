@@ -53,13 +53,14 @@ async function parseError(res: Response): Promise<ApiError> {
   }
 }
 
-export async function request<T>(
+async function send(
   method: string,
   path: string,
-  options: RequestOptions = {},
-): Promise<T> {
+  options: RequestOptions,
+  accept: string,
+): Promise<Response> {
   const upper = method.toUpperCase();
-  const headers: Record<string, string> = { Accept: "application/json" };
+  const headers: Record<string, string> = { Accept: accept };
   if (!SAFE_METHODS.has(upper)) headers["X-Requested-With"] = "cobble";
   let body: string | undefined;
   if (options.body !== undefined) {
@@ -89,8 +90,31 @@ export async function request<T>(
     }
     throw error;
   }
+  return res;
+}
+
+export async function request<T>(
+  method: string,
+  path: string,
+  options: RequestOptions = {},
+): Promise<T> {
+  const res = await send(method, path, options, "application/json");
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
+}
+
+export interface TextChunk {
+  text: string;
+  /** Value of the `X-Next-Offset` header (null when the server did not send a valid one). */
+  nextOffset: number | null;
+}
+
+/** GET a text/plain resource (log chunks) together with its `X-Next-Offset` header. */
+export async function requestText(path: string): Promise<TextChunk> {
+  const res = await send("GET", path, {}, "text/plain");
+  const header = res.headers.get("X-Next-Offset");
+  const parsed = header === null ? Number.NaN : Number.parseInt(header, 10);
+  return { text: await res.text(), nextOffset: Number.isFinite(parsed) ? parsed : null };
 }
 
 export const api = {

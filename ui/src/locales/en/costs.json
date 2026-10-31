@@ -1,0 +1,39 @@
+{
+  "paused": "The project is paused: no more requests are sent to the models. Raise the budget to continue.",
+  "budget": {
+    "title": "Budget",
+    "none": "No budget set",
+    "of": "of {{budget}}",
+    "bar": "Budget used",
+    "percent": "{{percent}} % used",
+    "level": {
+      "ok": "{{percent}} % of the budget used.",
+      "warning": "{{percent}} % of the budget used: close to the limit.",
+      "danger": "The budget is reached ({{percent}} %)."
+    }
+  },
+  "totals": {
+    "tokens": "Tokens",
+    "split": "{{prompt}} in · {{completion}} out",
+    "estimate": "Estimate",
+    "noEstimate": "Not available",
+    "actual": "Actual cost",
+    "over": "{{percent}} % above the estimate",
+    "under": "{{percent}} % below the estimate"
+  },
+  "table": {
+    "byTask": "Cost by task",
+    "byModel": "Cost by model",
+    "byRole": "Cost by role",
+    "task": "Task",
+    "model": "Model",
+    "role": "Role",
+    "calls": "Calls",
+    "tokensIn": "Tokens in",
+    "tokensOut": "Tokens out",
+    "cost": "Cost",
+    "planner": "Planning (no task)",
+    "unknown": "Unknown",
+    "empty": "No model call yet."
+  }
+}

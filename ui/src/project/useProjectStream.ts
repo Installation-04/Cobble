@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { API_BASE } from "../api/client";
-import type { ChatMessage, JobKind, Phase } from "../api/types";
+import type { ChatMessage, JobKind, MilestoneStatus, Phase, TaskState } from "../api/types";
 
 export interface JobFailure {
   kind: JobKind;
@@ -9,18 +9,24 @@ export interface JobFailure {
 
 export type JobsInFlight = Record<JobKind, boolean>;
 
-const NO_JOBS: JobsInFlight = { reply: false, spec: false, plan: false };
+const NO_JOBS: JobsInFlight = { reply: false, spec: false, plan: false, start: false };
 
 export interface StreamHandlers {
   onMessage?: (message: ChatMessage) => void;
   onSpecUpdated?: (version: number) => void;
   onPlanUpdated?: (version: number) => void;
   onPhaseChanged?: (phase: Phase) => void;
+  /** `task.updated {task_id, state, attempts}` (ADR 0006). */
+  onTaskUpdated?: (update: { ref: string; state: TaskState; attempts?: number }) => void;
+  /** `milestone.updated {ref, status}` (ADR 0007). */
+  onMilestoneUpdated?: (update: { ref: string; status: MilestoneStatus }) => void;
+  /** `project.building` (tasks materialized) or `project.done` (every milestone validated). */
+  onBuildEvent?: (kind: "building" | "done") => void;
   /** The connection came back after a drop: refetch everything that may have changed. */
   onResync?: () => void;
 }
 
-const JOB_KINDS: readonly JobKind[] = ["reply", "spec", "plan"];
+const JOB_KINDS: readonly JobKind[] = ["reply", "spec", "plan", "start"];
 
 function isKind(value: unknown): value is JobKind {
   return typeof value === "string" && (JOB_KINDS as readonly string[]).includes(value);
@@ -90,8 +96,30 @@ export function useProjectStream(projectId: string | undefined, handlers: Stream
       handlersRef.current.onPlanUpdated?.(Number(data.version));
     });
     on("phase.changed", (data) => {
+      if (data.phase === "building") setJob("start", false);
       handlersRef.current.onPhaseChanged?.(data.phase as Phase);
     });
+    on("task.updated", (data) => {
+      const ref = data.task_id ?? data.ref;
+      if (typeof ref !== "string") return;
+      handlersRef.current.onTaskUpdated?.({
+        ref,
+        state: data.state as TaskState,
+        attempts: typeof data.attempts === "number" ? data.attempts : undefined,
+      });
+    });
+    on("milestone.updated", (data) => {
+      if (typeof data.ref !== "string") return;
+      handlersRef.current.onMilestoneUpdated?.({
+        ref: data.ref,
+        status: data.status as MilestoneStatus,
+      });
+    });
+    on("project.building", () => {
+      setJob("start", false);
+      handlersRef.current.onBuildEvent?.("building");
+    });
+    on("project.done", () => handlersRef.current.onBuildEvent?.("done"));
     on("job.started", (data) => {
       if (!isKind(data.kind)) return;
       const kind = data.kind;

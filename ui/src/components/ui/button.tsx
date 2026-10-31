@@ -2,7 +2,7 @@ import { forwardRef, type ButtonHTMLAttributes } from "react";
 import { cn } from "../../lib";
 
 type Variant = "default" | "outline" | "ghost" | "destructive";
-type Size = "default" | "sm" | "icon";
+type Size = "default" | "sm" | "lg" | "icon";
 
 const VARIANTS: Record<Variant, string> = {
   default: "bg-primary text-primary-foreground hover:opacity-90",
@@ -13,6 +13,7 @@ const VARIANTS: Record<Variant, string> = {
 const SIZES: Record<Size, string> = {
   default: "h-9 px-4 text-sm",
   sm: "h-8 px-3 text-sm",
+  lg: "h-11 px-6 text-base",
   icon: "h-9 w-9",
 };
 

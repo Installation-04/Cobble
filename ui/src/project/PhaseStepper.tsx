@@ -3,11 +3,15 @@ import { useTranslation } from "react-i18next";
 import { PHASES, type Phase } from "../api/types";
 import { cn } from "../lib";
 
-const STEP_KEY: Record<Phase, "interview" | "spec" | "plan" | "ready"> = {
+/** Translation key (chat:stepper.<key>) of each phase, also used by the global views. */
+export const PHASE_LABEL_KEY: Record<Phase, string> = {
   interview: "interview",
   spec_review: "spec",
   plan_review: "plan",
   ready: "ready",
+  building: "building",
+  // "stepper.done" is the screen-reader label of a completed step.
+  done: "finished",
 };
 
 export function PhaseStepper({ phase }: { phase: Phase }) {
@@ -40,7 +44,7 @@ export function PhaseStepper({ phase }: { phase: Phase }) {
               )}
             >
               {state === "done" && <Check className="h-3 w-3" aria-hidden="true" />}
-              {t(`stepper.${STEP_KEY[p]}`)}
+              {t(`stepper.${PHASE_LABEL_KEY[p]}`)}
               {state !== "upcoming" && (
                 <span className="sr-only">
                   {t(state === "current" ? "stepper.current" : "stepper.done")}

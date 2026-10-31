@@ -42,7 +42,7 @@
   "generatePlan": "Générer le plan",
   "generating": "Génération du plan…",
   "approved": "Plan approuvé",
-  "approvedNote": "Les agents commenceront à construire à une étape ultérieure de Cobble.",
+  "approvedNote": "Relisez le plan une dernière fois, puis lancez la construction.",
   "empty": {
     "interview": {
       "title": "Pas encore de plan",
@@ -56,5 +56,10 @@
       "title": "Prêt à planifier",
       "description": "La spécification est approuvée. Générez le plan pour découper le travail en jalons et en tâches."
     }
-  }
+  },
+  "startBuilding": "Lancer la construction",
+  "starting": "Démarrage…",
+  "building": "Les agents construisent le projet.",
+  "done": "Le projet est terminé : tous les jalons sont validés.",
+  "viewAgents": "Les suivre dans l'onglet Agents"
 }

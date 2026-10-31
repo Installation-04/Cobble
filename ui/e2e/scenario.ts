@@ -30,3 +30,13 @@ export function activationPath(): string {
   const url = new URL(match[0]);
   return `${url.pathname}${url.search}`;
 }
+
+/** Build loop (fake pack mode): generous waits, the agents run through the real scheduler. */
+export const BUILD_TIMEOUT = 120_000;
+
+/** The comment posted on the first milestone; it becomes task C-001. */
+export const COMMENT_TEXT = "Please add a due date to each task";
+
+/** Words that realistic demo data of the to-do template contains (seed.py). */
+export const DEMO_TODO_PATTERN =
+  /buy|call|write|clean|pay|book|email|groceries|laundry|milk|dentist|report|invoice/i;

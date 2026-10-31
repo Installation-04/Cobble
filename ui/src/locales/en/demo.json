@@ -1,0 +1,42 @@
+{
+  "status": {
+    "pending": "Pending",
+    "built": "Built",
+    "validated": "Validated"
+  },
+  "builtAt": "Built {{date}}",
+  "pendingNote": "The agents are still working on this milestone.",
+  "open": "Open demo",
+  "newTab": "(opens in a new tab)",
+  "showPreview": "Show preview",
+  "hidePreview": "Hide preview",
+  "previewTitle": "Preview of milestone {{ref}}",
+  "validate": "Validate",
+  "validating": "Validating…",
+  "done": "Every milestone is validated: the project is done.",
+  "empty": {
+    "title": "No demo yet",
+    "notStarted": "Demos appear here once the plan is approved and the build has started.",
+    "building": "The first demo appears when its milestone is built."
+  },
+  "comment": {
+    "open": "Comment",
+    "title": "Comment on milestone {{ref}}",
+    "description": "Describe what to change. A new task is created and the agents work on it.",
+    "label": "Your comment",
+    "placeholder": "Please add a due date to each task",
+    "count": "{{count}} / {{max}}",
+    "submit": "Send comment",
+    "sending": "Sending…",
+    "created": "Task {{ref}} created from your comment on milestone {{milestone}}.",
+    "createdNoRef": "A task was created from your comment on milestone {{milestone}}.",
+    "viewTask": "See it in the Agents tab",
+    "dismiss": "Dismiss"
+  },
+  "revert": {
+    "open": "Revert",
+    "title": "Revert milestone {{ref}}?",
+    "description": "The code goes back to the previous milestone. Milestone {{ref}} and the later ones become pending and their tasks start again.",
+    "confirm": "Revert"
+  }
+}

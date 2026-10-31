@@ -14,7 +14,8 @@ export default defineConfig({
   expect: { timeout: 10_000 },
   reporter: [["list"]],
   // Order matters on a fresh stack: setup activates the admin and saves the session, the plan
-  // spec runs next, and the shell spec goes last because it logs out and changes preferences.
+  // spec runs next, then the build spec (needs COBBLE_PACK_MODE=fake), and the shell spec goes
+  // last because it logs out and changes preferences.
   projects: [
     { name: "setup", testMatch: /auth\.setup\.ts/ },
     {
@@ -24,9 +25,15 @@ export default defineConfig({
       use: { storageState: STORAGE_STATE },
     },
     {
+      name: "build",
+      testMatch: /build\.spec\.ts/,
+      dependencies: ["plan"],
+      use: { storageState: STORAGE_STATE },
+    },
+    {
       name: "shell",
       testMatch: /shell\.spec\.ts/,
-      dependencies: ["plan"],
+      dependencies: ["build"],
       use: { storageState: STORAGE_STATE },
     },
   ],

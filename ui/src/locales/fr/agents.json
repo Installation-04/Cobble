@@ -1,0 +1,94 @@
+{
+  "summary": "{{merged}} sur {{total}} tâches fusionnées",
+  "reload": "Recharger",
+  "group": {
+    "todo": "À faire",
+    "running": "En cours",
+    "ci": "CI",
+    "merged": "Fusionnées",
+    "attention": "À surveiller"
+  },
+  "state": {
+    "todo": "À faire",
+    "writing_tests": "Écriture des tests",
+    "implementing": "Implémentation",
+    "ci": "CI en cours",
+    "merged": "Fusionnée",
+    "failed": "Échouée",
+    "blocked": "Bloquée",
+    "paused": "En pause",
+    "stopped": "Arrêtée"
+  },
+  "runState": {
+    "pending": "Démarrage",
+    "running": "En cours",
+    "done": "Terminé",
+    "failed": "Échec",
+    "timeout": "Délai dépassé",
+    "loop_detected": "Boucle détectée",
+    "stopped": "Arrêté",
+    "budget": "Budget atteint",
+    "rejected": "Rejeté",
+    "lost": "Perdu",
+    "retired": "Remplacé"
+  },
+  "escalated": "Escaladée",
+  "attempts_one": "{{count}} tentative",
+  "attempts_other": "{{count}} tentatives",
+  "size": "Taille {{size}}",
+  "empty": {
+    "notStarted": {
+      "title": "Rien à construire pour l'instant",
+      "description": "Les agents se mettent au travail une fois le plan approuvé et la construction lancée."
+    },
+    "ready": {
+      "title": "Prêt à construire",
+      "description": "Le plan est approuvé. Lancez la construction pour mettre les agents au travail.",
+      "link": "Aller à l'onglet Plan"
+    },
+    "preparing": {
+      "title": "Préparation du projet",
+      "description": "Création du dépôt et des tâches. Les premières cartes arrivent dans un instant."
+    },
+    "noTasks": {
+      "title": "Aucune tâche",
+      "description": "Ce projet n'a aucune tâche."
+    }
+  },
+  "drawer": {
+    "description": "Exécutions, journal en direct et modifications de cette tâche.",
+    "views": "Détails de la tâche"
+  },
+  "runs": {
+    "title": "Exécutions",
+    "empty": "Aucune exécution pour l'instant.",
+    "kind": "Agent",
+    "attempt": "Tentative",
+    "model": "Modèle",
+    "state": "État",
+    "iterations": "Itérations",
+    "started": "Début"
+  },
+  "actions": {
+    "label": "Actions sur la tâche",
+    "pause": "Mettre en pause",
+    "resume": "Reprendre",
+    "stop": "Arrêter",
+    "retry": "Réessayer",
+    "working": "En cours…",
+    "stopTitle": "Arrêter la tâche {{ref}} ?",
+    "stopDescription": "L'exécution en cours de l'agent est arrêtée et la tâche passe à l'état arrêtée. Vous pourrez la relancer plus tard."
+  },
+  "log": {
+    "title": "Journal en direct",
+    "label": "Journal de l'agent",
+    "empty": "Aucune sortie pour l'instant.",
+    "live": "Mise à jour toutes les 2 secondes…"
+  },
+  "diff": {
+    "title": "Modifications",
+    "label": "Différences de la branche de la tâche",
+    "empty": "Aucune modification envoyée pour l'instant.",
+    "truncated": "Le diff est trop volumineux et a été tronqué."
+  }
+}

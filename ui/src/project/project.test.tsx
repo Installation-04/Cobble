@@ -501,7 +501,7 @@ describe("Plan tab", () => {
 
     await userEvent.click(within(dialog).getByTestId("confirm-submit"));
     expect(await screen.findByTestId("plan-approved")).toHaveTextContent(
-      "The agents will start building in a later step",
+      "Review the plan one last time, then start building.",
     );
     expect(screen.queryByTestId("plan-approve")).not.toBeInTheDocument();
     expect(screen.getByTestId("plan-status")).toHaveTextContent("Approved");

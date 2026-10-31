@@ -56,12 +56,33 @@
     "title": "Welcome to Cobble",
     "description": "Select a project in the sidebar or create a new one to get started."
   },
-  "placeholder": {
-    "title": "Coming soon",
-    "description": "This section arrives in a later step of Cobble."
-  },
   "notFound": {
     "title": "Project not found",
     "description": "This project does not exist or was deleted."
+  },
+  "global": {
+    "empty": "No project yet. Create one from the sidebar.",
+    "agents": {
+      "description": "Your projects and where their agents stand.",
+      "open": "Open the agents of"
+    },
+    "demos": {
+      "description": "Your projects and their demos.",
+      "open": "Open the demos of"
+    },
+    "costs": {
+      "description": "What each project has spent so far.",
+      "caption": "Spending by project",
+      "project": "Project",
+      "spent": "Spent",
+      "budget": "Budget",
+      "status": "Status",
+      "total": "Total",
+      "noBudget": "No budget",
+      "state": {
+        "active": "Active",
+        "paused": "Paused"
+      }
+    }
   }
 }

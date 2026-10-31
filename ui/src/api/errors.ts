@@ -16,6 +16,10 @@ export const KNOWN_ERROR_CODES = [
   "plan_invalid",
   "llm_error",
   "budget_reached",
+  "wrong_state",
+  "queue_unavailable",
+  "agent_unavailable",
+  "git_unavailable",
 ] as const;
 
 /** Translate any thrown value into a user-facing message via `errors.<code>`. */

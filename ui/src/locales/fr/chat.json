@@ -21,7 +21,9 @@
     "interview": "Entretien",
     "spec": "Spécification",
     "plan": "Plan",
-    "ready": "Prêt"
+    "ready": "Prêt",
+    "building": "Construction",
+    "finished": "Terminé"
   },
   "generateSpec": "Générer la spécification",
   "generatingSpec": "Génération de la spécification…",
@@ -32,7 +34,8 @@
     "job": {
       "reply": "Réponse de l'assistant",
       "spec": "Génération de la spécification",
-      "plan": "Génération du plan"
+      "plan": "Génération du plan",
+      "start": "Démarrage de la construction"
     }
   }
 }

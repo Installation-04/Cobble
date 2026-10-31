@@ -1,6 +1,7 @@
-import { CheckCircle2, ClipboardList, Loader2 } from "lucide-react";
+import { CheckCircle2, ClipboardList, Hammer, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Link } from "react-router-dom";
 import type { Plan, PlanTask } from "../api/types";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { Badge } from "../components/ui/badge";
@@ -155,11 +156,13 @@ function PlanView({ plan, lang }: { plan: Plan; lang: string }) {
 
 export function PlanTab() {
   const { t, i18n } = useTranslation("plan");
-  const { phase, paused, plan, spec, jobs, generatePlan, approvePlan } = useProjectData();
+  const { phase, paused, plan, spec, jobs, generatePlan, approvePlan, startBuilding } =
+    useProjectData();
   const [asking, setAsking] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const feedback = useAsyncAction();
   const generate = useAsyncAction();
+  const start = useAsyncAction();
   const lang = i18n.language;
 
   if (!plan) {
@@ -223,7 +226,7 @@ export function PlanTab() {
             {t(`status.${plan.status}`)}
           </Badge>
         </header>
-        <FailureBanner kinds={["plan"]} />
+        <FailureBanner kinds={["plan", "start"]} />
         {regenerating && (
           <p
             role="status"
@@ -241,18 +244,58 @@ export function PlanTab() {
       </div>
 
       <div className="flex flex-col gap-2 border-t border-border p-3">
-        {error && (
-          <p role="alert" className="text-sm text-destructive">
-            {error}
+        {(error || start.error) && (
+          <p role="alert" data-testid="plan-error" className="text-sm text-destructive">
+            {error ?? start.error}
           </p>
         )}
         {phase === "ready" && (
-          <div data-testid="plan-approved" className="flex items-start gap-2 text-sm" role="status">
-            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" aria-hidden="true" />
-            <div>
-              <p className="font-medium">{t("approved")}</p>
-              <p className="text-muted-foreground">{t("approvedNote")}</p>
+          <div
+            data-testid="plan-approved"
+            className="flex flex-wrap items-center justify-between gap-3 text-sm"
+          >
+            <div className="flex items-start gap-2" role="status">
+              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" aria-hidden="true" />
+              <div>
+                <p className="font-medium">{t("approved")}</p>
+                <p className="text-muted-foreground">{t("approvedNote")}</p>
+              </div>
             </div>
+            <Button
+              size="lg"
+              data-testid="start-building"
+              disabled={paused || jobs.start || start.busy}
+              onClick={() => void start.run(() => startBuilding())}
+            >
+              {jobs.start || start.busy ? (
+                <>
+                  <Loader2
+                    className="h-4 w-4 animate-spin motion-reduce:animate-none"
+                    aria-hidden="true"
+                  />
+                  {t("starting")}
+                </>
+              ) : (
+                <>
+                  <Hammer className="h-4 w-4" aria-hidden="true" />
+                  {t("startBuilding")}
+                </>
+              )}
+            </Button>
+          </div>
+        )}
+        {(phase === "building" || phase === "done") && (
+          <div data-testid="plan-building" role="status" className="flex items-start gap-2 text-sm">
+            <Hammer className="mt-0.5 h-4 w-4 shrink-0 text-success" aria-hidden="true" />
+            <p>
+              {t(phase === "building" ? "building" : "done")}{" "}
+              <Link
+                to="?tab=agents"
+                className="font-medium text-primary underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+              >
+                {t("viewAgents")}
+              </Link>
+            </p>
           </div>
         )}
         {inReview && !asking && (

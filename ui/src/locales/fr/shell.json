@@ -56,12 +56,33 @@
     "title": "Bienvenue sur Cobble",
     "description": "Choisissez un projet dans la barre latérale ou créez-en un nouveau pour commencer."
   },
-  "placeholder": {
-    "title": "Bientôt disponible",
-    "description": "Cette section arrive dans une prochaine étape de Cobble."
-  },
   "notFound": {
     "title": "Projet introuvable",
     "description": "Ce projet n'existe pas ou a été supprimé."
+  },
+  "global": {
+    "empty": "Aucun projet pour l'instant. Créez-en un depuis la barre latérale.",
+    "agents": {
+      "description": "Vos projets et l'avancement de leurs agents.",
+      "open": "Ouvrir les agents de"
+    },
+    "demos": {
+      "description": "Vos projets et leurs démos.",
+      "open": "Ouvrir les démos de"
+    },
+    "costs": {
+      "description": "Ce que chaque projet a dépensé jusqu'ici.",
+      "caption": "Dépenses par projet",
+      "project": "Projet",
+      "spent": "Dépensé",
+      "budget": "Budget",
+      "status": "État",
+      "total": "Total",
+      "noBudget": "Pas de budget",
+      "state": {
+        "active": "Actif",
+        "paused": "En pause"
+      }
+    }
   }
 }

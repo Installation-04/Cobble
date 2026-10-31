@@ -21,7 +21,9 @@
     "interview": "Interview",
     "spec": "Spec",
     "plan": "Plan",
-    "ready": "Ready"
+    "ready": "Ready",
+    "building": "Building",
+    "finished": "Done"
   },
   "generateSpec": "Generate spec",
   "generatingSpec": "Generating the spec…",
@@ -32,7 +34,8 @@
     "job": {
       "reply": "The assistant's reply",
       "spec": "Spec generation",
-      "plan": "Plan generation"
+      "plan": "Plan generation",
+      "start": "Build start"
     }
   }
 }

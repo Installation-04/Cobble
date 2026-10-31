@@ -4,7 +4,7 @@ import { useAuth } from "./auth/AuthProvider";
 import { ActivatePage } from "./pages/ActivatePage";
 import { HomePage } from "./pages/HomePage";
 import { LoginPage } from "./pages/LoginPage";
-import { GlobalView } from "./pages/Placeholder";
+import { GlobalView } from "./pages/GlobalViews";
 import { ProjectPage } from "./pages/ProjectPage";
 import { Shell } from "./pages/Shell";
 

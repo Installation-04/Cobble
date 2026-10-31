@@ -18,5 +18,15 @@
   "job_plan_invalid": "L'assistant n'a pas pu produire un plan valide après plusieurs essais. Réessayez, ou demandez des modifications plus détaillées.",
   "job_llm_error": "Le modèle de langage n'a pas pu répondre. Réessayez dans un instant.",
   "job_budget_reached": "Le budget du projet est atteint et le projet est en pause. Augmentez le budget pour continuer.",
-  "job_unknown": "La tâche a échoué pour une raison inconnue. Réessayez."
+  "job_unknown": "La tâche a échoué pour une raison inconnue. Réessayez.",
+  "wrong_state": "Cette action n'est pas possible dans l'état actuel.",
+  "queue_unavailable": "La file de tâches est indisponible. Réessayez dans un instant.",
+  "job_repo_error": "Le dépôt du projet n'a pas pu être créé. Réessayez.",
+  "job_ci_error": "La CI n'a pas pu être configurée pour le projet. Réessayez.",
+  "job_no_plan": "Il n'y a aucun plan approuvé à construire.",
+  "job_wrong_phase": "Le projet n'est pas prêt à être construit.",
+  "job_internal_error": "Une erreur interne a empêché le démarrage de la construction. Réessayez.",
+  "job_scheduler_unavailable": "Le service de construction n'est pas disponible sur cette installation.",
+  "agent_unavailable": "Le service d'agents est indisponible : l'exécution n'a pas pu être arrêtée. Rien n'a été modifié.",
+  "git_unavailable": "Le serveur git est indisponible. Réessayez dans un instant."
 }

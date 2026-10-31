@@ -42,7 +42,7 @@
   "generatePlan": "Generate plan",
   "generating": "Generating the plan…",
   "approved": "Plan approved",
-  "approvedNote": "The agents will start building in a later step of Cobble.",
+  "approvedNote": "Review the plan one last time, then start building.",
   "empty": {
     "interview": {
       "title": "No plan yet",
@@ -56,5 +56,10 @@
       "title": "Ready to plan",
       "description": "The spec is approved. Generate the plan to split the work into milestones and tasks."
     }
-  }
+  },
+  "startBuilding": "Start building",
+  "starting": "Starting…",
+  "building": "The agents are building the project.",
+  "done": "The project is done: every milestone is validated.",
+  "viewAgents": "Follow them in the Agents tab"
 }

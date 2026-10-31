@@ -1,0 +1,42 @@
+{
+  "status": {
+    "pending": "En attente",
+    "built": "Construit",
+    "validated": "Validé"
+  },
+  "builtAt": "Construit {{date}}",
+  "pendingNote": "Les agents travaillent encore sur ce jalon.",
+  "open": "Ouvrir la démo",
+  "newTab": "(s'ouvre dans un nouvel onglet)",
+  "showPreview": "Afficher l'aperçu",
+  "hidePreview": "Masquer l'aperçu",
+  "previewTitle": "Aperçu du jalon {{ref}}",
+  "validate": "Valider",
+  "validating": "Validation…",
+  "done": "Tous les jalons sont validés : le projet est terminé.",
+  "empty": {
+    "title": "Pas encore de démo",
+    "notStarted": "Les démos apparaissent ici une fois le plan approuvé et la construction lancée.",
+    "building": "La première démo apparaît quand son jalon est construit."
+  },
+  "comment": {
+    "open": "Commenter",
+    "title": "Commenter le jalon {{ref}}",
+    "description": "Décrivez ce qu'il faut changer. Une nouvelle tâche est créée et les agents s'en occupent.",
+    "label": "Votre commentaire",
+    "placeholder": "Ajoutez une date d'échéance à chaque tâche",
+    "count": "{{count}} / {{max}}",
+    "submit": "Envoyer le commentaire",
+    "sending": "Envoi…",
+    "created": "Tâche {{ref}} créée à partir de votre commentaire sur le jalon {{milestone}}.",
+    "createdNoRef": "Une tâche a été créée à partir de votre commentaire sur le jalon {{milestone}}.",
+    "viewTask": "La voir dans l'onglet Agents",
+    "dismiss": "Fermer"
+  },
+  "revert": {
+    "open": "Annuler",
+    "title": "Annuler le jalon {{ref}} ?",
+    "description": "Le code revient au jalon précédent. Le jalon {{ref}} et les suivants repassent en attente et leurs tâches redémarrent.",
+    "confirm": "Annuler le jalon"
+  }
+}

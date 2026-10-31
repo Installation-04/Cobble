@@ -31,6 +31,10 @@
   --success-foreground: #ffffff;
   --warning: #92400e;
   --warning-foreground: #ffffff;
+  --diff-added: #dcfce7;
+  --diff-added-foreground: #14532d;
+  --diff-removed: #fee2e2;
+  --diff-removed-foreground: #7f1d1d;
   --overlay: rgb(15 23 42 / 0.5);
 }
 
@@ -61,6 +65,10 @@
   --success-foreground: #0b1120;
   --warning: #fbbf24;
   --warning-foreground: #0b1120;
+  --diff-added: #052e16;
+  --diff-added-foreground: #bbf7d0;
+  --diff-removed: #450a0a;
+  --diff-removed-foreground: #fecaca;
   --overlay: rgb(0 0 0 / 0.6);
 }
 
@@ -90,5 +98,9 @@
   --color-success-foreground: var(--success-foreground);
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);
+  --color-diff-added: var(--diff-added);
+  --color-diff-added-foreground: var(--diff-added-foreground);
+  --color-diff-removed: var(--diff-removed);
+  --color-diff-removed-foreground: var(--diff-removed-foreground);
   --color-overlay: var(--overlay);
 }

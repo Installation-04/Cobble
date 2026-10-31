@@ -3,7 +3,18 @@ import { useTranslation } from "react-i18next";
 import type { JobKind } from "../api/types";
 import { useProjectData } from "./ProjectDataProvider";
 
-const KNOWN_CODES = ["plan_invalid", "llm_error", "budget_reached"];
+const KNOWN_CODES = [
+  "plan_invalid",
+  "llm_error",
+  "budget_reached",
+  // Start job (ADR 0006)
+  "repo_error",
+  "ci_error",
+  "no_plan",
+  "wrong_phase",
+  "internal_error",
+  "scheduler_unavailable",
+];
 
 /** Last failed job (job.failed), with its translated error code. */
 export function FailureBanner({ kinds }: { kinds?: JobKind[] }) {

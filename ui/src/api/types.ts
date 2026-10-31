@@ -15,8 +15,15 @@ export interface Folder {
   position: number;
 }
 
-export type Phase = "interview" | "spec_review" | "plan_review" | "ready";
-export const PHASES: readonly Phase[] = ["interview", "spec_review", "plan_review", "ready"];
+export type Phase = "interview" | "spec_review" | "plan_review" | "ready" | "building" | "done";
+export const PHASES: readonly Phase[] = [
+  "interview",
+  "spec_review",
+  "plan_review",
+  "ready",
+  "building",
+  "done",
+];
 
 export interface Project {
   id: string;
@@ -80,4 +87,101 @@ export interface Plan {
   created_at: string;
 }
 
-export type JobKind = "reply" | "spec" | "plan";
+export type JobKind = "reply" | "spec" | "plan" | "start";
+
+/** Scheduler task states (ADR 0006). */
+export const TASK_STATES = [
+  "todo",
+  "writing_tests",
+  "implementing",
+  "ci",
+  "merged",
+  "failed",
+  "blocked",
+  "paused",
+  "stopped",
+] as const;
+export type TaskState = (typeof TASK_STATES)[number];
+
+export interface Task {
+  ref: string;
+  title: string;
+  milestone: string;
+  state: TaskState;
+  attempts: number;
+  escalated: boolean;
+  /** Plan role (backend, frontend...) for planned tasks; free text, translated when known. */
+  role: string;
+  size: string;
+  depends_on: string[];
+}
+
+export interface TaskRun {
+  /** Which agent ran: test-writer, worker... */
+  kind: string;
+  attempt: number;
+  model: string;
+  state: string;
+  started_at: string;
+  finished_at: string | null;
+  iterations: number;
+  log_tail: string | null;
+}
+
+export interface TaskDetail extends Task {
+  runs: TaskRun[];
+}
+
+export interface TaskDiff {
+  diff: string;
+  truncated: boolean;
+}
+
+export type MilestoneStatus = "pending" | "built" | "validated";
+
+export interface Milestone {
+  ref: string;
+  title: string;
+  status: MilestoneStatus;
+  tag: string | null;
+  /** Same-origin path of the running demo, e.g. /demo/<project>/M1/. */
+  preview_path: string | null;
+  built_at: string | null;
+  validated_at: string | null;
+}
+
+/** Decimals travel as strings. */
+export interface CostLine {
+  cost_usd: string;
+  prompt_tokens: number;
+  completion_tokens: number;
+  calls: number;
+}
+/** `ref` is null for planner calls (no task). */
+export interface CostByTask extends CostLine {
+  ref: string | null;
+}
+export interface CostByModel extends CostLine {
+  model: string | null;
+}
+export interface CostByRole extends CostLine {
+  role: string | null;
+}
+
+export interface ProjectCosts {
+  budget_usd: string | null;
+  spent_usd: string;
+  tokens: { prompt: number; completion: number };
+  estimate_usd: string | null;
+  by_task: CostByTask[];
+  by_model: CostByModel[];
+  by_role: CostByRole[];
+}
+
+export interface GlobalCostRow {
+  project_id: string;
+  name: string;
+  spent_usd: string;
+  budget_usd: string | null;
+  status: "active" | "paused";
+}

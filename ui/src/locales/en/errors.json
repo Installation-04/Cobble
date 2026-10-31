@@ -18,5 +18,15 @@
   "job_plan_invalid": "The assistant could not produce a valid plan after several attempts. Try again, or request changes with more detail.",
   "job_llm_error": "The language model failed to answer. Please try again in a moment.",
   "job_budget_reached": "The project's budget is reached and the project is paused. Raise the budget to continue.",
-  "job_unknown": "The task failed for an unknown reason. Please try again."
+  "job_unknown": "The task failed for an unknown reason. Please try again.",
+  "wrong_state": "This action is not possible in the current state.",
+  "queue_unavailable": "The job queue is unavailable. Try again in a moment.",
+  "job_repo_error": "The project repository could not be created. Try again.",
+  "job_ci_error": "The CI could not be set up for the project. Try again.",
+  "job_no_plan": "There is no approved plan to build from.",
+  "job_wrong_phase": "The project is not ready to be built.",
+  "job_internal_error": "An internal error stopped the build from starting. Try again.",
+  "job_scheduler_unavailable": "The build service is not available on this installation.",
+  "agent_unavailable": "The agent service is unavailable, so the run could not be stopped. Nothing was changed.",
+  "git_unavailable": "The git server is unavailable. Try again in a moment."
 }
