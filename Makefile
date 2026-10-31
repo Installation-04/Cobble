@@ -8,6 +8,7 @@ help:
 install:
 	cd backend && uv sync --locked
 	cd providers/fake-llm && uv sync --locked
+	cd packs/v01/agent-service && uv sync --locked
 	cd ui && pnpm install --frozen-lockfile
 
 lint: lint-backend lint-ui
@@ -21,6 +22,7 @@ lint-backend:
 	$(RUFF) format --config pyproject.toml --check $(PY_DIRS)
 	cd backend && uv run --quiet mypy
 	cd providers/fake-llm && uv run --quiet mypy
+	cd packs/v01/agent-service && uv run --quiet ruff check . && uv run --quiet ruff format --check . && uv run --quiet mypy
 
 lint-ui:
 	cd ui && pnpm run lint && pnpm run format:check && pnpm run typecheck
@@ -30,6 +32,7 @@ test: test-backend test-ui test-installer
 test-backend:
 	cd backend && uv run --quiet pytest -q
 	cd providers/fake-llm && uv run --quiet pytest -q
+	cd packs/v01/agent-service && uv run --quiet pytest -q
 
 test-ui:
 	cd ui && pnpm test

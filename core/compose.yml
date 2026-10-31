@@ -111,11 +111,16 @@ services:
     env_file:
       - path: ../packs/v01/.env.pack
         required: false
+      # Agent-service URL and token, written by packs/v01/agent-service/gen-env.sh.
+      - path: ../packs/v01/.env.agents.core
+        required: false
     <<: *hardening
     command: ["python", "-m", "cobble.worker"]
     environment: *app-env
     depends_on:
       api: {condition: service_healthy}
+    # The project template the scheduler copies into each new repository.
+    volumes: [../templates/fastapi-react:/templates/fastapi-react:ro]
     mem_limit: 512m
     networks: [core]
 
