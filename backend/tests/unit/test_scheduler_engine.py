@@ -769,8 +769,10 @@ def test_run_forever_reconciles_then_ticks_until_stopped(
     thread = threading.Thread(target=h.scheduler.run_forever, args=(stop, 0.01))
     thread.start()
     try:
+        # Poll the in-memory event stream, not the database: the test database is a single
+        # shared SQLite connection that must not be used from two threads at once.
         for _ in range(500):
-            if h.phase(pid) == "done":
+            if any(name == "project.done" for name, _ in h.events(pid)):
                 break
             stop.wait(0.02)
     finally:
