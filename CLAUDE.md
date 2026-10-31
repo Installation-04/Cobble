@@ -46,6 +46,7 @@ make cassettes    # réenregistre des cassettes contre un vrai fournisseur (coû
 make test         # tests unitaires backend + frontend
 make lint         # ruff, mypy, eslint, vérification des clés i18n
 make e2e          # Playwright sur l'UI, pile neuve (efface les volumes de dev); boucle complète avec cassettes à venir
+make e2e-full       # chaîne réelle complète (Forgejo, Woodpecker, Aider...), manuel, long
 make bench        # banc d'essai des agents (vrais modèles, coûte des tokens: ne pas lancer en CI)
 ```
 

@@ -1,4 +1,4 @@
-.PHONY: test-installer activation-link help install lint lint-backend lint-ui test test-backend test-ui test-integration format dev dev-down dev-logs smoke e2e bench cassettes
+.PHONY: e2e-full test-installer activation-link help install lint lint-backend lint-ui test test-backend test-ui test-integration format dev dev-down dev-logs smoke e2e bench cassettes
 
 RUFF := cd backend && uv run --quiet ruff
 
@@ -93,6 +93,11 @@ cassettes:
 	cd providers/fake-llm && FAKE_LLM_MODE=record uv run --quiet uvicorn fake_llm.app:create_app_from_env --factory --port 8999
 
 # Not available yet: each target lands with its plan step.
+# Manual, long (20+ minutes): the REAL chain (Forgejo, Woodpecker, agent-service, Aider, previews)
+# replaying the to-do reference project. See docs/en/e2e-full.md. Pass options with ARGS="--keep".
+e2e-full:
+	bash scripts/e2e_full.sh $(ARGS)
+
 # Browser tests (Playwright) against a FRESH stack: the spec activates the first admin account.
 e2e:
 	python3 scripts/dev_env.py

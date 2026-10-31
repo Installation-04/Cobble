@@ -503,7 +503,9 @@ class Scheduler:
             limits=limits,
             model=model,
             base_branch=self._settings.base_branch,
-            test_command=prompts.local_test_command(task.tests),
+            # The test-writer writes tests that must fail until the worker has run: giving it the
+            # test command would make the runner exit non-zero and look like a loop.
+            test_command=prompts.local_test_command(task.tests) if worker else "",
             run_token=token,
             marker=prompts.marker(task.ref, role.value, attempt),
         )

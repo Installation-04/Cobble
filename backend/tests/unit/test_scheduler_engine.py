@@ -205,7 +205,7 @@ def test_reference_backlog_completes_alone(sessions: sessionmaker[Session], pid:
     assert first.base_branch == "main"
     assert first.branch == "task/t-001"
     assert first.files == ["app/main.py", "tests/test_health.py"]
-    assert first.test_command == "uv run pytest -q tests/test_health.py"
+    assert first.test_command == "", "the test-writer writes failing tests: no test command"
     claims = runtoken.verify(SECRET, first.run_token)
     assert (claims.project_id, claims.role, claims.model_override) == (pid, "test-writer", None)
     assert claims.task_id == tasks["T-001"].id
@@ -782,3 +782,19 @@ def test_run_forever_reconciles_then_ticks_until_stopped(
         thread.join(timeout=5)
     assert not thread.is_alive()
     assert h.phase(pid) == "done"
+
+
+def test_only_worker_runs_get_a_test_command(
+    sessions: sessionmaker[Session], pid: uuid.UUID
+) -> None:
+    """The test-writer's tests fail on purpose: it must not be given the test command."""
+    from cobble.capabilities import Role
+
+    h = Harness(sessions)
+    h.start(pid)
+    h.run_until(pid)
+    by_role: dict[Role, set[bool]] = {}
+    for run in h.agents.runs:
+        by_role.setdefault(run.role, set()).add(bool(run.test_command))
+    assert by_role[Role.TEST_WRITER] == {False}
+    assert by_role[Role.WORKER] == {True}
