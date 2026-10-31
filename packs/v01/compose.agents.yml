@@ -68,7 +68,10 @@ services:
 
   # Build-only entry: `docker compose --profile build build` also builds the runner image.
   agent-runner-image:
-    build: ../../runners/aider
+    build:
+      context: ../../runners/aider
+      additional_contexts:
+        template: ../../templates/fastapi-react  # pre-warms the runner's uv cache
     image: ${COBBLE_AGENT_RUNNER_IMAGE:-cobble-aider-runner:0.1}
     profiles: [build]
     entrypoint: ["true"]

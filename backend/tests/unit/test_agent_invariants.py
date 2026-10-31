@@ -45,7 +45,7 @@ def test_dockerfiles_pin_bases_and_run_as_non_root(dockerfile: Path) -> None:
     refs = [
         ref
         for ref in re.findall(r"^FROM\s+(\S+)", text, re.M) + re.findall(r"--from=(\S+)", text)
-        if ref not in stages
+        if ref not in stages and ref != "scratch"  # scratch: the empty image, nothing to pin
     ]
     assert refs
     for ref in refs:
@@ -172,3 +172,11 @@ def test_backend_image_ships_git() -> None:
     assert re.search(
         r"apt-get install[^\n]*\bgit\b", (ROOT / "backend" / "Dockerfile").read_text("utf-8")
     )
+
+
+def test_runner_image_prewarms_the_template_dependencies() -> None:
+    dockerfile = (ROOT / "runners" / "aider" / "Dockerfile").read_text("utf-8")
+    assert "FROM scratch AS template" in dockerfile and "/opt/uv-seed" in dockerfile
+    compose = (PACK / "compose.agents.yml").read_text("utf-8")
+    assert "additional_contexts" in compose and "templates/fastapi-react" in compose
+    assert "/opt/uv-seed" in (ROOT / "runners" / "aider" / "entrypoint").read_text("utf-8")
