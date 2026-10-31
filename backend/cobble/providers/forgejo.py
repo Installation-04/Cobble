@@ -33,6 +33,8 @@ _PLACEHOLDER = re.compile(r"\{\{\s*project_name\s*\}\}")
 _SKIP_DIRS = {".git", "node_modules", ".venv", "__pycache__", ".pytest_cache", ".ruff_cache"}
 # Statuses of a merge attempt that mean "the rules do not allow it" rather than "broken".
 _MERGE_REFUSED_STATUSES = {403, 405, 409, 422}
+MERGE_ATTEMPTS = 4  # a refusal while the server recomputes mergeability is retried
+MERGE_RETRY_DELAY_S = 2.0
 _TAG_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$")
 
 
@@ -290,20 +292,32 @@ class ForgejoGit:
             raise MergeRefused("the merge request is closed")
         head_sha = str(pull["head"]["sha"])
         self._require_green(request.repo, head_sha)
-        try:
-            self._api.request(
-                "POST",
-                f"{path}/pulls/{request.number}/merge",
-                json={
-                    "Do": self.settings.merge_style,
-                    "head_commit_id": head_sha,
-                    "delete_branch_after_merge": True,
-                },
-            )
-        except ProviderError as exc:
-            if exc.status in _MERGE_REFUSED_STATUSES:
+        for attempt in range(MERGE_ATTEMPTS):
+            try:
+                self._api.request(
+                    "POST",
+                    f"{path}/pulls/{request.number}/merge",
+                    json={
+                        "Do": self.settings.merge_style,
+                        "head_commit_id": head_sha,
+                        "delete_branch_after_merge": True,
+                    },
+                )
+                return
+            except ProviderError as exc:
+                if exc.status not in _MERGE_REFUSED_STATUSES:
+                    raise
+                # Right after another merge moved the base branch, Forgejo refuses for a moment
+                # while it recomputes mergeability. If the pull request reads as mergeable
+                # again, ask once more instead of failing the task.
+                if attempt + 1 < MERGE_ATTEMPTS and self._is_mergeable(path, request.number):
+                    self._sleep(MERGE_RETRY_DELAY_S)
+                    continue
                 raise MergeRefused(str(exc)) from None
-            raise
+
+    def _is_mergeable(self, path: str, number: int) -> bool:
+        pull = self._api.request("GET", f"{path}/pulls/{number}")
+        return bool(pull.get("mergeable")) and not pull.get("merged")
 
     def _require_green(self, repo: RepoRef, head_sha: str) -> None:
         if self.ci is not None:
