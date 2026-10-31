@@ -6,7 +6,7 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import DateTime, ForeignKey, Integer, Numeric, String, Uuid, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, Numeric, String, Uuid, false, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .base import Base
@@ -71,6 +71,10 @@ class ActivationToken(Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = _now_col()
+    # Set for a reset link: activating it changes this user's credentials instead of creating one.
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("users.id", ondelete="CASCADE")
+    )
 
 
 class Folder(Base):
@@ -97,3 +101,11 @@ class Project(Base):
         Uuid, ForeignKey("folders.id", ondelete="SET NULL"), index=True
     )
     created_at: Mapped[datetime] = _now_col()
+    # Hard spending cap in USD (None = unlimited). A paused project accepts no LLM calls.
+    budget_usd: Mapped[Decimal | None] = mapped_column(Numeric(14, 2))
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="active", server_default="active"
+    )
+    budget_warning_sent: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=false()
+    )

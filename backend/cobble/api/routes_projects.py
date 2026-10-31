@@ -8,8 +8,9 @@ from fastapi import APIRouter, Response
 from sqlalchemy import select
 
 from cobble.db import Folder, Project
+from cobble.router.budget import apply_budget
 
-from .deps import CurrentUser, Db, parse_id
+from .deps import AppSettings, CurrentUser, Db, parse_id
 from .errors import ApiError
 from .schemas import ProjectIn, ProjectOut, ProjectPatch
 
@@ -40,10 +41,15 @@ def list_projects(user: CurrentUser, db: Db) -> list[Project]:
 
 
 @router.post("/projects", status_code=201, response_model=ProjectOut)
-def create_project(body: ProjectIn, user: CurrentUser, db: Db) -> Project:
+def create_project(body: ProjectIn, user: CurrentUser, db: Db, settings: AppSettings) -> Project:
     if body.folder_id is not None:
         _check_folder(db, user, body.folder_id)
-    project = Project(owner_id=user.id, name=body.name, folder_id=body.folder_id)
+    project = Project(
+        owner_id=user.id,
+        name=body.name,
+        folder_id=body.folder_id,
+        budget_usd=settings.default_budget_usd,
+    )
     db.add(project)
     db.commit()
     db.refresh(project)
@@ -59,6 +65,8 @@ def update_project(project_id: str, body: ProjectPatch, user: CurrentUser, db: D
         if body.folder_id is not None:
             _check_folder(db, user, body.folder_id)
         project.folder_id = body.folder_id
+    if "budget_usd" in body.model_fields_set:
+        apply_budget(db, project, body.budget_usd)
     db.commit()
     return project
 

@@ -5,9 +5,10 @@ from __future__ import annotations
 import re
 import uuid
 from datetime import datetime
+from decimal import Decimal
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from cobble.auth.passwords import MIN_PASSWORD_LENGTH
 
@@ -118,6 +119,7 @@ class ProjectIn(BaseModel):
 class ProjectPatch(BaseModel):
     name: str | None = None
     folder_id: uuid.UUID | None = None
+    budget_usd: Decimal | None = Field(default=None, ge=0, max_digits=14, decimal_places=2)
 
     @field_validator("name")
     @classmethod
@@ -134,3 +136,5 @@ class ProjectOut(BaseModel):
     name: str
     folder_id: uuid.UUID | None
     created_at: datetime
+    budget_usd: Decimal | None
+    status: Literal["active", "paused"]

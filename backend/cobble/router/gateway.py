@@ -1,13 +1,12 @@
 """Gateway to LiteLLM: sends chat requests and records tokens and cost per call.
 
-All LLM calls go through LiteLLM (never a provider SDK). This minimal gateway
-is replaced by the cost router and the `LLMClient` capability in step 4.
+All LLM calls go through LiteLLM (never a provider SDK). The cost router
+(`cobble/router/costs.py`) wraps this gateway to implement the `LLMClient` capability.
 """
 
 from __future__ import annotations
 
 import uuid
-from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
@@ -15,6 +14,7 @@ import httpx
 from redis import Redis
 from sqlalchemy.orm import Session, sessionmaker
 
+from cobble.capabilities.llm import ChatResult
 from cobble.db import LLMCall
 from cobble.events import publish
 
@@ -22,20 +22,13 @@ COST_HEADER = "x-litellm-response-cost"
 CALL_ID_HEADER = "x-litellm-call-id"
 
 
+__all__ = ["ChatResult", "GatewayError", "LiteLLMGateway"]
+
+
 class GatewayError(RuntimeError):
     def __init__(self, status: int) -> None:
         super().__init__(f"model gateway returned HTTP {status}")
         self.status = status
-
-
-@dataclass(frozen=True)
-class ChatResult:
-    content: str
-    model: str
-    prompt_tokens: int
-    completion_tokens: int
-    cost_usd: Decimal
-    request_id: str | None
 
 
 def _cost(headers: httpx.Headers) -> Decimal:

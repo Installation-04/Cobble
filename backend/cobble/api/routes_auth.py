@@ -2,15 +2,17 @@
 
 from __future__ import annotations
 
+import uuid
+
 from fastapi import APIRouter, Request, Response
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 
 from cobble.auth import ratelimit
-from cobble.auth.activation import TokenState, consume_activation_token
+from cobble.auth.activation import TokenState, consume_activation_token, reset_target
 from cobble.auth.passwords import burn_verification, hash_password, verify_password
 from cobble.auth.sessions import SESSION_LIFETIME, create_session, delete_session
-from cobble.db import User
+from cobble.db import AuthSession, User
 
 from .deps import COOKIE_NAME, AppSettings, CurrentUser, Db, RedisDep
 from .errors import ApiError
@@ -42,6 +44,9 @@ def setup_status(db: Db) -> SetupStatus:
 
 @router.post("/auth/activate", status_code=201, response_model=UserOut)
 def activate(body: ActivateIn, response: Response, db: Db, settings: AppSettings) -> User:
+    target = reset_target(db, body.token)
+    if target is not None:
+        return _reset_admin(body, target, response, db, settings)
     if _user_count(db) > 0:
         raise ApiError(409, "already_initialized")
     state = consume_activation_token(db, body.token)
@@ -64,6 +69,29 @@ def activate(body: ActivateIn, response: Response, db: Db, settings: AppSettings
         db.rollback()
         raise ApiError(409, "already_initialized")
     db.commit()
+    _set_cookie(response, settings, create_session(db, user.id))
+    return user
+
+
+def _reset_admin(
+    body: ActivateIn, user_id: uuid.UUID, response: Response, db: Db, settings: AppSettings
+) -> User:
+    """A reset link changes the admin's email and password and keeps all their data."""
+    if consume_activation_token(db, body.token) is not TokenState.CONSUMED:
+        raise ApiError(400, "activation_invalid")
+    user = db.get(User, user_id)
+    if user is None:
+        raise ApiError(400, "activation_invalid")
+    user.email = body.email
+    user.password_hash = hash_password(body.password)
+    if body.lang:
+        user.lang = body.lang
+    db.execute(delete(AuthSession).where(AuthSession.user_id == user.id))
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise ApiError(409, "already_initialized") from None
     _set_cookie(response, settings, create_session(db, user.id))
     return user
 

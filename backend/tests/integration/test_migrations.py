@@ -69,3 +69,19 @@ def test_migration_0002_up_and_down(database_url: str) -> None:
 
     command.upgrade(config, "head")
     assert tables(database_url) >= STEP3_TABLES
+
+
+def test_0003_adds_and_removes_project_budget_columns(database_url: str) -> None:
+    config = alembic_config(database_url)
+    command.upgrade(config, "head")
+    engine = create_engine(database_url)
+    try:
+        columns = {c["name"] for c in inspect(engine).get_columns("projects")}
+        assert {"budget_usd", "status", "budget_warning_sent"} <= columns
+
+        command.downgrade(config, "0002")
+        columns = {c["name"] for c in inspect(engine).get_columns("projects")}
+        assert not {"budget_usd", "status", "budget_warning_sent"} & columns
+    finally:
+        engine.dispose()
+    command.upgrade(config, "head")
