@@ -71,7 +71,7 @@ in_vm systemctl is-active --quiet cobble.service || fail "cobble.service is not 
 [ "$(in_vm stat -c %a /opt/cobble/.env)" = 600 ] || fail ".env is not mode 0600"
 
 # Create the admin so that the re-run has something it must not destroy.
-in_vm curl -fsS -X POST http://localhost/api/v1/auth/activate -H 'content-type: application/json' \
+in_vm curl -fsS -X POST http://localhost/api/v1/auth/activate -H 'content-type: application/json' -H 'X-Requested-With: cobble' \
   -d "{\"token\":\"$token\",\"email\":\"ci@example.com\",\"password\":\"correct horse battery staple\"}" >/dev/null ||
   fail "admin activation failed"
 env_before="$(in_vm sha256sum /opt/cobble/.env)"
