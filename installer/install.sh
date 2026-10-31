@@ -383,6 +383,7 @@ write_env() {
   port="${port:-${COBBLE_HTTP_PORT:-80}}"
   env_append COBBLE_HTTP_PORT "$port"
   env_append COBBLE_LANG "$LANG_CODE"
+  env_append RUN_TOKEN_SECRET "$(rand_hex)$(rand_hex)"
   local suffix=""
   [ "$port" = 80 ] || suffix=":$port"
   env_append COBBLE_PUBLIC_URL "http://$(primary_ip)$suffix"

@@ -5,6 +5,9 @@
 }
 
 :80 {
+	# Optional pack routes (/git, /ci); a glob that matches nothing is fine.
+	import /etc/caddy/pack/*.caddy
+
 	handle /api/* {
 		reverse_proxy api:8000
 	}

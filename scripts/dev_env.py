@@ -16,6 +16,7 @@ def render() -> str:
         f"POSTGRES_PASSWORD={secrets.token_hex(16)}\n"
         f"REDIS_PASSWORD={secrets.token_hex(16)}\n"
         f"LITELLM_MASTER_KEY=sk-cobble-{secrets.token_hex(16)}\n"
+        f"RUN_TOKEN_SECRET={secrets.token_hex(32)}\n"
         "COBBLE_HTTP_PORT=8080\n"
         "COBBLE_LANG=en\n"
     )
