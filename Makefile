@@ -1,9 +1,9 @@
-.PHONY: help install lint lint-backend lint-ui test test-backend test-ui format dev e2e bench cassettes
+.PHONY: help install lint lint-backend lint-ui test test-backend test-ui test-integration format dev dev-down dev-logs smoke e2e bench cassettes
 
 RUFF := cd backend && uv run --quiet ruff
 
 help:
-	@echo "Targets: install lint test format dev e2e bench cassettes"
+	@echo "Targets: install lint test test-integration format dev dev-down dev-logs smoke e2e bench cassettes"
 
 install:
 	cd backend && uv sync --locked
@@ -38,12 +38,46 @@ format:
 	$(RUFF) format --config pyproject.toml $(PY_DIRS)
 	cd ui && pnpm run format
 
-# Not available yet: each target lands with its plan step.
+# COMPOSE_FLAGS: extra compose files, e.g. "-f my-overrides.yml" (TLS proxy CA, ports...).
+COMPOSE := docker compose -f core/compose.yml $(COMPOSE_FLAGS)
+HTTP_PORT = $$(sed -n 's/^COBBLE_HTTP_PORT=//p' core/.env)
+
 dev:
-	@echo "make dev: available from step 2 (core and fake LLM provider)." >&2; exit 2
+	python3 scripts/dev_env.py
+	$(COMPOSE) up --build -d --wait
+	@echo "Cobble is up: http://localhost:$(HTTP_PORT)  (health: /api/v1/health)"
+
+dev-down:
+	$(COMPOSE) down
+
+dev-logs:
+	$(COMPOSE) logs -f --tail=100
+
+# Send one chat request through LiteLLM (fake provider) and show the recorded call.
+smoke:
+	$(COMPOSE) exec -T api python -m cobble.cli chat hello
+	$(COMPOSE) exec -T postgres psql -U cobble -d cobble -c \
+	  "SELECT model, prompt_tokens, completion_tokens, cost_usd FROM llm_calls ORDER BY created_at DESC LIMIT 1"
+
+# Runs the integration tests against the core stack (published on 127.0.0.1 by an overlay).
+test-integration:
+	python3 scripts/dev_env.py
+	$(COMPOSE) -f core/compose.test.yml up --build -d --wait
+	set -a; . core/.env; set +a; cd backend && \
+	COBBLE_TEST_DATABASE_URL="postgresql+psycopg://cobble:$$POSTGRES_PASSWORD@127.0.0.1:55432/cobble" \
+	COBBLE_TEST_REDIS_URL="redis://:$$REDIS_PASSWORD@127.0.0.1:56379/0" \
+	COBBLE_TEST_LITELLM_URL="http://127.0.0.1:54000" \
+	COBBLE_TEST_LITELLM_KEY="$$LITELLM_MASTER_KEY" \
+	uv run --quiet pytest -q -m integration
+
+# Re-record cassettes against a real provider (costs tokens). See providers/fake-llm/README.md.
+cassettes:
+	@test -n "$$FAKE_LLM_UPSTREAM_URL" -a -n "$$FAKE_LLM_UPSTREAM_API_KEY" || \
+	  { echo "Set FAKE_LLM_UPSTREAM_URL and FAKE_LLM_UPSTREAM_API_KEY first." >&2; exit 2; }
+	cd providers/fake-llm && FAKE_LLM_MODE=record uv run --quiet uvicorn fake_llm.app:create_app_from_env --factory --port 8999
+
+# Not available yet: each target lands with its plan step.
 e2e:
 	@echo "make e2e: available from step 3 (Playwright)." >&2; exit 2
 bench:
 	@echo "make bench: available from v0.3 (agent benchmark)." >&2; exit 2
-cassettes:
-	@echo "make cassettes: available from step 2 (fake LLM provider)." >&2; exit 2
