@@ -31,7 +31,9 @@ UNIT_DIR="${COBBLE_UNIT_DIR:-/etc/systemd/system}"
 BIN_DIR="${COBBLE_BIN_DIR:-/usr/local/bin}"
 
 need_install() {
-  [ -f "$DIR/.env" ] && [ -f "$DIR/src/core/compose.yml" ] || die cli_not_installed "$DIR"
+  if [ ! -f "$DIR/.env" ] || [ ! -f "$DIR/src/core/compose.yml" ]; then
+    die cli_not_installed "$DIR"
+  fi
   set_compose "$DIR"
 }
 
