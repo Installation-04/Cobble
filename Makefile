@@ -1,4 +1,4 @@
-.PHONY: e2e-full test-installer activation-link help install lint lint-backend lint-ui test test-backend test-ui test-integration format dev dev-down dev-logs smoke e2e bench cassettes
+.PHONY: screenshots e2e-full test-installer activation-link help install lint lint-backend lint-ui test test-backend test-ui test-integration format dev dev-down dev-logs smoke e2e bench cassettes
 
 RUFF := cd backend && uv run --quiet ruff
 
@@ -93,6 +93,13 @@ cassettes:
 	cd providers/fake-llm && FAKE_LLM_MODE=record uv run --quiet uvicorn fake_llm.app:create_app_from_env --factory --port 8999
 
 # Not available yet: each target lands with its plan step.
+# Regenerates docs/images/*.png on a FRESH fake-pack stack (wipes the dev volumes).
+screenshots:
+	python3 scripts/dev_env.py
+	$(COMPOSE) down -v
+	COBBLE_PACK_MODE=fake COBBLE_FAKE_STEP_S=0.4 $(COMPOSE) up --build -d --wait
+	port=$(HTTP_PORT); cd ui && E2E_BASE_URL=http://localhost:$$port pnpm exec playwright test -c playwright.screenshots.config.ts
+
 # Manual, long (20+ minutes): the REAL chain (Forgejo, Woodpecker, agent-service, Aider, previews)
 # replaying the to-do reference project. See docs/en/e2e-full.md. Pass options with ARGS="--keep".
 e2e-full:
