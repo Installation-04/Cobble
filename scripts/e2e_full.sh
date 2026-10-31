@@ -18,7 +18,7 @@
 # Environment: E2E_PORT (host port of Caddy, default 18080), E2E_EMAIL, E2E_PASSWORD,
 # E2E_HOST (address CI containers use to reach the stack, default: first address of this host),
 # E2E_BUILD_CA (path of a CA bundle passed to every image build as the optional `ca` BuildKit
-# secret; for hosts behind a TLS-inspecting proxy, unset by default).
+# secret and mounted in the CI step containers; for hosts behind a TLS-inspecting proxy, unset by default).
 #
 # Uses only the documented APIs (ADR 0003, 0005, 0006, 0007). Endpoints that answer 404 are
 # reported as SKIPPED instead of failing the run (the harness predates some of them).
@@ -165,7 +165,7 @@ log "starting the core (project cobble)"
 core up --build -d --wait
 
 log "installing the pack (Forgejo, Woodpecker)"
-COBBLE_PACK_PUBLIC_URL="$BASE" "$PACK/hooks/install.sh"
+COBBLE_PACK_PUBLIC_URL="$BASE" COBBLE_PACK_STEP_CA="${E2E_BUILD_CA:-}" "$PACK/hooks/install.sh"
 
 log "building and starting agent-service, the egress proxy and the runner image"
 docker compose -f "$PACK/compose.agents.yml" "${CA_AGENTS[@]}" --profile build build
