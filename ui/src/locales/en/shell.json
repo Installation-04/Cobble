@@ -1,0 +1,74 @@
+{
+  "sidebar": {
+    "label": "Projects",
+    "toggle": "Show or hide the sidebar",
+    "newProject": "New project",
+    "newFolder": "New folder",
+    "search": "Search projects",
+    "searchPlaceholder": "Search…",
+    "unfiled": "Unfiled",
+    "empty": "No project yet. Create your first one.",
+    "noResults": "No project matches your search.",
+    "expandFolder": "Expand or collapse the folder {{name}}",
+    "global": "Global views",
+    "agents": "Agents",
+    "demos": "Demos",
+    "costs": "Costs"
+  },
+  "topbar": {
+    "projectSelector": "Project",
+    "noProject": "Select a project",
+    "settings": "Settings",
+    "profile": "Profile menu",
+    "logout": "Sign out",
+    "switchLanguage": "Switch language",
+    "switchTheme": "Switch between light and dark theme"
+  },
+  "folder": {
+    "menu": "Actions for the folder {{name}}",
+    "createTitle": "New folder",
+    "renameTitle": "Rename the folder",
+    "name": "Folder name",
+    "namePlaceholder": "Clients",
+    "deleteTitle": "Delete the folder?",
+    "deleteDescription": "The folder “{{name}}” will be deleted. Its projects are kept and become unfiled."
+  },
+  "project": {
+    "menu": "Actions for the project {{name}}",
+    "createTitle": "New project",
+    "renameTitle": "Rename the project",
+    "name": "Project name",
+    "namePlaceholder": "Invoicing",
+    "folder": "Folder",
+    "noFolder": "No folder",
+    "deleteTitle": "Delete the project?",
+    "deleteDescription": "The project “{{name}}” will be deleted. This cannot be undone."
+  },
+  "tabs": {
+    "label": "Project sections",
+    "chat": "Chat",
+    "plan": "Plan",
+    "agents": "Agents",
+    "demo": "Demo",
+    "costs": "Costs"
+  },
+  "chat": {
+    "emptyTitle": "Describe your idea",
+    "emptyDescription": "The conversation with the planning assistant will appear here.",
+    "inputPlaceholder": "Describe your idea…",
+    "inputLabel": "Message",
+    "send": "Send"
+  },
+  "home": {
+    "title": "Welcome to Cobble",
+    "description": "Select a project in the sidebar or create a new one to get started."
+  },
+  "placeholder": {
+    "title": "Coming soon",
+    "description": "This section arrives in a later step of Cobble."
+  },
+  "notFound": {
+    "title": "Project not found",
+    "description": "This project does not exist or was deleted."
+  }
+}

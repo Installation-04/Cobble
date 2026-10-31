@@ -1,0 +1,13 @@
+{
+  "invalid_credentials": "Incorrect email or password.",
+  "unauthenticated": "Your session has expired. Please sign in again.",
+  "activation_invalid": "This activation link is not valid.",
+  "activation_expired": "This activation link has expired. Generate a new one.",
+  "already_initialized": "Cobble is already set up. Sign in instead.",
+  "too_many_attempts": "Too many attempts. Try again in a few minutes.",
+  "csrf_failed": "The request was rejected for security reasons. Reload the page and try again.",
+  "not_found": "This item no longer exists.",
+  "validation_error": "Some fields are invalid: {{fields}}.",
+  "unknown": "Something went wrong. Please try again.",
+  "network": "Cannot reach the server. Check your connection."
+}

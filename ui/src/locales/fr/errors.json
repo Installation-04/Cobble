@@ -1,0 +1,13 @@
+{
+  "invalid_credentials": "Courriel ou mot de passe incorrect.",
+  "unauthenticated": "Votre session a expiré. Reconnectez-vous.",
+  "activation_invalid": "Ce lien d'activation n'est pas valide.",
+  "activation_expired": "Ce lien d'activation a expiré. Générez-en un nouveau.",
+  "already_initialized": "Cobble est déjà configuré. Connectez-vous plutôt.",
+  "too_many_attempts": "Trop de tentatives. Réessayez dans quelques minutes.",
+  "csrf_failed": "La requête a été refusée pour des raisons de sécurité. Rechargez la page et réessayez.",
+  "not_found": "Cet élément n'existe plus.",
+  "validation_error": "Certains champs sont invalides : {{fields}}.",
+  "unknown": "Une erreur est survenue. Veuillez réessayer.",
+  "network": "Impossible de joindre le serveur. Vérifiez votre connexion."
+}

@@ -1,1 +1,15 @@
-{ "app": { "name": "Cobble" } }
+{
+  "app": { "name": "Cobble" },
+  "close": "Fermer",
+  "cancel": "Annuler",
+  "create": "Créer",
+  "save": "Enregistrer",
+  "rename": "Renommer",
+  "delete": "Supprimer",
+  "loading": "Chargement…",
+  "lang": {
+    "fr": "Français",
+    "en": "English",
+    "short": { "fr": "FR", "en": "EN" }
+  }
+}

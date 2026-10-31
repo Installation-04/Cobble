@@ -1,0 +1,74 @@
+{
+  "sidebar": {
+    "label": "Projets",
+    "toggle": "Afficher ou masquer la barre latérale",
+    "newProject": "Nouveau projet",
+    "newFolder": "Nouveau dossier",
+    "search": "Rechercher des projets",
+    "searchPlaceholder": "Recherche…",
+    "unfiled": "Sans dossier",
+    "empty": "Aucun projet pour l'instant. Créez le premier.",
+    "noResults": "Aucun projet ne correspond à votre recherche.",
+    "expandFolder": "Déplier ou replier le dossier {{name}}",
+    "global": "Vues globales",
+    "agents": "Agents",
+    "demos": "Démos",
+    "costs": "Coûts"
+  },
+  "topbar": {
+    "projectSelector": "Projet",
+    "noProject": "Choisir un projet",
+    "settings": "Réglages",
+    "profile": "Menu du profil",
+    "logout": "Se déconnecter",
+    "switchLanguage": "Changer de langue",
+    "switchTheme": "Basculer entre le thème clair et sombre"
+  },
+  "folder": {
+    "menu": "Actions pour le dossier {{name}}",
+    "createTitle": "Nouveau dossier",
+    "renameTitle": "Renommer le dossier",
+    "name": "Nom du dossier",
+    "namePlaceholder": "Clients",
+    "deleteTitle": "Supprimer le dossier ?",
+    "deleteDescription": "Le dossier « {{name}} » sera supprimé. Ses projets sont conservés et se retrouvent sans dossier."
+  },
+  "project": {
+    "menu": "Actions pour le projet {{name}}",
+    "createTitle": "Nouveau projet",
+    "renameTitle": "Renommer le projet",
+    "name": "Nom du projet",
+    "namePlaceholder": "Facturation",
+    "folder": "Dossier",
+    "noFolder": "Aucun dossier",
+    "deleteTitle": "Supprimer le projet ?",
+    "deleteDescription": "Le projet « {{name}} » sera supprimé. Cette action est irréversible."
+  },
+  "tabs": {
+    "label": "Sections du projet",
+    "chat": "Chat",
+    "plan": "Plan",
+    "agents": "Agents",
+    "demo": "Démo",
+    "costs": "Coûts"
+  },
+  "chat": {
+    "emptyTitle": "Décrivez votre idée",
+    "emptyDescription": "La conversation avec l'assistant de planification apparaîtra ici.",
+    "inputPlaceholder": "Décrivez votre idée…",
+    "inputLabel": "Message",
+    "send": "Envoyer"
+  },
+  "home": {
+    "title": "Bienvenue sur Cobble",
+    "description": "Choisissez un projet dans la barre latérale ou créez-en un nouveau pour commencer."
+  },
+  "placeholder": {
+    "title": "Bientôt disponible",
+    "description": "Cette section arrive dans une prochaine étape de Cobble."
+  },
+  "notFound": {
+    "title": "Projet introuvable",
+    "description": "Ce projet n'existe pas ou a été supprimé."
+  }
+}
