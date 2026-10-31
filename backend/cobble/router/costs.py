@@ -48,11 +48,13 @@ class CostRouter:
         *,
         project_id: uuid.UUID | None = None,
         task_id: uuid.UUID | None = None,
+        model: str | None = None,
     ) -> ChatResult:
+        """`model` overrides the role's model (used for escalation); callers must be trusted."""
         if project_id is not None:
             self._budget.ensure_can_spend(project_id)  # raises BudgetExceeded
         result = self._gateway.chat(
-            self.model_for(role),
+            model or self.model_for(role),
             messages,
             role=role.value,
             project_id=project_id,

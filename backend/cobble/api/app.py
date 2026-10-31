@@ -13,7 +13,13 @@ from sqlalchemy.orm import Session, sessionmaker
 from cobble.config import Settings, get_settings
 from cobble.db import make_engine, make_session_factory
 
-from . import routes_auth, routes_folders, routes_planning, routes_projects
+from . import (
+    routes_auth,
+    routes_folders,
+    routes_internal_llm,
+    routes_planning,
+    routes_projects,
+)
 from .errors import error_response, install_error_handlers
 from .health import Check
 from .health import router as health_router
@@ -69,7 +75,13 @@ def create_app(
     async def csrf_guard(
         request: Request, call_next: Callable[[Request], Awaitable[Response]]
     ) -> Response:
-        if request.method in UNSAFE_METHODS and request.headers.get(CSRF_HEADER) != CSRF_VALUE:
+        # /internal/* uses bearer tokens (no cookies), so CSRF does not apply to it.
+        internal = request.url.path.startswith("/internal/")
+        if (
+            request.method in UNSAFE_METHODS
+            and not internal
+            and request.headers.get(CSRF_HEADER) != CSRF_VALUE
+        ):
             return error_response(403, "csrf_failed")
         return await call_next(request)
 
@@ -82,4 +94,5 @@ def create_app(
         routes_planning.router,
     ):
         app.include_router(router, prefix="/api/v1")
+    app.include_router(routes_internal_llm.router)
     return app

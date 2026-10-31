@@ -29,6 +29,13 @@ class Settings(BaseSettings):
     lang: str = "en"
     public_url: str = "http://localhost:8080"
     cookie_secure: bool = False
+    # Secret used to sign the per-run tokens that agents present to the internal LLM endpoint.
+    run_token_secret: str = ""
+    # Internal HTTP API of the agent-service (the only component that touches Docker).
+    agent_service_url: str = "http://agent-service:8080"
+    agent_service_token: str = ""
+    # Base URL agents use to reach the internal LLM endpoint (seen from the agent network).
+    internal_api_url: str = "http://api:8000"
 
 
 @lru_cache
