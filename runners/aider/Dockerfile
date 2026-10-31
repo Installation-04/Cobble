@@ -11,7 +11,9 @@ FROM scratch AS template
 FROM python:3.12-slim@sha256:aa943ce411423c7582288f18707ff66eddcbaeb510502d747a72aeb34f30d159
 COPY --from=ghcr.io/astral-sh/uv:0.11.32@sha256:df4cae8f3a96d175e2e5f992e597550000edbe78fdc2594d5cd8de1a217f504c /uv /uvx /usr/local/bin/
 
-ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PROJECT_ENVIRONMENT=/opt/aider \
+# UV_PROJECT_ENVIRONMENT is deliberately NOT set globally: the project's own `uv run` must use
+# its .venv, not Aider's read-only environment.
+ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy \
     PYTHONUNBUFFERED=1 PIP_DISABLE_PIP_VERSION_CHECK=1 COREPACK_HOME=/opt/corepack
 
 # git (aider commits locally; agent-service pushes) and a CA bundle for registry TLS.
@@ -34,7 +36,7 @@ RUN --mount=type=secret,id=ca,required=false \
       export SSL_CERT_FILE=/run/secrets/ca REQUESTS_CA_BUNDLE=/run/secrets/ca \
              PIP_CERT=/run/secrets/ca NODE_EXTRA_CA_CERTS=/run/secrets/ca; \
     fi; \
-    uv sync --locked --no-dev --no-install-project \
+    UV_PROJECT_ENVIRONMENT=/opt/aider uv sync --locked --no-dev --no-install-project \
     && corepack enable pnpm \
     && corepack prepare pnpm@10.28.0 --activate \
     && chmod -R a+rX /opt/aider /opt/corepack

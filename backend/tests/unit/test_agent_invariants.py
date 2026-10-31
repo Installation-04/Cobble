@@ -180,3 +180,10 @@ def test_runner_image_prewarms_the_template_dependencies() -> None:
     compose = (PACK / "compose.agents.yml").read_text("utf-8")
     assert "additional_contexts" in compose and "templates/fastapi-react" in compose
     assert "/opt/uv-seed" in (ROOT / "runners" / "aider" / "entrypoint").read_text("utf-8")
+
+
+def test_runner_image_does_not_leak_aiders_uv_environment() -> None:
+    """A global UV_PROJECT_ENVIRONMENT sent the project's `uv run` into Aider's read-only venv."""
+    dockerfile = (ROOT / "runners" / "aider" / "Dockerfile").read_text("utf-8")
+    env_blocks = re.findall(r"^ENV\s[^\n]*(?:\\\n[^\n]*)*", dockerfile, re.M)
+    assert not any("UV_PROJECT_ENVIRONMENT" in block for block in env_blocks)
