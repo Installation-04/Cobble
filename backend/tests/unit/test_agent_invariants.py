@@ -165,3 +165,10 @@ def test_gen_env_works_on_a_first_run(service: str, tmp_path: Path) -> None:
         text=True,
     )
     assert result.returncode == 0, result.stderr
+
+
+def test_backend_image_ships_git() -> None:
+    """The Forgejo provider shells out to git (found missing on the first full-chain run)."""
+    assert re.search(
+        r"apt-get install[^\n]*\bgit\b", (ROOT / "backend" / "Dockerfile").read_text("utf-8")
+    )
