@@ -130,10 +130,13 @@ class Project(Base):
     budget_warning_sent: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default=false()
     )
-    # interview -> spec_review -> plan_review -> ready
+    # interview -> spec_review -> plan_review -> ready -> building -> done
     phase: Mapped[str] = mapped_column(
         String(20), nullable=False, default="interview", server_default="interview"
     )
+    # The generated project's repository, created when the build starts (ADR 0006).
+    repo_name: Mapped[str | None] = mapped_column(String(200))
+    repo_clone_url: Mapped[str | None] = mapped_column(Text)
 
 
 class Message(Base):
@@ -185,3 +188,66 @@ class Plan(Base):
         String(20), nullable=False, default="draft", server_default="draft"
     )  # draft | approved
     created_at: Mapped[datetime] = _now_col()
+
+
+class Task(Base):
+    """One task of the approved plan, driven by the scheduler (ADR 0006)."""
+
+    __tablename__ = "tasks"
+    __table_args__ = (UniqueConstraint("project_id", "ref"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    ref: Mapped[str] = mapped_column(String(20), nullable=False)  # T-001
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    milestone: Mapped[str] = mapped_column(String(20), nullable=False)
+    depends_on: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    files: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    acceptance: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    tests: Mapped[str] = mapped_column(Text, nullable=False)
+    size: Mapped[str] = mapped_column(String(5), nullable=False)
+    role: Mapped[str] = mapped_column(String(20), nullable=False)
+    # todo, writing_tests, implementing, ci, merged, failed, blocked, paused, stopped
+    state: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="todo", server_default="todo"
+    )
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    escalated: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=false()
+    )
+    branch: Mapped[str | None] = mapped_column(String(200))
+    pr_number: Mapped[int | None] = mapped_column(Integer)
+    last_error: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = _now_col()
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=_utcnow,
+        onupdate=_utcnow,
+        server_default=func.now(),
+        nullable=False,
+    )
+
+
+class TaskRun(Base):
+    """One agent run (test-writer or worker attempt) of a task."""
+
+    __tablename__ = "task_runs"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    task_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    kind: Mapped[str] = mapped_column(String(20), nullable=False)  # test-writer | worker
+    attempt: Mapped[int] = mapped_column(Integer, nullable=False)
+    model: Mapped[str] = mapped_column(String(200), nullable=False)
+    # pending (not started yet), running, then the outcome: done, failed, timeout,
+    # loop_detected, stopped, budget, lost
+    state: Mapped[str] = mapped_column(String(20), nullable=False)
+    agent_run_id: Mapped[str | None] = mapped_column(String(200))
+    iterations: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    head_sha: Mapped[str | None] = mapped_column(String(100))
+    started_at: Mapped[datetime] = _now_col()
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    log_tail: Mapped[str | None] = mapped_column(Text)

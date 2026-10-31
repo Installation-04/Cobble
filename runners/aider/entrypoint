@@ -1,0 +1,98 @@
+#!/usr/bin/env bash
+# Cobble agent runner entrypoint. Runs ONE agent session headless inside the sandbox.
+#
+# Inputs (environment, set by agent-service; nothing secret is passed on the command line):
+#   COBBLE_MARKER              [cobble-task:<task>:<role>:<attempt>], prepended to the message
+#   COBBLE_INSTRUCTIONS_FILE   instructions file (default /work/.cobble/instructions.md)
+#   COBBLE_FILES               files to add to the chat, one per line
+#   COBBLE_TEST_COMMAND        local test command ("" = none)
+#   COBBLE_MAX_ITERATIONS      ceiling on test runs (enforced by agent-service)
+#   COBBLE_MODEL               model alias; passed to aider as openai/<alias>
+#   OPENAI_API_BASE, OPENAI_API_KEY   internal LLM endpoint and run token
+#   COBBLE_AGENT_CMD           test hook: run this shell command instead of aider
+#   COBBLE_MAP_TOKENS, COBBLE_EDIT_FORMAT   aider tuning (defaults 1024, whole)
+#
+# Exit code: 0 = finished and the local tests (if any) pass; anything else = failed.
+set -u
+
+WORK="${COBBLE_WORKDIR:-/work}"
+INSTRUCTIONS="${COBBLE_INSTRUCTIONS_FILE:-$WORK/.cobble/instructions.md}"
+TMP="${TMPDIR:-/tmp}/cobble"
+export HOME="${HOME:-/tmp/home}"
+mkdir -p "$HOME" "$TMP" /tmp/cache
+cd "$WORK" || { echo "[cobble:error] cannot enter $WORK"; exit 70; }
+
+# Local identity only; there are no credentials in this container.
+export GIT_AUTHOR_NAME="${GIT_AUTHOR_NAME:-Cobble Agent}"
+export GIT_AUTHOR_EMAIL="${GIT_AUTHOR_EMAIL:-agent@cobble.local}"
+export GIT_COMMITTER_NAME="$GIT_AUTHOR_NAME" GIT_COMMITTER_EMAIL="$GIT_AUTHOR_EMAIL"
+export COBBLE_TEST_STATE="$TMP"
+
+# Keep tool state out of commits.
+if [ -d .git ]; then
+  mkdir -p .git/info
+  for p in .cobble/ '.aider*' .venv/ node_modules/ __pycache__/; do
+    grep -qxF "$p" .git/info/exclude 2>/dev/null || echo "$p" >> .git/info/exclude
+  done
+fi
+
+# Message = marker line + instructions.
+{
+  echo "${COBBLE_MARKER:-}"
+  echo
+  if [ -f "$INSTRUCTIONS" ]; then grep -vxF "${COBBLE_MARKER:-__none__}" "$INSTRUCTIONS"; fi
+} > "$TMP/message.md"
+
+echo "[cobble:start] ${COBBLE_MARKER:-}"
+
+agent_rc=0
+if [ -n "${COBBLE_AGENT_CMD:-}" ]; then
+  bash -c "$COBBLE_AGENT_CMD"
+  agent_rc=$?
+else
+  files=()
+  if [ -n "${COBBLE_FILES:-}" ]; then
+    while IFS= read -r f; do [ -n "$f" ] && files+=("$f"); done <<< "$COBBLE_FILES"
+  fi
+  test_args=()
+  if [ -n "${COBBLE_TEST_COMMAND:-}" ]; then
+    test_args=(--test-cmd /usr/local/bin/cobble-test --auto-test)
+  fi
+  mkdir -p /tmp/aider
+  aider \
+    --model "openai/${COBBLE_MODEL:-default}" \
+    --openai-api-base "${OPENAI_API_BASE:?OPENAI_API_BASE is required}" \
+    --edit-format "${COBBLE_EDIT_FORMAT:-whole}" \
+    --map-tokens "${COBBLE_MAP_TOKENS:-1024}" \
+    --yes-always --no-stream --no-pretty --no-fancy-input \
+    --no-check-update --no-analytics --no-show-release-notes --no-show-model-warnings \
+    --no-gitignore --no-suggest-shell-commands --no-detect-urls --no-auto-lint \
+    --no-restore-chat-history \
+    --chat-history-file /tmp/aider/chat.md \
+    --input-history-file /tmp/aider/input.history \
+    --llm-history-file /tmp/aider/llm.log \
+    "${test_args[@]}" \
+    --message-file "$TMP/message.md" \
+    "${files[@]}"
+  agent_rc=$?
+fi
+echo "[cobble:agent-exit $agent_rc]"
+
+# Commit what the agent left behind (aider normally commits by itself).
+if [ -d .git ] && [ -n "$(git status --porcelain 2>/dev/null)" ]; then
+  git add -A && git -c core.hooksPath=/dev/null commit -q \
+    -m "chore: agent changes" -m "${COBBLE_MARKER:-}" || true
+fi
+
+[ "$agent_rc" -eq 0 ] || exit "$agent_rc"
+
+# Final verdict: the result of the last local test run (or run the tests once).
+if [ -n "${COBBLE_TEST_COMMAND:-}" ]; then
+  if [ ! -f "$TMP/test-last-exit" ]; then
+    /usr/local/bin/cobble-test > /dev/null 2>&1 || true
+  fi
+  rc="$(cat "$TMP/test-last-exit" 2>/dev/null || echo 1)"
+  echo "[cobble:final-tests $rc]"
+  exit "$rc"
+fi
+exit 0

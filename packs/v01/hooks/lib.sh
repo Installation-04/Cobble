@@ -1,4 +1,4 @@
-# shellcheck shell=bash
+# shellcheck shell=bash disable=SC2016,SC2034
 # Shared helpers of the pack hooks. Developer-facing scripts: messages are in English.
 # Secrets are read from / written to files with mode 600 and never echoed.
 
@@ -19,7 +19,7 @@ compose() {
   # shellcheck disable=SC2206  # word splitting of the override list is intended
   [ -n "${COBBLE_PACK_COMPOSE_EXTRA:-}" ] && extra=(${COBBLE_PACK_COMPOSE_EXTRA})
   docker compose --project-directory "$PACK_DIR" ${COBBLE_PACK_PROJECT:+-p "$COBBLE_PACK_PROJECT"} \
-    -f "$PACK_DIR/compose.yml" "${extra[@]}" "$@"
+    --env-file "$ENV_FILE" -f "$PACK_DIR/compose.yml" "${extra[@]}" "$@"
 }
 
 env_get() { # env_get FILE KEY

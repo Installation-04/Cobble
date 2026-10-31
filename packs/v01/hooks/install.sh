@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2016  # single quotes: the text runs inside the container
 # Install / repair the v0.1 pack and wire its parts together, headlessly. Idempotent:
 # existing secrets are kept unless --rotate is given.
 #
 #   COBBLE_PACK_PUBLIC_URL   URL users reach the core at, e.g. http://192.168.1.20 (default
 #                            http://localhost). Forgejo is served under <url>/git/, the CI
 #                            under <url>/ci/ (core Caddy: see caddy/pack.caddy).
+#   COBBLE_PACK_STEP_CA      CA bundle file to mount in pipeline steps (TLS-inspecting proxy)
+#   COBBLE_PACK_SKIP_STEPS   scanners to skip, e.g. "trivy,semgrep" (no internet); default none
 #   COBBLE_PACK_PROJECT      compose project name override (tests only)
 #   COBBLE_PACK_COMPOSE_EXTRA  extra "-f override.yml" arguments (tests only)
 #
@@ -46,6 +49,13 @@ env_set "$ENV_FILE" PACK_PUBLIC_HOST "$host"
 env_set "$ENV_FILE" PACK_PUBLIC_PORT "$port"
 env_set "$ENV_FILE" PACK_GATEWAY_ALIAS "$alias_host"
 env_set "$ENV_FILE" DOCKER_GID "$(stat -c %g /var/run/docker.sock)"
+# Optional, for hosts behind a TLS-inspecting proxy / without internet access (see docs/en/pack.md).
+if [ -n "${COBBLE_PACK_STEP_CA:-}" ]; then # a CA bundle made visible to pipeline steps
+  env_set "$ENV_FILE" PACK_STEP_VOLUMES "$COBBLE_PACK_STEP_CA:/etc/ssl/certs/ca-certificates.crt:ro"
+  ca=/etc/ssl/certs/ca-certificates.crt
+  env_set "$ENV_FILE" PACK_PIPELINE_ENV "SSL_CERT_FILE:$ca,REQUESTS_CA_BUNDLE:$ca,NODE_EXTRA_CA_CERTS:$ca,PIP_CERT:$ca,UV_SYSTEM_CERTS:1"
+fi
+[ -z "${COBBLE_PACK_SKIP_STEPS:-}" ] || env_set "$ENV_FILE" PACK_SKIP_STEPS "$COBBLE_PACK_SKIP_STEPS"
 ensure PACK_SERVICE_USER cobble-bot
 ensure PACK_SERVICE_PASSWORD "$(gen_secret)"
 ensure FORGEJO_SECRET_KEY "$(gen_secret)"

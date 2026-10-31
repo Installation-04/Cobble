@@ -36,6 +36,26 @@ class Settings(BaseSettings):
     agent_service_token: str = ""
     # Base URL agents use to reach the internal LLM endpoint (seen from the agent network).
     internal_api_url: str = "http://api:8000"
+    # --- scheduler (ADR 0006) ---
+    max_parallel_agents: int = 2
+    # Failed worker attempts before the task is escalated to `escalation_model`; the task fails
+    # after `max_attempts` failed attempts. Empty `escalation_model`: the planner role's model.
+    escalate_after: int = 2
+    max_attempts: int = 4
+    escalation_model: str = ""
+    # Directory of the project template (mounted in the worker); the repository starts from it.
+    template_dir: str = "/templates/fastapi-react"
+    scheduler_interval_s: float = 5.0
+    # Branch merge requests target.
+    base_branch: str = "main"
+    # A merge request whose CI stays pending this long counts as a failed attempt.
+    ci_timeout_s: float = 1800.0
+    # Per-run guardrails sent to the agent-service.
+    agent_max_iterations: int = 20
+    agent_max_seconds: int = 900
+    agent_cpu: float = 1.0
+    agent_memory_mb: int = 2048
+    agent_pids: int = 256
 
 
 @lru_cache

@@ -42,9 +42,11 @@ def test_agent_runner_records_runs_and_stops() -> None:
     runner = FakeAgentRunner(AgentOutcome.LOOP_DETECTED)
     task = AgentTask(uuid.uuid4(), uuid.uuid4(), "fake://x.git", "b", Role.WORKER, "do it")
     assert runner.run(task).outcome is AgentOutcome.LOOP_DETECTED
-    runner.stop(task.task_id)
-    assert runner.runs == [task]
-    assert runner.stopped == [task.task_id]
+    run_id = runner.start(task)
+    assert runner.poll(run_id) is not None
+    runner.stop(run_id)
+    assert runner.runs == [task, task]
+    assert runner.stopped == [run_id]
 
 
 def test_fake_llm_client_records_calls() -> None:

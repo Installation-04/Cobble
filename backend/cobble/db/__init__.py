@@ -8,6 +8,8 @@ from .models import (
     Plan,
     Project,
     Spec,
+    Task,
+    TaskRun,
     User,
 )
 
@@ -21,6 +23,8 @@ __all__ = [
     "Plan",
     "Project",
     "Spec",
+    "Task",
+    "TaskRun",
     "User",
     "make_engine",
     "make_session_factory",

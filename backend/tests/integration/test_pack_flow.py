@@ -81,7 +81,7 @@ def test_red_branch_is_refused_and_stays_open(
     broken = (
         "from fastapi.testclient import TestClient\n\nfrom app.main import app\n\n\n"
         "def test_health_returns_ok() -> None:\n"
-        "    assert TestClient(app).get('/api/health').status_code == 500\n"
+        '    assert TestClient(app).get("/api/health").status_code == 500\n'
     )
     git.commit_files(repo, "feature/broken", {"tests/test_health.py": broken}, "test: break it")
     mr = git.open_merge_request(repo, "feature/broken", "main", "Break a test")
