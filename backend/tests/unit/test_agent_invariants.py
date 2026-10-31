@@ -158,7 +158,10 @@ def test_gen_env_works_on_a_first_run(service: str, tmp_path: Path) -> None:
         "COBBLE_PREVIEW_ENV": str(tmp_path / "preview.env"),
         "COBBLE_PREVIEW_CORE_ENV": str(tmp_path / "preview.core.env"),
     }
-    result = subprocess.run(
-        ["bash", str(PACK / service / "gen-env.sh")], env=env, capture_output=True, text=True
+    result = subprocess.run(  # noqa: S603
+        ["bash", str(PACK / service / "gen-env.sh")],  # noqa: S607
+        env=env,
+        capture_output=True,
+        text=True,
     )
     assert result.returncode == 0, result.stderr
