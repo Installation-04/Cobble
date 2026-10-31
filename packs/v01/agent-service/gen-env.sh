@@ -9,7 +9,7 @@ OUT="${COBBLE_AGENT_ENV:-$PACK_DIR/.env.agents}"
 OUT_CORE="${COBBLE_AGENT_CORE_ENV:-$PACK_DIR/.env.agents.core}"
 API_URL="${COBBLE_INTERNAL_API_URL:-http://api:8000/internal/llm/v1}"
 
-get() { sed -n "s/^$2=//p" "$1" 2>/dev/null | tail -n 1; }
+get() { { sed -n "s/^$2=//p" "$1" 2>/dev/null || true; } | tail -n 1; }
 
 [ -f "$PACK_ENV" ] || { echo "missing $PACK_ENV: run the pack install first" >&2; exit 1; }
 token="$(get "$OUT" COBBLE_AGENT_SERVICE_TOKEN)"

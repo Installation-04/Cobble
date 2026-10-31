@@ -140,3 +140,25 @@ def test_agent_env_files_are_private_and_ignored_by_git() -> None:
     assert "umask 077" in script and "chmod 600" in script
     ignore = (PACK / ".gitignore").read_text("utf-8")
     assert ".env.*" in ignore
+
+
+@pytest.mark.parametrize("service", ["agent-service", "preview-service"])
+def test_gen_env_works_on_a_first_run(service: str, tmp_path: Path) -> None:
+    """With no previous output file the generator must still succeed (pipefail regression)."""
+    import os
+    import subprocess
+
+    pack_env = tmp_path / "pack.env"
+    pack_env.write_text("COBBLE_PACK_FORGEJO_URL=http://forgejo:3000\n", "utf-8")
+    env = {
+        **os.environ,
+        "COBBLE_PACK_CORE_ENV": str(pack_env),
+        "COBBLE_AGENT_ENV": str(tmp_path / "agents.env"),
+        "COBBLE_AGENT_CORE_ENV": str(tmp_path / "agents.core.env"),
+        "COBBLE_PREVIEW_ENV": str(tmp_path / "preview.env"),
+        "COBBLE_PREVIEW_CORE_ENV": str(tmp_path / "preview.core.env"),
+    }
+    result = subprocess.run(
+        ["bash", str(PACK / service / "gen-env.sh")], env=env, capture_output=True, text=True
+    )
+    assert result.returncode == 0, result.stderr
