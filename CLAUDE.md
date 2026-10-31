@@ -35,12 +35,16 @@ docs/fr/  docs/en/
 ## Commandes
 
 ```
+make install      # uv sync + pnpm install (versions verrouillées)
+make format       # ruff + prettier (écriture)
 make dev          # lance le noyau en local avec le faux fournisseur LLM (aucune clé requise)
 make test         # tests unitaires backend + frontend
 make lint         # ruff, mypy, eslint, vérification des clés i18n
 make e2e          # Playwright sur l'UI + boucle complète avec cassettes
 make bench        # banc d'essai des agents (vrais modèles, coûte des tokens: ne pas lancer en CI)
 ```
+
+Les cibles `lint-backend`, `lint-ui`, `test-backend` et `test-ui` existent aussi (utilisées par la CI). `make dev|e2e|bench|cassettes` échouent avec un message tant que leur étape n'est pas livrée.
 
 Tenir cette section à jour quand une commande change.
 
