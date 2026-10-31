@@ -1,0 +1,7 @@
+[project]
+name = "cobble-aider-runner"
+version = "0.1.0"
+description = "Pinned Aider installation for the Cobble agent runner image."
+requires-python = ">=3.12,<3.13"
+license = "AGPL-3.0-only"
+dependencies = ["aider-chat==0.86.2"]

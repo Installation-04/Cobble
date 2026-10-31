@@ -1,0 +1,21 @@
+# Routes of the v0.1 pack, to import inside the core's site block (core/caddy/Caddyfile):
+#
+#   :80 {
+#       import /etc/caddy/pack.caddy     # mount packs/v01/caddy/pack.caddy there
+#       handle /api/* { ... }
+#       ...
+#   }
+#
+# Both products are served under a sub-path of the same host (no DNS needed):
+#   /git/  -> Forgejo        (ROOT_URL = <public url>/git/ ; the prefix is stripped here)
+#   /ci/   -> Woodpecker     (WOODPECKER_HOST = <public url>/ci ; Woodpecker handles the prefix itself)
+# The public URL is PACK_PUBLIC_URL in packs/v01/.env. Needs the core and pack stacks to share
+# the `cobble_core` network (see packs/v01/compose.yml).
+
+handle_path /git/* {
+	reverse_proxy forgejo:3000
+}
+
+handle /ci/* {
+	reverse_proxy woodpecker-server:8000
+}

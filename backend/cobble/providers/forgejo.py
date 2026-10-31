@@ -13,7 +13,8 @@ import re
 import shutil
 import subprocess
 import tempfile
-from collections.abc import Mapping
+import time
+from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
@@ -68,9 +69,11 @@ class ForgejoGit:
         *,
         ci: CIProvider | None = None,
         transport: httpx.BaseTransport | None = None,
+        sleep: Callable[[float], None] = time.sleep,
     ) -> None:
         self.settings = settings
         self.ci = ci
+        self._sleep = sleep
         self._token = settings.forgejo_token.get_secret_value()
         self._base_url = settings.forgejo_url.rstrip("/")
         self._api = Api(
@@ -189,10 +192,23 @@ class ForgejoGit:
             tree = Path(tmp)
             render_template(template_dir, tree, name)
             self._push_tree(repo.clone_url, tree)
+        self._wait_for_branch(repo)
         # After the first push: from now on the default branch only moves through merged
         # pull requests whose required checks are green.
         self.protect_default_branch(repo)
         return repo
+
+    def _wait_for_branch(self, repo: RepoRef, attempts: int = 30) -> None:
+        """The server indexes a push asynchronously: wait until the default branch is visible."""
+        path = f"{self._repo_path(repo)}/branches/{self.settings.default_branch}"
+        for attempt in range(attempts):
+            try:
+                self._api.request("GET", path)
+                return
+            except ProviderNotFound:
+                if attempt + 1 < attempts:
+                    self._sleep(1.0)
+        raise ProviderError(f"the default branch of {repo.name} did not appear after the push")
 
     def protect_default_branch(self, repo: RepoRef) -> None:
         path = self._repo_path(repo)
@@ -209,7 +225,6 @@ class ForgejoGit:
             "dismiss_stale_approvals": False,
             # Even the repository owner (the service account is an admin) cannot merge over
             # a red or pending check.
-            "block_admin_merge_override": True,
             "apply_to_admins": True,
         }
         try:
