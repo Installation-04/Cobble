@@ -43,7 +43,7 @@ RUN chmod 0755 /usr/local/bin/cobble-agent /usr/local/bin/cobble-test \
 
 ENV HOME=/tmp/home PATH=/opt/aider/bin:$PATH UV_CACHE_DIR=/tmp/cache/uv \
     npm_config_cache=/tmp/cache/npm PNPM_HOME=/tmp/cache/pnpm XDG_CACHE_HOME=/tmp/cache \
-    GIT_TERMINAL_PROMPT=0 AIDER_ANALYTICS_DISABLE=1
+    GIT_TERMINAL_PROMPT=0 AIDER_ANALYTICS_DISABLE=1 LITELLM_LOCAL_MODEL_COST_MAP=True
 WORKDIR /work
 USER 10001
 ENTRYPOINT ["/usr/local/bin/cobble-agent"]

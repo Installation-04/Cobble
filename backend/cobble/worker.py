@@ -1,10 +1,13 @@
-"""Background worker: logs the global event stream and runs the planner jobs.
+"""Background worker: logs the global event stream, runs the planner jobs and the scheduler.
 
-Two loops share one process. The events loop only logs. The jobs loop reads `cobble:jobs`
+Three loops share one process (the scheduler one only when the pack is configured).
+The events loop only logs. The jobs loop reads `cobble:jobs`
 (consumer group `workers`), runs each job to completion and acknowledges it afterwards. A job
 whose worker died before the acknowledgement stays pending and is claimed again (XAUTOCLAIM)
 at start-up and periodically, so it is resumed. A failed job publishes `job.failed` and is
-acknowledged: nothing is retried forever.
+acknowledged: nothing is retried forever. The scheduler loop (own thread) drives the building
+projects: it reconciles at start-up, then ticks every `COBBLE_SCHEDULER_INTERVAL_S` seconds. The
+`start` job (queued by `POST /projects/{id}/start`) is executed by the jobs loop.
 """
 
 from __future__ import annotations
@@ -25,11 +28,13 @@ from redis.exceptions import RedisError, ResponseError
 
 from cobble.config import Settings, get_settings
 from cobble.db import make_engine, make_session_factory
-from cobble.events import EVENTS_STREAM, JOBS_GROUP, JOBS_STREAM
+from cobble.events import EVENTS_STREAM, JOBS_GROUP, JOBS_STREAM, publish_project
 from cobble.orchestrator.service import PlannerService
 from cobble.router.budget import BudgetService
 from cobble.router.costs import CostRouter
 from cobble.router.gateway import LiteLLMGateway
+from cobble.scheduler import Scheduler
+from cobble.scheduler.factory import build_scheduler
 
 GROUP = "workers"
 BLOCK_MS = 1000
@@ -104,7 +109,9 @@ def ensure_jobs_group(client: Redis) -> None:
             raise
 
 
-def make_job_handler(planner: PlannerService) -> JobHandler:
+def make_job_handler(
+    planner: PlannerService, scheduler: Scheduler | None = None, events: Redis | None = None
+) -> JobHandler:
     def handler(fields: dict[Any, Any]) -> None:
         try:
             job = json.loads(fields[b"job"])
@@ -114,6 +121,19 @@ def make_job_handler(planner: PlannerService) -> JobHandler:
             log.warning("dropping malformed job: %r", fields)
             return
         log.info("job %s for project %s", kind, project_id)
+        if kind == "start":
+            if scheduler is not None:
+                scheduler.run_start_job(project_id)
+            else:
+                log.warning("start job dropped: the scheduler is not configured")
+                if events is not None:
+                    publish_project(
+                        events,
+                        project_id,
+                        "job.failed",
+                        {"kind": "start", "code": "scheduler_unavailable"},
+                    )
+            return
         planner.run_job(
             kind, project_id, feedback=job.get("feedback"), message_id=job.get("message_id")
         )
@@ -195,15 +215,24 @@ def main() -> None:
     signal.signal(signal.SIGINT, _stop)
     settings = get_settings()
     client = Redis.from_url(settings.redis_url)
-    handler = make_job_handler(build_planner(settings, client))
-    jobs = threading.Thread(target=run_jobs, args=(client, stop, handler), name="jobs")
-    jobs.start()
+    scheduler = build_scheduler(
+        settings, make_session_factory(make_engine(settings.database_url)), client
+    )
+    handler = make_job_handler(build_planner(settings, client), scheduler, client)
+    threads = [threading.Thread(target=run_jobs, args=(client, stop, handler), name="jobs")]
+    if scheduler is not None:
+        threads.append(
+            threading.Thread(target=scheduler.run_forever, args=(stop,), name="scheduler")
+        )
+    for thread in threads:
+        thread.start()
     log.info("worker started")
     try:
         run(client, stop)
     finally:
         stop.set()
-        jobs.join()
+        for thread in threads:
+            thread.join()
     log.info("worker stopped")
 
 

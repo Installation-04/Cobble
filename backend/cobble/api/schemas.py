@@ -14,7 +14,7 @@ from cobble.auth.passwords import MIN_PASSWORD_LENGTH
 
 Lang = Literal["fr", "en"]
 Theme = Literal["system", "light", "dark"]
-Phase = Literal["interview", "spec_review", "plan_review", "ready"]
+Phase = Literal["interview", "spec_review", "plan_review", "ready", "building", "done"]
 Approval = Literal["draft", "approved"]
 
 _EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
@@ -194,3 +194,34 @@ class PlanOut(BaseModel):
     plan: dict[str, Any]
     estimate: dict[str, Any]
     created_at: datetime
+
+
+class TaskOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    ref: str
+    title: str
+    milestone: str
+    state: str
+    attempts: int
+    escalated: bool
+    role: str
+    size: str
+    depends_on: list[str]
+
+
+class TaskRunOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    kind: str
+    attempt: int
+    model: str
+    state: str
+    started_at: datetime
+    finished_at: datetime | None
+    iterations: int
+    log_tail: str | None
+
+
+class TaskDetailOut(TaskOut):
+    runs: list[TaskRunOut]

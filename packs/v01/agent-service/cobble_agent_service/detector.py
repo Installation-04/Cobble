@@ -14,8 +14,10 @@ import re
 from dataclasses import dataclass
 
 _ANSI = re.compile(r"\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b\][^\x07]*\x07")
-_NUM = re.compile(r"\d+")
-_HEX = re.compile(r"\b0x[0-9a-f]+\b|\b[0-9a-f]{8,}\b")
+_TIME = re.compile(
+    r"\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:[.,]\d+)?Z?|\b\d{2}:\d{2}:\d{2}(?:[.,]\d+)?"
+)
+_HEX = re.compile(r"\b0x[0-9a-f]+\b")
 _SPACE = re.compile(r"\s+")
 _ALNUM = re.compile(r"[A-Za-z0-9]")
 _MARK_RUN = re.compile(r"^\[cobble:test-run (\d+)\]$")
@@ -24,10 +26,12 @@ _MARK_PASS = "[cobble:test-pass]"  # noqa: S105
 
 
 def normalize(line: str) -> str:
-    """Strip volatile parts (colours, numbers, hashes) so repeated lines compare equal."""
+    """Strip volatile parts (colours, timestamps, addresses) so repeated lines compare equal.
+
+    Plain numbers are kept: "step 1", "step 2" is progress, not a loop."""
     line = _ANSI.sub("", line)
+    line = _TIME.sub("T", line)
     line = _HEX.sub("H", line)
-    line = _NUM.sub("N", line)
     return _SPACE.sub(" ", line).strip()
 
 

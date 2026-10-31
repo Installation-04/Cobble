@@ -19,6 +19,7 @@ from . import (
     routes_internal_llm,
     routes_planning,
     routes_projects,
+    routes_tasks,
 )
 from .errors import error_response, install_error_handlers
 from .health import Check
@@ -92,6 +93,7 @@ def create_app(
         routes_folders.router,
         routes_projects.router,
         routes_planning.router,
+        routes_tasks.router,
     ):
         app.include_router(router, prefix="/api/v1")
     app.include_router(routes_internal_llm.router)

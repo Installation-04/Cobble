@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 from alembic import command
 from sqlalchemy import create_engine, inspect, text
+from sqlalchemy.exc import IntegrityError
 
 from .conftest import alembic_config
 
@@ -152,3 +153,124 @@ def test_migration_0005_up_and_down(database_url: str) -> None:
         engine.dispose()
     command.upgrade(config, "head")
     assert tables(database_url) >= STEP5_TABLES
+
+
+STEP7_TABLES = {"tasks", "task_runs"}
+
+
+def test_migration_0006_up_and_down(database_url: str) -> None:
+    config = alembic_config(database_url)
+    command.downgrade(config, "0005")
+    engine = create_engine(database_url)
+    try:
+        assert not STEP7_TABLES & tables(database_url)
+        project_columns = {c["name"] for c in inspect(engine).get_columns("projects")}
+        assert not {"repo_name", "repo_clone_url"} & project_columns
+        with engine.begin() as conn:
+            conn.execute(
+                text(
+                    "INSERT INTO users (id, email, password_hash) "
+                    "VALUES ('00000000-0000-0000-0000-000000000001', 'm@example.com', 'x')"
+                )
+            )
+            conn.execute(
+                text(
+                    "INSERT INTO projects (id, owner_id, name, phase) VALUES "
+                    "('00000000-0000-0000-0000-0000000000a1', "
+                    "'00000000-0000-0000-0000-000000000001', 'old', 'ready')"
+                )
+            )
+
+        command.upgrade(config, "0006")
+        inspector = inspect(engine)
+        assert tables(database_url) >= STEP7_TABLES
+        assert {"repo_name", "repo_clone_url"} <= {
+            c["name"] for c in inspector.get_columns("projects")
+        }
+        assert {
+            "id",
+            "project_id",
+            "ref",
+            "title",
+            "milestone",
+            "depends_on",
+            "files",
+            "acceptance",
+            "tests",
+            "size",
+            "role",
+            "state",
+            "attempts",
+            "escalated",
+            "branch",
+            "pr_number",
+            "last_error",
+            "created_at",
+            "updated_at",
+        } <= {c["name"] for c in inspector.get_columns("tasks")}
+        assert {
+            "id",
+            "task_id",
+            "kind",
+            "attempt",
+            "model",
+            "state",
+            "agent_run_id",
+            "iterations",
+            "head_sha",
+            "started_at",
+            "finished_at",
+            "log_tail",
+        } <= {c["name"] for c in inspector.get_columns("task_runs")}
+        for table, parent in (("tasks", "projects"), ("task_runs", "tasks")):
+            fk = inspector.get_foreign_keys(table)[0]
+            assert fk["referred_table"] == parent
+            assert fk["options"].get("ondelete") == "CASCADE"
+        uniques = inspector.get_unique_constraints("tasks")
+        assert any(set(u["column_names"]) == {"project_id", "ref"} for u in uniques)
+
+        with engine.begin() as conn:
+            conn.execute(
+                text(
+                    "INSERT INTO tasks (id, project_id, ref, title, milestone, depends_on, files, "
+                    "acceptance, tests, size, role) VALUES "
+                    "('00000000-0000-0000-0000-0000000000c1', "
+                    "'00000000-0000-0000-0000-0000000000a1', 'T-001', 't', 'M1', '[]', '[]', '[]', "
+                    "'tests/a.py', 'S', 'backend')"
+                )
+            )
+            row = conn.execute(text("SELECT state, attempts, escalated FROM tasks")).one()
+            assert tuple(row) == ("todo", 0, False)
+            conn.execute(
+                text(
+                    "INSERT INTO task_runs (id, task_id, kind, attempt, model, state) VALUES "
+                    "('00000000-0000-0000-0000-0000000000d1', "
+                    "'00000000-0000-0000-0000-0000000000c1', 'worker', 1, 'm', 'running')"
+                )
+            )
+            assert conn.execute(text("SELECT iterations FROM task_runs")).scalar_one() == 0
+        with pytest.raises(IntegrityError), engine.begin() as conn:  # (project_id, ref) is unique
+            conn.execute(
+                text(
+                    "INSERT INTO tasks (id, project_id, ref, title, milestone, depends_on, "
+                    "files, acceptance, tests, size, role) VALUES "
+                    "('00000000-0000-0000-0000-0000000000c2', "
+                    "'00000000-0000-0000-0000-0000000000a1', 'T-001', 't', 'M1', '[]', '[]', "
+                    "'[]', 'x', 'S', 'backend')"
+                )
+            )
+        with engine.begin() as conn:
+            conn.execute(text("DELETE FROM projects"))  # cascades to tasks and runs
+            assert conn.execute(text("SELECT count(*) FROM task_runs")).scalar_one() == 0
+            assert conn.execute(text("SELECT count(*) FROM tasks")).scalar_one() == 0
+            conn.execute(text("DELETE FROM users"))
+
+        command.downgrade(config, "0005")
+        assert not STEP7_TABLES & tables(database_url)
+        assert not {"repo_name", "repo_clone_url"} & {
+            c["name"] for c in inspect(engine).get_columns("projects")
+        }
+    finally:
+        engine.dispose()
+    command.upgrade(config, "head")
+    assert tables(database_url) >= STEP7_TABLES

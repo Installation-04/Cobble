@@ -69,7 +69,8 @@ class FakeGitProvider:
 class FakeCIProvider:
     """CI results per ref. A ref `branch@n` (the fake agent's head sha) falls back to `branch`."""
 
-    def __init__(self) -> None:
+    def __init__(self, default: CIState = CIState.PENDING) -> None:
+        self.default = default  # the state of a ref with no explicit result
         self.active: set[str] = set()
         self.results: dict[tuple[str, str], CIState] = {}
         self.details: dict[tuple[str, str], str] = {}
@@ -86,7 +87,7 @@ class FakeCIProvider:
             key = (repo.name, candidate)
             if key in self.results:
                 return CIStatus(self.results[key], self.details.get(key, ""))
-        return CIStatus(CIState.PENDING)
+        return CIStatus(self.default)
 
     def wait(self, repo: RepoRef, ref: str, timeout_s: float) -> CIStatus:
         return self.status(repo, ref)
@@ -98,10 +99,11 @@ _MARKER = re.compile(r"\[cobble-task:([^:\]]+):([^:\]]+):(\d+)\]")
 class FakeAgentRunner:
     """Scripted, non-blocking agent runs.
 
-    `script` maps `(task ref, role, attempt)` (read from the run's marker) to an outcome;
+        `script` maps `(task ref, role, attempt)` (read from the run's marker) to an outcome;
     other runs end with `outcome`. A run answers `None` to its first `polls_before_done` polls.
     Set `unavailable` to simulate an unreachable service, add run ids to `lost` to make the
-    service forget them. The head sha of a run is `<branch>@<n>` (n counts the runs per branch).
+    service forget them. The head sha of a successful worker run is `<branch>@<attempt>`
+    (attempts count per branch from 1), that of a test-writer run `<branch>@0`.
     """
 
     def __init__(
@@ -135,8 +137,10 @@ class FakeAgentRunner:
             raise AgentUnavailable("fake agent service is down")
         self.runs.append(task)
         run_id = f"run-{len(self.runs)}"
-        count = self._per_branch.get(task.branch, 0) + 1
-        self._per_branch[task.branch] = count
+        count = 0
+        if task.role is Role.WORKER:
+            count = self._per_branch.get(task.branch, 0) + 1
+            self._per_branch[task.branch] = count
         outcome = self._outcome_for(task)
         self._results[run_id] = AgentResult(
             outcome,
