@@ -110,13 +110,11 @@ services:
     networks: [core]
 
   ui:
-    image: caddy:2-alpine@sha256:e70b164da81ef698b3ad19af799ea6086ce6d9e48ed4079eb9fe26f6fbf14ee5
+    build: ../ui
     <<: *hardening
     cap_add: [NET_BIND_SERVICE]  # the caddy binary carries this file capability
-    command: ["caddy", "file-server", "--root", "/srv", "--listen", ":80"]
-    volumes: [./ui:/srv:ro]
     healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:80/"]
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:8080/"]
       interval: 5s
       timeout: 3s
       retries: 20

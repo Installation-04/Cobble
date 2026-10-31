@@ -1,4 +1,4 @@
-.PHONY: help install lint lint-backend lint-ui test test-backend test-ui test-integration format dev dev-down dev-logs smoke e2e bench cassettes
+.PHONY: activation-link help install lint lint-backend lint-ui test test-backend test-ui test-integration format dev dev-down dev-logs smoke e2e bench cassettes
 
 RUFF := cd backend && uv run --quiet ruff
 
@@ -12,6 +12,7 @@ install:
 
 lint: lint-backend lint-ui
 	python3 scripts/check_i18n.py
+	python3 scripts/check_no_hardcoded_colors.py
 
 PY_DIRS := . ../scripts ../providers/fake-llm
 
@@ -45,13 +46,17 @@ HTTP_PORT = $$(sed -n 's/^COBBLE_HTTP_PORT=//p' core/.env)
 dev:
 	python3 scripts/dev_env.py
 	$(COMPOSE) up --build -d --wait
-	@echo "Cobble is up: http://localhost:$(HTTP_PORT)  (health: /api/v1/health)"
+	@echo "Cobble is up: http://localhost:$(HTTP_PORT)  (first run: make activation-link)"
 
 dev-down:
 	$(COMPOSE) down
 
 dev-logs:
 	$(COMPOSE) logs -f --tail=100
+
+# Print a one-use link to create the admin account (valid 24 h).
+activation-link:
+	$(COMPOSE) exec -T api python -m cobble.cli activation-link
 
 # Send one chat request through LiteLLM (fake provider) and show the recorded call.
 smoke:
@@ -77,7 +82,12 @@ cassettes:
 	cd providers/fake-llm && FAKE_LLM_MODE=record uv run --quiet uvicorn fake_llm.app:create_app_from_env --factory --port 8999
 
 # Not available yet: each target lands with its plan step.
+# Browser tests (Playwright) against a FRESH stack: the spec activates the first admin account.
 e2e:
-	@echo "make e2e: available from step 3 (Playwright)." >&2; exit 2
+	python3 scripts/dev_env.py
+	$(COMPOSE) down -v
+	$(COMPOSE) up --build -d --wait
+	port=$(HTTP_PORT); cd ui && E2E_BASE_URL=http://localhost:$$port pnpm exec playwright test
+
 bench:
 	@echo "make bench: available from v0.3 (agent benchmark)." >&2; exit 2

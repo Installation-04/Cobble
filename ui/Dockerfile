@@ -14,4 +14,7 @@ RUN pnpm build
 FROM caddy:2-alpine@sha256:e70b164da81ef698b3ad19af799ea6086ce6d9e48ed4079eb9fe26f6fbf14ee5
 COPY Caddyfile.static /etc/caddy/Caddyfile
 COPY --from=build /app/dist /srv
-EXPOSE 80
+# Non-root; Caddy needs writable config/data dirs even with the admin API off.
+ENV XDG_CONFIG_HOME=/tmp/caddy-config XDG_DATA_HOME=/tmp/caddy-data
+USER 10001
+EXPOSE 8080

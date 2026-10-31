@@ -11,7 +11,11 @@ import yaml
 ROOT = Path(__file__).resolve().parents[3]
 COMPOSE = yaml.safe_load((ROOT / "core" / "compose.yml").read_text("utf-8"))
 SERVICES: dict[str, dict[str, object]] = COMPOSE["services"]
-DOCKERFILES = [ROOT / "backend" / "Dockerfile", ROOT / "providers" / "fake-llm" / "Dockerfile"]
+DOCKERFILES = [
+    ROOT / "backend" / "Dockerfile",
+    ROOT / "providers" / "fake-llm" / "Dockerfile",
+    ROOT / "ui" / "Dockerfile",
+]
 
 
 def test_every_compose_image_is_pinned_by_digest() -> None:
@@ -25,7 +29,12 @@ def test_every_compose_image_is_pinned_by_digest() -> None:
 @pytest.mark.parametrize("dockerfile", DOCKERFILES, ids=lambda p: p.parent.name)
 def test_dockerfile_images_are_pinned_and_run_as_non_root(dockerfile: Path) -> None:
     text = dockerfile.read_text("utf-8")
-    refs = re.findall(r"^FROM\s+(\S+)", text, re.M) + re.findall(r"--from=(\S+)", text)
+    stages = set(re.findall(r"^FROM\s+\S+\s+AS\s+(\S+)", text, re.M | re.I))
+    refs = [
+        ref
+        for ref in re.findall(r"^FROM\s+(\S+)", text, re.M) + re.findall(r"--from=(\S+)", text)
+        if ref not in stages
+    ]
     assert refs
     for ref in refs:
         assert "@sha256:" in ref, f"not pinned by digest: {ref}"
