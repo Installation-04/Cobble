@@ -20,6 +20,8 @@ make dev                               # the core first: the pack joins its `cob
 COBBLE_PACK_PUBLIC_URL=http://192.168.1.20 packs/v01/hooks/install.sh
 ```
 
+The public URL must be reachable **from inside a container** (CI steps clone from it): use a name or the host's LAN address, not `localhost`.
+
 `install.sh` is idempotent (re-running keeps existing secrets; `--rotate` regenerates them). Without
 any human interaction it:
 

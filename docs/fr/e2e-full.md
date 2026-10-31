@@ -11,7 +11,11 @@ scripts/e2e_full.sh --keep --timeout 5400 --lang fr
 
 Options: `--keep` (laisse la pile active), `--timeout SECONDES` (durée de construction, 3600 par défaut),
 `--lang en|fr`, `--comment` (après `done`, commente la dernière démo et suit la tâche `C-001`), `--force`
-(remplace les secrets du pack déjà présents dans `packs/v01`). `E2E_PORT` fixe le port hôte (18080).
+(remplace les secrets du pack déjà présents dans `packs/v01`). `E2E_PORT` fixe le port hôte (18080). `E2E_HOST` est l'adresse que les conteneurs de CI utilisent
+pour joindre la pile (par défaut: la première adresse de cette machine; `localhost` ne marcherait pas
+depuis un conteneur). `E2E_BUILD_CA` est un paquet de CA pour les machines derrière un proxy qui
+inspecte TLS: il est passé à chaque construction d'image et monté dans les conteneurs d'étapes de CI
+(non défini par défaut).
 
 ## Déroulement
 
@@ -47,3 +51,22 @@ première commande (et le générateur todo). Les tâches qui partagent un fichi
 `depends_on`: le script échoue sinon. `C-001` (« afficher une échéance ») répond au premier commentaire;
 `X-LOOP` est une tâche fictive dont la réponse du worker est volontairement fausse, pour tester la
 détection de boucle (`loop_detected`).
+
+## Résultat vérifié
+
+Exécuté sur un bac à sable de développement avec le faux LLM (cela prouve la **plomberie**, pas la
+qualité d'un modèle ni le coût réel): 2026-10-31, `PASS` en 12 min 39 s. Les 11 tâches du plan et les
+3 tâches de démo sont passées à `merged` dès la première tentative, chacune via la CI Woodpecker
+(lint, tests, gitleaks, semgrep, trivy) et une fusion « squash » Forgejo; les 3 démos de jalon ont
+été construites et validées; la phase a atteint `done`. Mesuré par le routeur de coûts: 59 251 jetons
+d'entrée et 13 754 de sortie, 0,087 $ (le plan estimait 420 000 jetons, 0,84 $, pour un vrai modèle).
+Le parcours `--comment` n'a **pas** été exécuté.
+
+Les premiers essais ont trouvé et fait corriger sept défauts, invisibles aux tests unitaires et
+navigateur: les scripts `gen-env.sh` qui échouaient au premier lancement, `git` absent de l'image du
+backend, l'accès aux registres des agents (l'image du runner embarque désormais un cache uv et un
+magasin pnpm préchauffés), l'environnement uv d'Aider qui fuyait dans les tests du projet, les tests
+frontend lancés avant `pnpm install`, une fusion refusée un instant par Forgejo juste après une autre
+fusion, et un magasin pnpm resté vide sans erreur.
+
+Non couvert: un vrai modèle, l'installation sur VM vierge (étape 11), le parcours `--comment`, HTTPS.

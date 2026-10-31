@@ -5,6 +5,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ## [Unreleased]
 
+### Fixed
+- Full real chain run end to end with the fake LLM (`make e2e-full`, PASS): `gen-env.sh` no longer fails on a first run; the backend image ships `git`; the runner image pre-warms a uv cache and a pnpm store with the template's dependencies and no longer leaks Aider's uv environment into project test runs; frontend tasks install dependencies before testing; a merge refused while Forgejo recomputes mergeability is retried. The harness takes `E2E_HOST` and `E2E_BUILD_CA`.
+
 ### Added
 - Repository skeleton: licenses (AGPL-3.0, Apache-2.0 for `templates/`), community files, issue and PR templates.
 - Python tooling (uv, ruff, mypy strict, pytest), web tooling (pnpm, TypeScript, eslint, prettier, vitest), i18n key check, Makefile.
