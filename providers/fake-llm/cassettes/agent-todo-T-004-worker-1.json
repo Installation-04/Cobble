@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "match": {
+    "marker": "[cobble-task:T-004:worker:1]"
+  },
+  "response": {
+    "content": "Here is the implementation of T-004 (attempt 1).\n\napp/api/todo_item.py\n```\n\"\"\"Update and delete one todo.\"\"\"\n\nfrom fastapi import APIRouter, HTTPException, Response\nfrom pydantic import BaseModel\n\nfrom app import db\nfrom app.models import Todo\n\nrouter = APIRouter(prefix=\"/api/todos\", tags=[\"todos\"])\n\n\nclass TodoUpdate(BaseModel):\n    done: bool\n\n\ndef _not_found() -> HTTPException:\n    return HTTPException(status_code=404, detail=\"Todo not found\")\n\n\n@router.patch(\"/{todo_id}\")\ndef update_todo(todo_id: int, payload: TodoUpdate) -> Todo:\n    todo = db.set_done(todo_id, payload.done)\n    if todo is None:\n        raise _not_found()\n    return todo\n\n\n@router.delete(\"/{todo_id}\", status_code=204)\ndef delete_todo(todo_id: int) -> Response:\n    if not db.delete_todo(todo_id):\n        raise _not_found()\n    return Response(status_code=204)\n```\n",
+    "finish_reason": "stop"
+  }
+}

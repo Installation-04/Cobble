@@ -126,6 +126,8 @@ Une liste de tâches personnelle utilisée depuis un téléphone. Un seul utilis
 }
 
 # (id, milestone, depends_on, files, tests, size, role, acceptance); titles are per language.
+# The files match reference-projects/todo/solution (see scripts/make_agent_cassettes.py): tasks
+# that share a file are ordered by depends_on, because a cassette answer is the whole file.
 _TASKS: list[tuple[Any, ...]] = [
     (
         "T-001",
@@ -182,7 +184,14 @@ _TASKS: list[tuple[Any, ...]] = [
         "T-005",
         "M2",
         ["T-001"],
-        ["web/index.html", "web/app.js", "tests/test_web_served.py"],
+        [
+            "app/api/web.py",
+            "frontend/index.html",
+            "frontend/vite.config.ts",
+            "frontend/src/App.tsx",
+            "frontend/src/App.test.tsx",
+            "tests/test_web_served.py",
+        ],
         "tests/test_web_served.py",
         "S",
         "frontend",
@@ -195,8 +204,13 @@ _TASKS: list[tuple[Any, ...]] = [
         "T-006",
         "M2",
         ["T-003", "T-005"],
-        ["web/list.js", "tests/web/list.test.js"],
-        "tests/web/list.test.js",
+        [
+            "frontend/src/api.ts",
+            "frontend/src/TodoList.tsx",
+            "frontend/src/App.tsx",
+            "frontend/src/list.test.tsx",
+        ],
+        "frontend/src/list.test.tsx",
         "S",
         "frontend",
         [
@@ -208,8 +222,13 @@ _TASKS: list[tuple[Any, ...]] = [
         "T-007",
         "M2",
         ["T-006"],
-        ["web/add.js", "tests/web/add.test.js"],
-        "tests/web/add.test.js",
+        [
+            "frontend/src/AddTodo.tsx",
+            "frontend/src/api.ts",
+            "frontend/src/App.tsx",
+            "frontend/src/add.test.tsx",
+        ],
+        "frontend/src/add.test.tsx",
         "M",
         "frontend",
         [
@@ -220,9 +239,14 @@ _TASKS: list[tuple[Any, ...]] = [
     (
         "T-008",
         "M2",
-        ["T-004", "T-006"],
-        ["web/actions.js", "tests/web/actions.test.js"],
-        "tests/web/actions.test.js",
+        ["T-004", "T-007"],
+        [
+            "frontend/src/TodoList.tsx",
+            "frontend/src/api.ts",
+            "frontend/src/App.tsx",
+            "frontend/src/actions.test.tsx",
+        ],
+        "frontend/src/actions.test.tsx",
         "S",
         "frontend",
         [
@@ -234,7 +258,7 @@ _TASKS: list[tuple[Any, ...]] = [
         "T-009",
         "M3",
         ["T-003"],
-        ["app/config.py", "tests/test_persistence.py"],
+        ["app/config.py", "app/db.py", ".gitignore", "tests/test_persistence.py"],
         "tests/test_persistence.py",
         "S",
         "backend",
@@ -244,8 +268,13 @@ _TASKS: list[tuple[Any, ...]] = [
         "T-010",
         "M3",
         ["T-006"],
-        ["web/style.css", "tests/web/style.test.js"],
-        "tests/web/style.test.js",
+        [
+            "frontend/src/style.css",
+            "frontend/src/main.tsx",
+            "frontend/vite.config.ts",
+            "frontend/src/style.test.ts",
+        ],
+        "frontend/src/style.test.ts",
         "S",
         "frontend",
         [

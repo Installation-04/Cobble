@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "match": {
+    "marker": "[cobble-task:T-010:test-writer:1]"
+  },
+  "response": {
+    "content": "I will write the tests of T-010 first, one per acceptance criterion.\n\nfrontend/src/style.test.ts\n```\n/// <reference types=\"vite/client\" />\nimport { expect, test } from \"vitest\";\n\nimport css from \"./style.css?raw\";\n\n/** The declarations of the rule whose selector is exactly `selector` (\"\" when there is none). */\nfunction rule(selector: string): string {\n  const escaped = selector.replace(/[.*+?^${}()|[\\]\\\\]/g, \"\\\\$&\");\n  const match = new RegExp(`(?:^|\\\\})\\\\s*${escaped}\\\\s*\\\\{([^}]*)\\\\}`).exec(css);\n  return match ? match[1] : \"\";\n}\n\ntest(\"at a width of 375 px the page has no horizontal scroll\", () => {\n  expect(rule(\"*,\\n*::before,\\n*::after\")).toContain(\"box-sizing: border-box\");\n  expect(rule(\"html,\\nbody\")).toContain(\"overflow-x: hidden\");\n  expect(rule(\".todo-item label\")).toContain(\"overflow-wrap: anywhere\");\n  expect(rule(\".page\")).toContain(\"max-width: 32rem\");\n});\n\ntest(\"buttons and checkboxes are at least 44 px tall\", () => {\n  expect(rule(\"button\")).toContain(\"min-height: 44px\");\n  expect(rule('input[type=\"checkbox\"]')).toContain(\"min-height: 44px\");\n  expect(rule('input[type=\"text\"]')).toContain(\"min-height: 44px\");\n});\n\ntest(\"colours come from custom properties\", () => {\n  expect(rule(\":root\")).toContain(\"--bg:\");\n  expect(rule(\"body\")).toContain(\"var(--bg)\");\n});\n```\n",
+    "finish_reason": "stop"
+  }
+}

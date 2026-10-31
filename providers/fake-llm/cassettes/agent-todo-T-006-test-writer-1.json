@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "match": {
+    "marker": "[cobble-task:T-006:test-writer:1]"
+  },
+  "response": {
+    "content": "I will write the tests of T-006 first, one per acceptance criterion.\n\nfrontend/src/list.test.tsx\n```\nimport { render, screen } from \"@testing-library/react\";\nimport { afterEach, expect, test, vi } from \"vitest\";\n\nimport { App } from \"./App\";\n\nfunction serveTodos(todos: unknown[]) {\n  const fetchMock = vi.fn(\n    async (_url: string, _init?: RequestInit) =>\n      new Response(JSON.stringify(todos), {\n        status: 200,\n        headers: { \"Content-Type\": \"application/json\" },\n      }),\n  );\n  vi.stubGlobal(\"fetch\", fetchMock);\n  return fetchMock;\n}\n\nafterEach(() => {\n  vi.unstubAllGlobals();\n});\n\ntest(\"shows the todos returned by GET /api/todos\", async () => {\n  const fetchMock = serveTodos([\n    { id: 1, title: \"Buy milk\", done: false },\n    { id: 2, title: \"Call the dentist\", done: true },\n  ]);\n  render(<App />);\n  expect(await screen.findByText(\"Buy milk\")).toBeTruthy();\n  expect(screen.getByText(\"Call the dentist\")).toBeTruthy();\n  expect(fetchMock.mock.calls[0][0]).toBe(\"api/todos\");\n});\n\ntest(\"shows an empty-state message when there is no todo\", async () => {\n  serveTodos([]);\n  render(<App />);\n  expect(await screen.findByText(\"No tasks yet.\")).toBeTruthy();\n});\n\ntest(\"tells the user when the todos cannot be loaded\", async () => {\n  vi.stubGlobal(\n    \"fetch\",\n    vi.fn(async () => new Response(\"boom\", { status: 500 })),\n  );\n  render(<App />);\n  expect(await screen.findByRole(\"alert\")).toBeTruthy();\n});\n```\n",
+    "finish_reason": "stop"
+  }
+}

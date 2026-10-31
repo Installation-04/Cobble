@@ -1,0 +1,34 @@
+export interface Todo {
+  id: number;
+  title: string;
+  done: boolean;
+}
+
+// Relative URL: the page may be served under a prefix (the milestone previews).
+const TODOS_URL = "api/todos";
+
+async function call(url: string, init?: RequestInit): Promise<Response> {
+  const response = await fetch(url, init);
+  if (!response.ok) {
+    throw new Error(`Request failed with status ${response.status}`);
+  }
+  return response;
+}
+
+function jsonRequest(method: string, body: unknown): RequestInit {
+  return {
+    method,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  };
+}
+
+export async function fetchTodos(): Promise<Todo[]> {
+  const response = await call(TODOS_URL);
+  return (await response.json()) as Todo[];
+}
+
+export async function createTodo(title: string): Promise<Todo> {
+  const response = await call(TODOS_URL, jsonRequest("POST", { title }));
+  return (await response.json()) as Todo;
+}

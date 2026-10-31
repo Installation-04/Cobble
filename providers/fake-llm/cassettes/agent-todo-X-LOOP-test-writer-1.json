@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "match": {
+    "marker": "[cobble-task:X-LOOP:test-writer:1]"
+  },
+  "response": {
+    "content": "I will write the tests of X-LOOP first, one per acceptance criterion.\n\ntests/test_loop_demo.py\n```\nfrom app.loop_demo import add\n\n\ndef test_add_sums_two_numbers() -> None:\n    assert add(2, 3) == 5\n```\n",
+    "finish_reason": "stop"
+  }
+}

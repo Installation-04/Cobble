@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "match": {
+    "marker": "[cobble-task:T-002:worker:1]"
+  },
+  "response": {
+    "content": "Here is the implementation of T-002 (attempt 1).\n\napp/models.py\n```\n\"\"\"Data model of a to-do item.\"\"\"\n\nfrom typing import Annotated\n\nfrom pydantic import BaseModel, StringConstraints\n\nTitle = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]\n\n\nclass TodoCreate(BaseModel):\n    \"\"\"What a client sends to create a todo.\"\"\"\n\n    title: Title\n\n\nclass Todo(BaseModel):\n    \"\"\"A stored todo.\"\"\"\n\n    id: int\n    title: Title\n    done: bool = False\n```\n\napp/db.py\n```\n\"\"\"Storage of the todos. Kept in memory for now (the persistence task moves it to a file).\"\"\"\n\nimport threading\n\nfrom app.models import Todo\n\n\nclass _Store:\n    def __init__(self) -> None:\n        self.lock = threading.Lock()\n        self.todos: dict[int, Todo] = {}\n        self.last_id = 0\n\n\n_store = _Store()\n\n\ndef reset() -> None:\n    \"\"\"Forget every todo (tests start from an empty store).\"\"\"\n    with _store.lock:\n        _store.todos.clear()\n        _store.last_id = 0\n\n\ndef create_todo(title: str) -> Todo:\n    with _store.lock:\n        _store.last_id += 1\n        todo = Todo(id=_store.last_id, title=title)\n        _store.todos[todo.id] = todo\n        return todo\n\n\ndef list_todos() -> list[Todo]:\n    \"\"\"All todos, oldest first.\"\"\"\n    with _store.lock:\n        return [_store.todos[todo_id] for todo_id in sorted(_store.todos)]\n\n\ndef get_todo(todo_id: int) -> Todo | None:\n    with _store.lock:\n        return _store.todos.get(todo_id)\n\n\ndef set_done(todo_id: int, done: bool) -> Todo | None:\n    with _store.lock:\n        todo = _store.todos.get(todo_id)\n        if todo is None:\n            return None\n        updated = todo.model_copy(update={\"done\": done})\n        _store.todos[todo_id] = updated\n        return updated\n\n\ndef delete_todo(todo_id: int) -> bool:\n    with _store.lock:\n        return _store.todos.pop(todo_id, None) is not None\n```\n",
+    "finish_reason": "stop"
+  }
+}

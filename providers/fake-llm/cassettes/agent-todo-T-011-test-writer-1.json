@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "match": {
+    "marker": "[cobble-task:T-011:test-writer:1]"
+  },
+  "response": {
+    "content": "I will write the tests of T-011 first, one per acceptance criterion.\n\ntests/test_docs.py\n````\nfrom pathlib import Path\n\nREADME = (Path(__file__).resolve().parent.parent / \"README.md\").read_text(encoding=\"utf-8\")\n\n\ndef test_the_readme_explains_how_to_start_the_application() -> None:\n    assert \"uv run uvicorn app.main:app\" in README\n    assert \"pnpm build\" in README\n\n\ndef test_the_readme_explains_how_to_run_the_tests() -> None:\n    assert \"uv run pytest\" in README\n    assert \"pnpm --dir frontend test\" in README\n\n\ndef test_the_readme_tells_where_the_data_is_kept() -> None:\n    assert \"TODO_DB\" in README\n````\n",
+    "finish_reason": "stop"
+  }
+}

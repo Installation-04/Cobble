@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "match": {
+    "marker": "[cobble-task:DEMO-M1:worker:1]"
+  },
+  "response": {
+    "content": "Here is the implementation of DEMO-M1 (attempt 1).\n\napp/seed.py\n```\n\"\"\"Demo data for the preview of milestone M1 (the task API).\n\n`python -m app.seed` adds them from the command line; starting the application with\nTODO_SEED=1 does the same. A store that already holds todos is left alone.\n\"\"\"\n\nfrom app import db\n\nDEMO_TODOS = [\n    (\"Buy oat milk and bananas\", True),\n    (\"Call the dentist to book a check-up\", False),\n    (\"Reply to Marie about Saturday dinner\", True),\n    (\"Renew the library card\", False),\n    (\"Water the plants on the balcony\", False),\n    (\"Pay the electricity bill\", True),\n    (\"Back up the photos from the trip\", False),\n    (\"Book train tickets for Mom's birthday\", False),\n]\n\n\ndef seed() -> int:\n    \"\"\"Insert the demo todos into an empty store and return how many were added.\"\"\"\n    if db.list_todos():\n        return 0\n    for title, done in DEMO_TODOS:\n        todo = db.create_todo(title)\n        if done:\n            db.set_done(todo.id, True)\n    return len(DEMO_TODOS)\n\n\nif __name__ == \"__main__\":\n    print(f\"{seed()} demo todos added\")\n```\n",
+    "finish_reason": "stop"
+  }
+}

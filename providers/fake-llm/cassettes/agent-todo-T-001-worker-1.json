@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "match": {
+    "marker": "[cobble-task:T-001:worker:1]"
+  },
+  "response": {
+    "content": "Here is the implementation of T-001 (attempt 1).\n\napp/main.py\n```\n\"\"\"To-do list: backend entry point.\n\nRoutes live in modules of the `app.api` package: every module that defines a `router` is\nmounted here, so a new endpoint is a new file and never an edit of this one.\n\"\"\"\n\nimport importlib\nimport os\nimport pkgutil\nfrom collections.abc import AsyncIterator\nfrom contextlib import asynccontextmanager\nfrom pathlib import Path\nfrom types import ModuleType\n\nfrom fastapi import FastAPI\nfrom fastapi.staticfiles import StaticFiles\n\nASSETS = Path(__file__).resolve().parent.parent / \"frontend\" / \"dist\" / \"assets\"\n\n\ndef _optional_module(name: str) -> ModuleType | None:\n    \"\"\"Import a module that a later task may not have created yet.\"\"\"\n    try:\n        return importlib.import_module(name)\n    except ModuleNotFoundError as exc:\n        if exc.name != name:\n            raise\n        return None\n\n\ndef _include_routers(application: FastAPI) -> None:\n    package = _optional_module(\"app.api\")\n    if package is None:\n        return\n    for info in sorted(pkgutil.iter_modules(package.__path__), key=lambda i: i.name):\n        module = importlib.import_module(f\"app.api.{info.name}\")\n        router = getattr(module, \"router\", None)\n        if router is not None:\n            application.include_router(router)\n\n\n@asynccontextmanager\nasync def lifespan(_: FastAPI) -> AsyncIterator[None]:\n    \"\"\"With TODO_SEED=1 an empty store is filled with demo data (previews of a milestone).\"\"\"\n    seed = _optional_module(\"app.seed\")\n    if os.environ.get(\"TODO_SEED\") == \"1\" and seed is not None:\n        seed.seed()\n    yield\n\n\napp = FastAPI(title=\"To-do list\", lifespan=lifespan)\n_include_routers(app)\nif ASSETS.is_dir():\n    app.mount(\"/assets\", StaticFiles(directory=ASSETS), name=\"assets\")\n\n\n@app.get(\"/api/health\")\ndef health() -> dict[str, str]:\n    return {\"status\": \"ok\"}\n```\n",
+    "finish_reason": "stop"
+  }
+}
