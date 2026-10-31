@@ -46,6 +46,7 @@ RUN --mount=type=secret,id=ca,required=false \
 # entrypoint copies it into the writable /tmp. Other dependencies still use the allow-listed proxy.
 COPY --from=template / /opt/template-seed/
 RUN --mount=type=secret,id=ca,required=false \
+    set -e; \
     if [ -f /opt/template-seed/uv.lock ]; then \
       if [ -f /run/secrets/ca ]; then export SSL_CERT_FILE=/run/secrets/ca; fi; \
       cd /opt/template-seed \
@@ -58,9 +59,12 @@ RUN --mount=type=secret,id=ca,required=false \
 # Same for the frontend: pre-fetch the template's pnpm store from its lockfile.
 RUN --mount=type=secret,id=ca,required=false \
     --mount=type=bind,from=template,target=/seed \
+    set -e; \
     if [ -f /seed/frontend/pnpm-lock.yaml ]; then \
       if [ -f /run/secrets/ca ]; then export NODE_EXTRA_CA_CERTS=/run/secrets/ca SSL_CERT_FILE=/run/secrets/ca; fi; \
-      cd /seed/frontend && COREPACK_HOME=/opt/corepack pnpm fetch --store-dir /opt/pnpm-seed; \
+      mkdir /tmp/fe && cp /seed/frontend/package.json /seed/frontend/pnpm-lock.yaml /tmp/fe/ \
+      && cd /tmp/fe && COREPACK_HOME=/opt/corepack pnpm fetch --store-dir /opt/pnpm-seed \
+      && rm -rf /tmp/fe; \
     fi; \
     mkdir -p /opt/pnpm-seed && chmod -R a+rX /opt/pnpm-seed
 
