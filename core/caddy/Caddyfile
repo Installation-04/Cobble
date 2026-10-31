@@ -1,0 +1,14 @@
+# Dev: plain HTTP. HTTPS (internal CA / Let's Encrypt) is configured by the installer.
+{
+	auto_https off
+	admin off
+}
+
+:80 {
+	handle /api/* {
+		reverse_proxy api:8000
+	}
+	handle {
+		reverse_proxy ui:80
+	}
+}

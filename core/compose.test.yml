@@ -1,0 +1,12 @@
+# Overlay used only by `make test-integration`: exposes services on 127.0.0.1
+# so tests running on the host can reach them. Never part of the real stack.
+# Docker only publishes ports for containers on a non-internal network, hence `edge`.
+services:
+  postgres:
+    ports: ["127.0.0.1:55432:5432"]
+    networks: [edge]
+  redis:
+    ports: ["127.0.0.1:56379:6379"]
+    networks: [edge]
+  litellm:
+    ports: ["127.0.0.1:54000:4000"]
