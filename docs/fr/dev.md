@@ -11,6 +11,16 @@ Aucune clé d'API n'est nécessaire: LiteLLM envoie le modèle `fake` au faux fo
 
 Ouvrir `http://localhost:8080` (santé: `/api/v1/health`). Seul Caddy publie un port; le changer avec `COBBLE_HTTP_PORT` dans `core/.env`.
 
+## Première connexion
+
+`make dev` affiche l'URL. Créer le compte admin avec le lien d'activation à usage unique (valable 24 heures, consommé à l'usage):
+
+```bash
+make activation-link
+```
+
+Ouvrir le lien affiché, choisir un courriel et un mot de passe (10 caractères ou plus), puis se connecter. `make e2e` lance le test navigateur (Playwright) sur une pile **neuve**: il efface d'abord les volumes de données de développement.
+
 | Service | Rôle |
 |---|---|
 | `caddy` | Seul port publié; route `/api/*` vers l'API, le reste vers l'UI |
@@ -19,7 +29,7 @@ Ouvrir `http://localhost:8080` (santé: `/api/v1/health`). Seul Caddy publie un 
 | `litellm` | Passerelle de modèles (version épinglée) |
 | `fake-llm` | Fournisseur compatible OpenAI qui rejoue des cassettes |
 | `postgres`, `redis` | État et bus d'événements |
-| `ui` | Page de remplacement (l'UI React arrive à l'étape 3) |
+| `ui` | Application React (build Vite) servie par Caddy, non-root |
 
 ## Tests
 
