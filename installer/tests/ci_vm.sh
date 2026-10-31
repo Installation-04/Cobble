@@ -7,7 +7,9 @@
 # Storage driver choice: /var/lib/docker of the nested daemon is a named volume (ext4/xfs
 # of the host), so the default overlay2 driver works natively and fast. Without that
 # volume overlay2 cannot sit on the container's own overlay filesystem and Docker would
-# fall back to the slow vfs driver. No fuse-overlayfs is needed.
+# fall back to the slow vfs driver. No fuse-overlayfs is needed. Docker 29 also stores image
+# layers via containerd (/var/lib/containerd), which needs the same volume treatment: on the
+# container overlay filesystem, extracting layers fails on whiteout files (EPERM).
 set -euo pipefail
 
 IMAGE="${1:?usage: ci_vm.sh <base-image> [repo-dir]}"
@@ -30,7 +32,7 @@ cleanup() {
     in_vm journalctl -u docker -u cobble --no-pager -n 40 >&2 2>&1 || true
   fi
   docker rm -f "$NAME" >/dev/null 2>&1 || true
-  docker volume rm "$NAME-docker" >/dev/null 2>&1 || true
+  docker volume rm "$NAME-docker" "$NAME-containerd" >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
 
@@ -46,6 +48,7 @@ EOF
 
 docker run -d --name "$NAME" --privileged --cgroupns=host \
   -v /sys/fs/cgroup:/sys/fs/cgroup:rw -v "$NAME-docker:/var/lib/docker" \
+  -v "$NAME-containerd:/var/lib/containerd" \
   --tmpfs /run --tmpfs /run/lock --tmpfs /tmp "$TAG" >/dev/null
 
 for _ in $(seq 1 60); do
