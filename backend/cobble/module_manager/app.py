@@ -28,10 +28,14 @@ from cobble_sdk.resolve import InvalidChoice
 from fastapi import Depends, FastAPI, Header, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, SecretStr
 
+from .connections import ConnectionInvalid, ConnectionUnknown
 from .disk_catalog import DiskCatalog
+from .manager import ManagerBusy
+from .runner import RunnerError
 from .service import Busy, OperationController, OperationRequest, plan_to_json
+from .vault import SecretValue
 
 
 class ServiceError(Exception):
@@ -87,6 +91,14 @@ class OperationBody(BaseModel):
         return OperationRequest(
             self.action, self.modules, self.choices, self.replace, self.confirm_cascade
         )
+
+
+class ModelBody(BaseModel):
+    provider: str = Field(max_length=20)
+    model: str = Field(max_length=100)
+    api_key: SecretStr = Field(max_length=600)  # never echoed: SecretStr hides it from reprs
+    base_url: str | None = Field(default=None, max_length=300)
+    make_default: bool = False
 
 
 def _error(status: int, code: str, params: dict[str, Any] | None = None) -> JSONResponse:
@@ -214,6 +226,63 @@ def create_app(
                 }
             )
         return {"packs": entries, "problems": problems, "recommended": recommended}
+
+    def models_body() -> dict[str, Any]:
+        manager = controller.manager
+        models = manager.models()
+        return {
+            "models": [
+                {
+                    "name": m.name,
+                    "provider": m.provider,
+                    "model": m.model,
+                    "base_url": m.base_url,
+                    "default": m.default,
+                }
+                for m in models
+            ],
+            "default": next((m.name for m in models if m.default), None),
+        }
+
+    def model_call(action: Any) -> dict[str, Any]:
+        """Run a model change and map what can go wrong to stable codes (no key in any of them)."""
+        try:
+            action()
+        except ConnectionInvalid as exc:
+            raise ServiceError(422, "invalid_request", fields=exc.fields) from None
+        except ConnectionUnknown as exc:
+            raise ServiceError(404, "model_unknown", name=exc.name) from None
+        except ManagerBusy:
+            raise ServiceError(409, "module_busy") from None
+        except RunnerError:
+            # The gateway did not take the new list: it was put back as it was.
+            raise ServiceError(502, "model_gateway_failed") from None
+        return models_body()
+
+    @app.get("/v1/models", dependencies=[auth])
+    def get_models() -> dict[str, Any]:
+        return models_body()
+
+    @app.put("/v1/models/{name}", dependencies=[auth])
+    def put_model(name: str, body: ModelBody) -> dict[str, Any]:
+        return model_call(
+            lambda: controller.manager.put_model(
+                name,
+                body.provider,
+                body.model,
+                SecretValue(body.api_key.get_secret_value()),
+                body.base_url,
+                make_default=body.make_default,
+            )
+        )
+
+    @app.delete("/v1/models/{name}", dependencies=[auth])
+    def delete_model(name: str) -> dict[str, Any]:
+        return model_call(lambda: controller.manager.remove_model(name))
+
+    @app.post("/v1/models/{name}/default", dependencies=[auth])
+    def default_model(name: str) -> dict[str, Any]:
+        return model_call(lambda: controller.manager.set_default_model(name))
 
     @app.post("/v1/plan", dependencies=[auth])
     def post_plan(body: OperationBody) -> dict[str, Any]:

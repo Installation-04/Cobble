@@ -356,7 +356,14 @@ def test_migration_0007_milestones_and_task_kind(database_url: str) -> None:
     assert "milestones" in tables(database_url)
 
 
-STEP_V02_TABLES = {"modules", "module_secrets", "module_links", "module_events", "platform_state"}
+STEP_V02_TABLES = {
+    "modules",
+    "module_secrets",
+    "module_links",
+    "module_events",
+    "platform_state",
+    "llm_connections",
+}
 
 
 def test_migration_0008_modules_up_and_down(database_url: str) -> None:
@@ -364,7 +371,7 @@ def test_migration_0008_modules_up_and_down(database_url: str) -> None:
     command.downgrade(config, "base")
     command.upgrade(config, "0007")
     assert not STEP_V02_TABLES & tables(database_url)
-    command.upgrade(config, "0008")
+    command.upgrade(config, "0009")
     assert tables(database_url) >= STEP_V02_TABLES
     engine = create_engine(database_url)
     try:
@@ -431,6 +438,51 @@ def test_migration_0008_modules_up_and_down(database_url: str) -> None:
         engine.dispose()
     command.upgrade(config, "head")
     assert tables(database_url) >= STEP_V02_TABLES
+
+
+def test_migration_0009_model_connections_up_and_down(database_url: str) -> None:
+    config = alembic_config(database_url)
+    command.downgrade(config, "base")
+    command.upgrade(config, "0008")
+    assert "llm_connections" not in tables(database_url)
+    engine = create_engine(database_url)
+    try:
+        with engine.begin() as conn:
+            conn.execute(text("UPDATE platform_state SET modules_generation = 7"))
+        command.upgrade(config, "0009")
+        with engine.begin() as conn:
+            assert "llm_connections" in tables(database_url)
+            # the default model starts unset, and nothing else about the state changed
+            row = conn.execute(
+                text("SELECT default_model, modules_generation FROM platform_state")
+            ).one()
+            assert row[0] is None and row[1] == 7
+            conn.execute(
+                text(
+                    "INSERT INTO llm_connections (name, provider, model, ciphertext, nonce) "
+                    "VALUES ('cheap', 'openai', 'gpt-4.1-mini', 'c', 'n')"
+                )
+            )
+            conn.execute(text("UPDATE platform_state SET default_model = 'cheap'"))
+            kv = conn.execute(text("SELECT key_version FROM llm_connections")).scalar_one()
+            assert kv == 1  # the vault key version defaults to the first
+        with pytest.raises(IntegrityError), engine.begin() as conn:  # names are unique
+            conn.execute(
+                text(
+                    "INSERT INTO llm_connections (name, provider, model, ciphertext, nonce) "
+                    "VALUES ('cheap', 'anthropic', 'x', 'c', 'n')"
+                )
+            )
+        command.downgrade(config, "0008")
+        assert "llm_connections" not in tables(database_url)
+        with engine.begin() as conn:  # the earlier state survives the round trip
+            assert (
+                conn.execute(text("SELECT modules_generation FROM platform_state")).scalar_one()
+                == 7
+            )
+    finally:
+        engine.dispose()
+    command.upgrade(config, "head")
 
 
 def test_the_models_match_the_migrations(migrated_database: str) -> None:

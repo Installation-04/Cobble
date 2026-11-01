@@ -19,6 +19,7 @@ from cobble.db import make_engine, make_session_factory
 from cobble.events import publish_module
 
 from .app import create_app
+from .connections import ConnectionStore
 from .disk_catalog import DiskCatalog
 from .edge import CaddyEdge, Edge, NullEdge, caddy_reload
 from .hardware import host_hardware
@@ -101,6 +102,7 @@ def build_app(settings: Settings, redis: Redis) -> tuple[FastAPI, ModuleManager]
     llm: LlmGateway = NullGateway()
     if settings.module_litellm_dir:
         llm = docker_gateway(Path(settings.module_litellm_dir) / "models.yaml")
+    connections = ConnectionStore(vault, redactor)
     controller = OperationController(publish)
     manager = ModuleManager(
         make_session_factory(make_engine(settings.database_url)),
@@ -112,6 +114,7 @@ def build_app(settings: Settings, redis: Redis) -> tuple[FastAPI, ModuleManager]
         on_event=controller.on_step,
         edge=edge,
         llm=llm,
+        connections=connections,
         platform_env={
             **extra_env(settings.module_extra_env),
             **public_env(settings.module_public_url),

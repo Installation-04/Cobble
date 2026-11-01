@@ -58,5 +58,7 @@
   "module_code_unknown_key_version": "A stored secret was written with a key that is no longer available.",
   "module_code_empty_secret": "A secret cannot be empty.",
   "module_code_internal_error": "An unexpected error occurred. Nothing was left half installed.",
-  "module_code_unknown": "The operation failed."
+  "module_code_unknown": "The operation failed.",
+  "model_unknown": "The model “{{name}}” does not exist.",
+  "model_gateway_failed": "The model service did not accept this connection, so nothing was changed. Check the key, then try again."
 }

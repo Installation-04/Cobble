@@ -121,6 +121,7 @@ class Rig:
         edge: Any = None,
         llm: Any = None,
         hardware_gpu: str = "none",
+        connections: Any = None,
     ) -> None:
         engine = create_engine(
             "sqlite://", poolclass=StaticPool, connect_args={"check_same_thread": False}
@@ -138,6 +139,7 @@ class Rig:
             hardware or Hardware(ram_mb=16384, gpu=hardware_gpu),  # type: ignore[arg-type]
             edge=edge,
             llm=llm,
+            connections=connections,
         )
 
     def modules(self) -> dict[str, Module]:

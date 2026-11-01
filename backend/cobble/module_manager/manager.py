@@ -14,7 +14,8 @@ from __future__ import annotations
 
 import logging
 import threading
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
+from contextlib import contextmanager
 from dataclasses import replace
 from typing import Any
 
@@ -40,6 +41,7 @@ from sqlalchemy.orm import Session
 from cobble.db.models import Module, ModuleEvent, ModuleLink, PlatformState
 
 from .catalog_source import CatalogSource
+from .connections import ConnectionInfo, ConnectionStore
 from .edge import Edge, NullEdge
 from .llm import LlmEntry, LlmGateway, NullGateway
 from .runner import HookResult, Runner, RunnerError
@@ -50,6 +52,10 @@ log = logging.getLogger(__name__)
 
 SessionFactory = Callable[[], Session]
 EventSink = Callable[[dict[str, Any]], None]
+
+
+class ManagerBusy(Exception):
+    """Another operation (a module install or removal, a model change) is running."""
 
 
 class ModuleOperationFailed(Exception):
@@ -108,6 +114,7 @@ class ModuleManager:
         on_event: EventSink | None = None,
         edge: Edge | None = None,
         llm: LlmGateway | None = None,
+        connections: ConnectionStore | None = None,
         platform_env: Mapping[str, str] | None = None,
     ) -> None:
         self._sessions = sessions
@@ -121,6 +128,7 @@ class ModuleManager:
         # Facts about the platform every module may use (public URL...): compose variables and
         # hook environment. Never secrets.
         self._platform_env = dict(platform_env or {})
+        self._connections = connections
         self._llm: LlmGateway = llm if llm is not None else NullGateway()
         self._edge: Edge = edge if edge is not None else NullEdge()
         self._lock = threading.Lock()  # one operation at a time
@@ -196,6 +204,69 @@ class ModuleManager:
                     "secrets": secrets,
                 }
         return result
+
+    # --- model connections ---------------------------------------------------------------------
+
+    @contextmanager
+    def _exclusive(self) -> Iterator[None]:
+        """Model changes restart the gateway: never at the same time as a module operation."""
+        if not self._lock.acquire(blocking=False):
+            raise ManagerBusy
+        try:
+            yield
+        finally:
+            self._lock.release()
+
+    def models(self) -> list[ConnectionInfo]:
+        if self._connections is None:
+            return []
+        with self._sessions() as session:
+            return self._connections.describe(session)
+
+    def put_model(
+        self,
+        name: str,
+        provider: str,
+        model: str,
+        api_key: SecretValue,
+        base_url: str | None = None,
+        *,
+        make_default: bool = False,
+    ) -> None:
+        """Connect (or update) a model service. The gateway gets the new list first; nothing is
+        saved unless it accepted it. The first connection becomes the default."""
+        store = self._require_connections()
+        with self._exclusive(), self._sessions() as session:
+            first = not store.describe(session) and store.default(session) is None
+            store.put(session, name, provider, model, api_key, base_url)
+            if make_default or first:
+                store.set_default(session, name)
+            self._commit_with_gateway(session)
+
+    def remove_model(self, name: str) -> None:
+        store = self._require_connections()
+        with self._exclusive(), self._sessions() as session:
+            store.remove(session, name)
+            self._commit_with_gateway(session)
+
+    def set_default_model(self, name: str | None) -> None:
+        store = self._require_connections()
+        with self._exclusive(), self._sessions() as session:
+            store.set_default(session, name)
+            session.commit()  # the gateway's list does not change
+
+    def _require_connections(self) -> ConnectionStore:
+        if self._connections is None:
+            raise RuntimeError("model connections are not configured")
+        return self._connections
+
+    def _commit_with_gateway(self, session: Session) -> None:
+        try:
+            self._sync_llm(session)
+        except Exception:
+            session.rollback()
+            raise
+        session.commit()
 
     def plan_install(
         self,
@@ -299,14 +370,19 @@ class ModuleManager:
                 routes[module_id] = text
         self._edge.sync(routes)
 
-    def _sync_llm(self) -> None:
-        """Give the language-model gateway the models of the backends that run."""
+    def _sync_llm(self, session: Session | None = None) -> None:
+        """Give the language-model gateway the models of the backends that run and the
+        connections the administrator made. With `session`, changes it has flushed but not yet
+        committed are taken into account (the caller commits once the gateway accepted them)."""
+        if session is None:
+            with self._sessions() as own:
+                self._sync_llm(own)
+            return
         manifests = self._manifests()
-        with self._sessions() as session:
-            rows = [
-                (row.id, row.variant)
-                for row in session.scalars(select(Module).where(Module.state == "running"))
-            ]
+        rows = [
+            (row.id, row.variant)
+            for row in session.scalars(select(Module).where(Module.state == "running"))
+        ]
         entries: list[LlmEntry] = []
         for module_id, variant in sorted(rows):
             manifest = manifests.get(module_id)
@@ -314,6 +390,8 @@ class ModuleManager:
             if manifest is None or endpoint is None:
                 continue
             entries += [LlmEntry(m.name, m.model, endpoint) for m in manifest.llm_models(variant)]
+        if self._connections is not None:
+            entries += self._connections.entries(session)
         self._llm.sync(entries)
 
     def _sync_llm_quietly(self) -> None:

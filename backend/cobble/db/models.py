@@ -331,6 +331,27 @@ class ModuleSecret(Base):
     created_at: Mapped[datetime] = _now_col()
 
 
+class LlmConnection(Base):
+    """A language-model service the administrator connected with an API key.
+
+    The key is encrypted by the module-manager's vault (bound to the connection's name), never
+    stored in clear and never returned by any API. `name` is what the gateway exposes and what
+    the default model refers to.
+    """
+
+    __tablename__ = "llm_connections"
+
+    name: Mapped[str] = mapped_column(String(40), primary_key=True)
+    # openai | anthropic | openrouter | custom (an OpenAI-compatible service at `base_url`)
+    provider: Mapped[str] = mapped_column(String(20), nullable=False)
+    model: Mapped[str] = mapped_column(String(100), nullable=False)
+    base_url: Mapped[str | None] = mapped_column(String(300))
+    ciphertext: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    nonce: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    key_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+    created_at: Mapped[datetime] = _now_col()
+
+
 class ModuleLink(Base):
     """A consumer module linked to a provider module through a capability."""
 
@@ -392,3 +413,6 @@ class PlatformState(Base):
     modules_generation: Mapped[int] = mapped_column(
         Integer, nullable=False, default=0, server_default="0"
     )
+    # The model used when a role has none of its own; None means the configured one (`fake` in
+    # development). Set when a model connection is made the default.
+    default_model: Mapped[str | None] = mapped_column(String(40))

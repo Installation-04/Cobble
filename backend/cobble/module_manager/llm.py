@@ -13,7 +13,7 @@ import os
 import subprocess
 import time
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Protocol
 
@@ -30,25 +30,32 @@ EMPTY = "model_list: []\n"
 class LlmEntry:
     name: str  # what clients ask the gateway for
     model: str  # the gateway's own model string (provider/model)
-    api_base: str  # where the backend listens on the shared network
+    api_base: str | None = None  # where the backend listens (None: the provider's own address)
+    # The key of a paid service. Never printed (repr hidden) and never logged.
+    api_key: str | None = field(default=None, repr=False)
+    # A model served on this machine costs nothing; a paid service is priced by the gateway.
+    local: bool = True
 
 
 def render_models(entries: Sequence[LlmEntry]) -> str:
-    """The include file: one deployment per entry, local backends cost nothing."""
+    """The include file: one deployment per entry.
+
+    It may hold API keys, so it is only ever in a volume that the module-manager writes and the
+    gateway reads (no other container mounts it); it is never logged or sent anywhere.
+    """
     if not entries:
         return EMPTY
-    models = [
-        {
-            "model_name": entry.name,
-            "litellm_params": {
-                "model": entry.model,
-                "api_base": entry.api_base,
-                "input_cost_per_token": 0,
-                "output_cost_per_token": 0,
-            },
-        }
-        for entry in sorted(entries, key=lambda e: (e.name, e.api_base, e.model))
-    ]
+    models = []
+    for entry in sorted(entries, key=lambda e: (e.name, e.api_base or "", e.model)):
+        params: dict[str, object] = {"model": entry.model}
+        if entry.api_base is not None:
+            params["api_base"] = entry.api_base
+        if entry.api_key is not None:
+            params["api_key"] = entry.api_key
+        if entry.local:
+            params["input_cost_per_token"] = 0
+            params["output_cost_per_token"] = 0
+        models.append({"model_name": entry.name, "litellm_params": params})
     return yaml.safe_dump({"model_list": models}, sort_keys=False)
 
 
@@ -84,6 +91,9 @@ class FileGateway:
         self._path.parent.mkdir(parents=True, exist_ok=True)
         temp = self._path.with_name(f".{self._path.name}.tmp")
         temp.write_text(text)
+        # The gateway's user is not ours and the volume is shared with nothing else: readable by
+        # it, writable only by us.
+        temp.chmod(0o644)
         os.replace(temp, self._path)
 
     def sync(self, entries: Sequence[LlmEntry]) -> None:

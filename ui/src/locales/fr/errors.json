@@ -58,5 +58,7 @@
   "module_code_unknown_key_version": "Un secret enregistré a été écrit avec une clé qui n'est plus disponible.",
   "module_code_empty_secret": "Un secret ne peut pas être vide.",
   "module_code_internal_error": "Une erreur inattendue s'est produite. Rien n'est resté à moitié installé.",
-  "module_code_unknown": "L'opération a échoué."
+  "module_code_unknown": "L'opération a échoué.",
+  "model_unknown": "Le modèle « {{name}} » n'existe pas.",
+  "model_gateway_failed": "Le service de modèles n'a pas accepté cette connexion, rien n'a donc été modifié. Vérifiez la clé, puis réessayez."
 }

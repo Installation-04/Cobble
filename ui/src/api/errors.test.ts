@@ -9,6 +9,7 @@ describe("module error codes", () => {
       const refusals = Object.keys(messages).filter(
         (key) =>
           (key.startsWith("module_") && !key.startsWith("module_code_")) ||
+          key.startsWith("model_") ||
           key === "invalid_request",
       );
       expect(refusals.length).toBeGreaterThan(8);

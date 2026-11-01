@@ -13,9 +13,9 @@ from pathlib import Path
 from redis import Redis
 from sqlalchemy.orm import Session, sessionmaker
 
-from cobble.capabilities.llm import Role
 from cobble.config import Settings
 from cobble.db.models import PlatformState
+from cobble.router.policy import ModelPolicy
 
 from .engine import Scheduler
 from .supervisor import BuildResult, SchedulerSupervisor
@@ -69,8 +69,7 @@ def make_scheduler_supervisor(
             return BuildResult(None)
         agents, preview = runtime
 
-        def model_for(role: Role) -> str:
-            return settings.role_models.get(role.value, settings.default_model)
+        model_for = ModelPolicy(sessions, settings).model_for
 
         return BuildResult(
             Scheduler(
@@ -131,8 +130,7 @@ def build_scheduler(
         log.warning("scheduler disabled: the pack is not configured")
         return None
 
-    def model_for(role: Role) -> str:
-        return settings.role_models.get(role.value, settings.default_model)
+    model_for = ModelPolicy(sessions, settings).model_for
 
     return Scheduler(
         sessions,

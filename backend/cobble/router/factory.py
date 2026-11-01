@@ -10,6 +10,7 @@ from cobble.config import Settings
 from .budget import BudgetService
 from .costs import CostRouter
 from .gateway import LiteLLMGateway
+from .policy import ModelPolicy
 
 
 def build_cost_router(
@@ -17,5 +18,8 @@ def build_cost_router(
 ) -> CostRouter:
     gateway = LiteLLMGateway(settings.litellm_url, settings.litellm_key, sessions, redis)
     return CostRouter(
-        gateway, BudgetService(sessions, redis), settings.role_models, settings.default_model
+        gateway,
+        BudgetService(sessions, redis),
+        settings.role_models,
+        ModelPolicy(sessions, settings).default,
     )

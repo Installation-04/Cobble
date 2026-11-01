@@ -33,6 +33,7 @@ from cobble.orchestrator.service import PlannerService
 from cobble.router.budget import BudgetService
 from cobble.router.costs import CostRouter
 from cobble.router.gateway import LiteLLMGateway
+from cobble.router.policy import ModelPolicy
 from cobble.scheduler import Scheduler
 from cobble.scheduler.factory import build_scheduler, make_scheduler_supervisor
 from cobble.scheduler.supervisor import SchedulerSupervisor, SchedulerUnavailable
@@ -96,7 +97,10 @@ def build_planner(settings: Settings, redis: Redis) -> PlannerService:
     sessions = make_session_factory(make_engine(settings.database_url))
     gateway = LiteLLMGateway(settings.litellm_url, settings.litellm_key, sessions, redis)
     router = CostRouter(
-        gateway, BudgetService(sessions, redis), settings.role_models, settings.default_model
+        gateway,
+        BudgetService(sessions, redis),
+        settings.role_models,
+        ModelPolicy(sessions, settings).default,
     )
     return PlannerService(sessions, router, redis, settings)
 

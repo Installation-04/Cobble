@@ -34,6 +34,8 @@ export const KNOWN_ERROR_CODES = [
   "module_no_compatible_variant",
   "module_invalid",
   "invalid_request",
+  "model_unknown",
+  "model_gateway_failed",
 ] as const;
 
 /** Failure codes of an install or removal step, translated as `errors:module_code_<code>`. */

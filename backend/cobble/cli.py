@@ -16,6 +16,7 @@ from cobble.config import Settings, get_settings
 from cobble.db import AuthSession, User, make_engine, make_session_factory
 from cobble.i18n import t
 from cobble.router.gateway import GatewayError, LiteLLMGateway
+from cobble.router.policy import ModelPolicy
 
 
 def _session_factory(settings: Settings) -> sessionmaker[Session]:
@@ -76,7 +77,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     sub = parser.add_subparsers(dest="command", required=True)
     chat = sub.add_parser("chat")
     chat.add_argument("message")
-    chat.add_argument("--model", default=settings.default_model)
+    chat.add_argument("--model", default=None, help="a model name (default: the platform default)")
     sub.add_parser("activation-link")
     sub.add_parser("reset-admin")
     cli_modules.add_parser(sub)
@@ -96,7 +97,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         events=Redis.from_url(settings.redis_url),
     )
     try:
-        result = gateway.chat(args.model, [{"role": "user", "content": args.message}])
+        model = args.model or ModelPolicy(_session_factory(settings), settings).default()
+        result = gateway.chat(model, [{"role": "user", "content": args.message}])
     except GatewayError as exc:
         print(t("cli.chat.failed", settings.lang, status=exc.status), file=sys.stderr)
         return 1

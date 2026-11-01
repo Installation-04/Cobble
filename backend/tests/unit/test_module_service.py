@@ -55,6 +55,8 @@ class Service:
             self.rig.store,
             self.rig.manager._hardware,
             on_event=self.controller.on_step,
+            llm=self.rig.manager._llm,
+            connections=self.rig.manager._connections,
         )
         self.controller.bind(self.rig.manager)
         self.client = TestClient(create_app(self.controller, TOKEN))
@@ -705,3 +707,118 @@ def test_the_disk_catalogue_serves_only_packs_that_work_with_it(tmp_path: Path) 
     assert set(packs) == {"works"}
     assert problems["ghosts"] == ["unknown module: ghost"]
     assert "broken" in problems
+
+
+# --- model connections --------------------------------------------------------------------------
+
+SECRET_KEY = "sk-live-do-not-leak-0123456789"
+
+
+def model_service() -> tuple[Service, TestClient, Any]:
+    from cobble.module_manager.connections import ConnectionStore
+    from cobble.module_manager.redaction import Redactor
+    from cobble.module_manager.vault import Vault
+
+    from .test_model_connections import Gateway
+    from .test_module_manager import MASTER
+
+    gateway = Gateway()
+    rig = Rig(
+        modules=[OLLAMA], llm=gateway, connections=ConnectionStore(Vault({1: MASTER}), Redactor())
+    )
+    svc = Service(rig)
+    return svc, svc.client, gateway
+
+
+def put_model(svc: Service, name: str = "cheap", **over: Any) -> Any:
+    body = {"provider": "openai", "model": "gpt-4.1-mini", "api_key": SECRET_KEY, **over}
+    return svc.client.put(f"/v1/models/{name}", json=body, headers=AUTH)
+
+
+def test_a_model_is_connected_listed_and_the_key_is_never_sent_back() -> None:
+    svc, client, gateway = model_service()
+    assert client.get("/v1/models", headers=AUTH).json() == {"models": [], "default": None}
+    reply = put_model(svc)
+    assert reply.status_code == 200
+    assert reply.json() == {
+        "models": [
+            {
+                "name": "cheap",
+                "provider": "openai",
+                "model": "gpt-4.1-mini",
+                "base_url": None,
+                "default": True,
+            }
+        ],
+        "default": "cheap",
+    }
+    assert (
+        SECRET_KEY not in reply.text
+        and SECRET_KEY not in client.get("/v1/models", headers=AUTH).text
+    )
+    assert gateway.last[0].api_key == SECRET_KEY  # the gateway, and only it, gets the key
+
+
+def test_a_second_model_can_be_made_the_default() -> None:
+    svc, client, _ = model_service()
+    put_model(svc, "first")
+    put_model(svc, "second")
+    assert client.get("/v1/models", headers=AUTH).json()["default"] == "first"
+    reply = client.post("/v1/models/second/default", headers=AUTH)
+    assert reply.status_code == 200 and reply.json()["default"] == "second"
+    reply = client.delete("/v1/models/second", headers=AUTH)
+    assert reply.json()["default"] is None and [m["name"] for m in reply.json()["models"]] == [
+        "first"
+    ]
+
+
+def test_bad_requests_say_which_fields_and_never_echo_the_key() -> None:
+    svc, client, gateway = model_service()
+    reply = put_model(svc, "fake", provider="skynet", api_key="bad key")
+    assert reply.status_code == 422
+    assert reply.json()["error"] == {
+        "code": "invalid_request",
+        "params": {"fields": ["name", "provider", "api_key"]},
+    }
+    assert "bad key" not in reply.text
+    # a body that does not even parse as a request must not echo the key either
+    broken = client.put("/v1/models/x", json={"api_key": SECRET_KEY, "provider": 5}, headers=AUTH)
+    assert broken.status_code == 422 and SECRET_KEY not in broken.text
+    assert gateway.calls == []
+
+
+def test_unknown_models_are_404() -> None:
+    _svc, client, _ = model_service()
+    for method, path in (("POST", "/v1/models/ghost/default"), ("DELETE", "/v1/models/ghost")):
+        reply = client.request(method, path, headers=AUTH)
+        assert reply.status_code == 404
+        assert reply.json()["error"] == {"code": "model_unknown", "params": {"name": "ghost"}}
+
+
+def test_a_gateway_that_does_not_take_the_models_is_a_502_and_nothing_is_kept() -> None:
+    svc, client, gateway = model_service()
+    gateway.fail = True
+    reply = put_model(svc)
+    assert reply.status_code == 502 and reply.json()["error"]["code"] == "model_gateway_failed"
+    assert SECRET_KEY not in reply.text
+    assert client.get("/v1/models", headers=AUTH).json() == {"models": [], "default": None}
+
+
+def test_a_model_change_during_a_module_operation_is_a_409_busy() -> None:
+    svc, client, _ = model_service()
+    with svc.rig.manager._lock:
+        reply = put_model(svc)
+    assert reply.status_code == 409 and reply.json()["error"]["code"] == "module_busy"
+    assert client.get("/v1/models", headers=AUTH).json()["models"] == []
+
+
+def test_every_model_endpoint_needs_the_token() -> None:
+    _svc, client, _ = model_service()
+    for method, path in (
+        ("GET", "/v1/models"),
+        ("PUT", "/v1/models/x"),
+        ("DELETE", "/v1/models/x"),
+        ("POST", "/v1/models/x/default"),
+    ):
+        body = {"provider": "openai", "model": "m", "api_key": "k"} if method == "PUT" else None
+        assert client.request(method, path, json=body).status_code == 401

@@ -305,7 +305,7 @@ def _literal_codes(*files: str, pattern: str) -> set[str]:
 
 def test_every_refusal_and_failure_code_has_a_translation_in_both_languages() -> None:
     refusals = _literal_codes(
-        "module_manager/app.py", pattern=r'"(module_[a-z_]+|invalid_request)"'
+        "module_manager/app.py", pattern=r'"(module_[a-z_]+|model_[a-z_]+|invalid_request)"'
     )
     step_codes = _literal_codes(
         "module_manager/runner.py",
