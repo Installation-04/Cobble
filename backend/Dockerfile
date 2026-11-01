@@ -3,6 +3,10 @@ COPY --from=ghcr.io/astral-sh/uv:0.11.32@sha256:df4cae8f3a96d175e2e5f992e5975500
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PROJECT_ENVIRONMENT=/opt/venv \
     PYTHONUNBUFFERED=1 PYTHONPATH=/app PATH=/opt/venv/bin:$PATH
 WORKDIR /app
+# git: the worker pushes the project template to the Git provider through the git binary.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends git \
+    && rm -rf /var/lib/apt/lists/*
 COPY pyproject.toml uv.lock ./
 # Optional build secret "ca": a CA bundle for networks with TLS inspection.
 RUN --mount=type=secret,id=ca,required=false \

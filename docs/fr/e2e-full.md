@@ -11,7 +11,11 @@ scripts/e2e_full.sh --keep --timeout 5400 --lang fr
 
 Options: `--keep` (laisse la pile active), `--timeout SECONDES` (durée de construction, 3600 par défaut),
 `--lang en|fr`, `--comment` (après `done`, commente la dernière démo et suit la tâche `C-001`), `--force`
-(remplace les secrets du pack déjà présents dans `packs/v01`). `E2E_PORT` fixe le port hôte (18080).
+(remplace les secrets du pack déjà présents dans `packs/v01`). `E2E_PORT` fixe le port hôte (18080). `E2E_HOST` est l'adresse que les conteneurs de CI utilisent
+pour joindre la pile (par défaut: la première adresse de cette machine; `localhost` ne marcherait pas
+depuis un conteneur). `E2E_BUILD_CA` est un paquet de CA pour les machines derrière un proxy qui
+inspecte TLS: il est passé à chaque construction d'image et monté dans les conteneurs d'étapes de CI
+(non défini par défaut).
 
 ## Déroulement
 
@@ -47,3 +51,30 @@ première commande (et le générateur todo). Les tâches qui partagent un fichi
 `depends_on`: le script échoue sinon. `C-001` (« afficher une échéance ») répond au premier commentaire;
 `X-LOOP` est une tâche fictive dont la réponse du worker est volontairement fausse, pour tester la
 détection de boucle (`loop_detected`).
+
+## Résultat vérifié
+
+Exécuté sur un bac à sable de développement avec le faux LLM (cela prouve la **plomberie**, pas la
+qualité d'un modèle ni le coût réel): 2026-10-31, `PASS` en 12 min 39 s. Les 11 tâches du plan et les
+3 tâches de démo sont passées à `merged` dès la première tentative, chacune via la CI Woodpecker
+(lint, tests, gitleaks, semgrep, trivy) et une fusion « squash » Forgejo; les 3 démos de jalon ont
+été construites et validées; la phase a atteint `done`. Mesuré par le routeur de coûts: 59 251 jetons
+d'entrée et 13 754 de sortie, 0,087 $ (le plan estimait 420 000 jetons, 0,84 $, pour un vrai modèle).
+
+
+Un second essai avec `--comment` a aussi réussi (13 min 43 s, 75 385 jetons d'entrée et 20 518 de
+sortie, 0,116 $): le commentaire sur la dernière démo a créé `C-001`, qui a passé tests, CI et fusion
+à la première tentative, puis la démo du jalon a été validée de nouveau.
+
+Les premiers essais ont trouvé et fait corriger sept défauts, invisibles aux tests unitaires et
+navigateur: les scripts `gen-env.sh` qui échouaient au premier lancement, `git` absent de l'image du
+backend, l'accès aux registres des agents (l'image du runner embarque désormais un cache uv et un
+magasin pnpm préchauffés), l'environnement uv d'Aider qui fuyait dans les tests du projet, les tests
+frontend lancés avant `pnpm install`, une fusion refusée un instant par Forgejo juste après une autre
+fusion, et un magasin pnpm resté vide sans erreur.
+
+Un essai ultérieur a révélé un huitième défaut: Forgejo peut signaler une demande de fusion comme
+non fusionnable pendant quelques secondes après qu'une autre fusion a déplacé la branche de base;
+l'étape de fusion laisse donc l'indicateur se stabiliser (trois lectures) avant de parler de conflit.
+
+Non couvert: un vrai modèle, l'installation sur VM vierge (étape 11), HTTPS.

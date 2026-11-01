@@ -20,6 +20,8 @@ make dev                               # le noyau d'abord: le pack rejoint son r
 COBBLE_PACK_PUBLIC_URL=http://192.168.1.20 packs/v01/hooks/install.sh
 ```
 
+L'URL publique doit être joignable **depuis l'intérieur d'un conteneur** (les étapes de CI y clonent): un nom ou l'adresse LAN de la machine, pas `localhost`.
+
 `install.sh` est idempotent (une relance conserve les secrets; `--rotate` les régénère). Sans aucune
 intervention humaine, il:
 

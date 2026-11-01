@@ -33,6 +33,9 @@ _PLACEHOLDER = re.compile(r"\{\{\s*project_name\s*\}\}")
 _SKIP_DIRS = {".git", "node_modules", ".venv", "__pycache__", ".pytest_cache", ".ruff_cache"}
 # Statuses of a merge attempt that mean "the rules do not allow it" rather than "broken".
 _MERGE_REFUSED_STATUSES = {403, 405, 409, 422}
+MERGE_ATTEMPTS = 4  # a refusal while the server recomputes mergeability is retried
+MERGE_RETRY_DELAY_S = 2.0
+MERGE_SETTLE_READS = 3  # reads (spaced by the delay) before a refusal counts as a conflict
 _TAG_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$")
 
 
@@ -290,20 +293,38 @@ class ForgejoGit:
             raise MergeRefused("the merge request is closed")
         head_sha = str(pull["head"]["sha"])
         self._require_green(request.repo, head_sha)
-        try:
-            self._api.request(
-                "POST",
-                f"{path}/pulls/{request.number}/merge",
-                json={
-                    "Do": self.settings.merge_style,
-                    "head_commit_id": head_sha,
-                    "delete_branch_after_merge": True,
-                },
-            )
-        except ProviderError as exc:
-            if exc.status in _MERGE_REFUSED_STATUSES:
+        for attempt in range(MERGE_ATTEMPTS):
+            try:
+                self._api.request(
+                    "POST",
+                    f"{path}/pulls/{request.number}/merge",
+                    json={
+                        "Do": self.settings.merge_style,
+                        "head_commit_id": head_sha,
+                        "delete_branch_after_merge": True,
+                    },
+                )
+                return
+            except ProviderError as exc:
+                if exc.status not in _MERGE_REFUSED_STATUSES:
+                    raise
+                # Right after another merge moved the base branch, Forgejo refuses for a moment
+                # (and even reports the pull request as not mergeable) while it recomputes
+                # mergeability. Give it a few reads to settle; only a pull request that stays
+                # unmergeable is a real conflict.
+                if attempt + 1 < MERGE_ATTEMPTS and self._settles_mergeable(path, request.number):
+                    continue
                 raise MergeRefused(str(exc)) from None
-            raise
+
+    def _settles_mergeable(self, path: str, number: int) -> bool:
+        for _ in range(MERGE_SETTLE_READS):
+            self._sleep(MERGE_RETRY_DELAY_S)
+            pull = self._api.request("GET", f"{path}/pulls/{number}")
+            if pull.get("merged"):
+                return False  # nothing left to merge
+            if pull.get("mergeable"):
+                return True
+        return False
 
     def _require_green(self, repo: RepoRef, head_sha: str) -> None:
         if self.ci is not None:

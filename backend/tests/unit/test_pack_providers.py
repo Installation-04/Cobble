@@ -80,7 +80,9 @@ def pull(state: str = "open", merged: bool = False, sha: str = SHA) -> dict[str,
 
 
 def git_with(rec: Recorder, ci: object | None = None, **kw: object) -> ForgejoGit:
-    return ForgejoGit(settings(**kw), ci=ci, transport=rec.transport())  # type: ignore[arg-type]
+    return ForgejoGit(  # type: ignore[arg-type]
+        settings(**kw), ci=ci, transport=rec.transport(), sleep=lambda _s: None
+    )
 
 
 # --- template ---------------------------------------------------------------------------
@@ -311,6 +313,68 @@ def test_merge_refused_by_server_protection_is_mapped() -> None:
     )
     with pytest.raises(MergeRefused, match="required status checks"):
         git_with(rec, StubCI(CIState.SUCCESS)).merge(MR)
+
+
+def _merge_after_base_moved(
+    refusals: int, mergeable: list[bool]
+) -> tuple[Recorder, list[float], bool]:
+    """Merge refused `refusals` times while the server recomputes mergeability, then accepted.
+
+    `mergeable` is what successive reads of the pull request report (the last one repeats).
+    """
+    rec = Recorder()
+    reads = list(mergeable)
+
+    def read(_r: httpx.Request) -> httpx.Response:
+        value = reads.pop(0) if len(reads) > 1 else reads[0]
+        return httpx.Response(200, json={**pull(), "mergeable": value})
+
+    rec.routes[("GET", PULL_PATH)] = read
+    state = {"left": refusals}
+
+    def handler(_r: httpx.Request) -> httpx.Response:
+        if state["left"] > 0:
+            state["left"] -= 1
+            return httpx.Response(405, json={"message": "Please try again later"})
+        return httpx.Response(200, json=None)
+
+    rec.routes[("POST", PULL_PATH + "/merge")] = handler
+    slept: list[float] = []
+    git = ForgejoGit(
+        settings(), ci=StubCI(CIState.SUCCESS), transport=rec.transport(), sleep=slept.append
+    )
+    try:
+        git.merge(MR)
+    except MergeRefused:
+        return rec, slept, False
+    return rec, slept, True
+
+
+def test_merge_is_retried_while_the_server_recomputes_mergeability() -> None:
+    rec, slept, merged = _merge_after_base_moved(refusals=2, mergeable=[True])
+    assert merged
+    assert len([p for p in rec.paths() if p == f"POST {PULL_PATH}/merge"]) == 3
+    assert len(slept) == 2
+
+
+def test_merge_gives_up_after_a_few_retries() -> None:
+    rec, _slept, merged = _merge_after_base_moved(refusals=99, mergeable=[True])
+    assert not merged
+    assert len([p for p in rec.paths() if p == f"POST {PULL_PATH}/merge"]) == 4
+
+
+def test_a_pull_request_reported_unmergeable_for_a_moment_is_retried() -> None:
+    # Right after the base moved Forgejo first reports "not mergeable", then settles.
+    rec, _slept, merged = _merge_after_base_moved(refusals=1, mergeable=[True, False, False, True])
+    assert merged
+    assert len([p for p in rec.paths() if p == f"POST {PULL_PATH}/merge"]) == 2
+
+
+def test_a_real_conflict_is_refused_after_the_reads_settle() -> None:
+    rec, slept, merged = _merge_after_base_moved(refusals=1, mergeable=[True, False])
+    assert not merged
+    assert len(slept) == 3  # three reads, all unmergeable
+    assert len([p for p in rec.paths() if p == f"POST {PULL_PATH}/merge"]) == 1
 
 
 def test_merge_other_server_errors_are_not_refusals() -> None:

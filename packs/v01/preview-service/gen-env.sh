@@ -8,7 +8,7 @@ PACK_ENV="${COBBLE_PACK_CORE_ENV:-$PACK_DIR/.env.pack}"
 OUT="${COBBLE_PREVIEW_ENV:-$PACK_DIR/.env.preview}"
 OUT_CORE="${COBBLE_PREVIEW_CORE_ENV:-$PACK_DIR/.env.preview.core}"
 
-get() { sed -n "s/^$2=//p" "$1" 2>/dev/null | tail -n 1; }
+get() { { sed -n "s/^$2=//p" "$1" 2>/dev/null || true; } | tail -n 1; }
 
 [ -f "$PACK_ENV" ] || { echo "missing $PACK_ENV: run the pack install first" >&2; exit 1; }
 token="$(get "$OUT" COBBLE_PREVIEW_SERVICE_TOKEN)"

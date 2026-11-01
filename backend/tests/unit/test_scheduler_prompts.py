@@ -65,4 +65,6 @@ def test_prompts_are_deterministic() -> None:
 
 def test_test_command_depends_on_the_test_file() -> None:
     assert prompts.local_test_command("tests/test_x.py") == "uv run pytest -q tests/test_x.py"
-    assert "pnpm" in prompts.local_test_command("tests/web/x.test.js")
+    web = prompts.local_test_command("tests/web/x.test.js")
+    # A fresh checkout has no node_modules: dependencies are installed before the tests run.
+    assert web.index("install --frozen-lockfile") < web.index("test")
