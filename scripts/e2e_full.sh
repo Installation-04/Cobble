@@ -197,6 +197,11 @@ with os.fdopen(fd, "w") as handle:
     handle.write("COBBLE_PACK_WOODPECKER_TOKEN=%s\n" % ci["secrets"]["api_token"])
 ' "$PACK/.env.pack"
 
+# The v0.1 agent and preview services use the Docker socket (they used to read this from the pack's
+# .env, written by its installer): they need the group that owns it.
+DOCKER_GID="$(stat -c %g /var/run/docker.sock)"
+export DOCKER_GID
+
 log "building and starting agent-service, the egress proxy and the runner image"
 docker compose -f "$PACK/compose.agents.yml" "${CA_AGENTS[@]}" --profile build build
 "$PACK/agent-service/gen-env.sh"
