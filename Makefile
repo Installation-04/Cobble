@@ -10,6 +10,7 @@ install:
 	cd providers/fake-llm && uv sync --locked
 	cd packs/v01/agent-service && uv sync --locked
 	cd packs/v01/preview-service && uv sync --locked
+	cd sdk && uv sync --locked
 	cd ui && pnpm install --frozen-lockfile
 
 lint: lint-backend lint-ui
@@ -25,6 +26,7 @@ lint-backend:
 	cd providers/fake-llm && uv run --quiet mypy
 	cd packs/v01/agent-service && uv run --quiet ruff check . && uv run --quiet ruff format --check . && uv run --quiet mypy
 	cd packs/v01/preview-service && uv run --quiet ruff check . && uv run --quiet ruff format --check . && uv run --quiet mypy
+	cd sdk && uv run --quiet ruff check . && uv run --quiet ruff format --check . && uv run --quiet mypy && uv run --quiet python -m cobble_sdk.schema --check
 
 lint-ui:
 	cd ui && pnpm run lint && pnpm run format:check && pnpm run typecheck
@@ -36,6 +38,7 @@ test-backend:
 	cd providers/fake-llm && uv run --quiet pytest -q
 	cd packs/v01/agent-service && uv run --quiet pytest -q
 	cd packs/v01/preview-service && uv run --quiet pytest -q
+	cd sdk && uv run --quiet pytest -q
 
 test-ui:
 	cd ui && pnpm test

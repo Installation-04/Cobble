@@ -4,7 +4,7 @@ Cobble est une plateforme libre et auto-hébergée qui transforme une idée en a
 
 ## Version en cours
 
-**v0.1 — La boucle fonctionne (pack fixe).** Voir `PLAN.md` section 14. Ne rien implémenter qui appartient à une version ultérieure, même si c'est tentant. Les idées hors portée vont dans une issue avec l'étiquette `idée`.
+**v0.2 — Magasin et modules.** Voir `PLAN.md` section 14 et `docs/decisions/0008-module-manager.md`. Le propriétaire a demandé de commencer v0.2 avant la validation de l'étape 11 de v0.1 (dérogation explicite à `PLAN.md` §18; le code de v0.1 est livré, sa validation sur VM vierge avec un vrai modèle reste à faire et `v0.1.0` n'est pas publiée). Ne rien implémenter qui appartient à une version ultérieure (v0.3 et suivantes), même si c'est tentant. Les idées hors portée vont dans une issue avec l'étiquette `idée`.
 
 ## Pile
 
@@ -27,6 +27,7 @@ packs/v01/             # pack fixe v0.1: forgejo, woodpecker, ollama, hooks de b
 runners/aider/         # image du runner d'agents
 providers/fake-llm/    # faux fournisseur LLM + cassettes enregistrées
 templates/fastapi-react/   # gabarit de projet généré (licence Apache-2.0)
+sdk/                   # SDK des modules: schéma de manifeste, validation (licence Apache-2.0, n'importe jamais `cobble`)
 installer/             # install.sh, CLI cobble
 reference-projects/    # projets de référence du banc d'essai (specs + tests cachés)
 docs/fr/  docs/en/
@@ -73,7 +74,7 @@ Tenir cette section à jour quand une commande change.
 - Code, identifiants, commentaires et messages de commit en **anglais**; documentation utilisateur en **français et anglais**.
 - Commits petits et ciblés, style Conventional Commits (`feat:`, `fix:`, `docs:`…), signés DCO (`git commit -s`).
 - Mettre à jour `CHANGELOG.md` (section « Unreleased ») pour tout changement visible.
-- Licences: le dépôt est AGPL-3.0; `templates/` et le futur `sdk/` sont Apache-2.0 avec leur propre fichier `LICENSE`. Toute nouvelle dépendance doit avoir une licence compatible; le signaler dans la PR.
+- Licences: le dépôt est AGPL-3.0; `templates/` et `sdk/` sont Apache-2.0 avec leur propre fichier `LICENSE`. Toute nouvelle dépendance doit avoir une licence compatible; le signaler dans la PR.
 - Pas de nouvelle dépendance lourde sans justification dans la PR.
 
 ## Définition de « terminé »

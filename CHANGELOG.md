@@ -5,6 +5,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ## [Unreleased]
 
+### Added
+- v0.2 started (explicit owner decision, before the v0.1 step 11 validation): `sdk/` (Apache-2.0) with the module manifest schema and validation (`cobble_sdk`), a generated JSON Schema, and tests; digest-pinned images, FR+EN descriptions and strict fields are enforced.
+
 ### Fixed
 - Full real chain run end to end with the fake LLM (`make e2e-full`, PASS): `gen-env.sh` no longer fails on a first run; the backend image ships `git`; the runner image pre-warms a uv cache and a pnpm store with the template's dependencies and no longer leaks Aider's uv environment into project test runs; frontend tasks install dependencies before testing; a merge refused while Forgejo recomputes mergeability is retried after the pull request's mergeable flag settles; the `--comment` flow (new task `C-001`) also passes. The harness takes `E2E_HOST` and `E2E_BUILD_CA`.
 
