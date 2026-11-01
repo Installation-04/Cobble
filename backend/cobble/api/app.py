@@ -20,6 +20,7 @@ from . import (
     routes_demo,
     routes_folders,
     routes_internal_llm,
+    routes_modules,
     routes_planning,
     routes_projects,
     routes_tasks,
@@ -100,6 +101,7 @@ def create_app(
         routes_agents.router,
         routes_costs.router,
         routes_demo.router,
+        routes_modules.router,
     ):
         app.include_router(router, prefix="/api/v1")
     app.include_router(routes_internal_llm.router)
