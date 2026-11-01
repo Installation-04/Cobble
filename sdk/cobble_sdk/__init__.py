@@ -1,5 +1,51 @@
 """Cobble module SDK (Apache-2.0). It must never import anything from the AGPL `cobble` package."""
 
 from .manifest import Manifest, ManifestError, load_manifest, manifest_json_schema, parse_manifest
+from .resolve import (
+    Conflict,
+    DependencyCycle,
+    Hardware,
+    Link,
+    NeedsChoice,
+    NeedsConfirmation,
+    NoCompatibleVariant,
+    NotInstalled,
+    Plan,
+    Resolution,
+    ResolveError,
+    Step,
+    UnknownModule,
+    Unsatisfiable,
+    choose_variant,
+    desired_links,
+    plan_install,
+    plan_uninstall,
+    resolve,
+)
 
-__all__ = ["Manifest", "ManifestError", "load_manifest", "manifest_json_schema", "parse_manifest"]
+__all__ = [
+    "Conflict",
+    "DependencyCycle",
+    "Hardware",
+    "Link",
+    "Manifest",
+    "ManifestError",
+    "NeedsChoice",
+    "NeedsConfirmation",
+    "NoCompatibleVariant",
+    "NotInstalled",
+    "Plan",
+    "Resolution",
+    "ResolveError",
+    "Step",
+    "UnknownModule",
+    "Unsatisfiable",
+    "choose_variant",
+    "desired_links",
+    "load_manifest",
+    "manifest_json_schema",
+    "parse_manifest",
+    "plan_install",
+    "plan_uninstall",
+    "resolve",
+]
