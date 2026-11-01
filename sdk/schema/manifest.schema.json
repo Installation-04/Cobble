@@ -287,9 +287,15 @@
           "minimum": 1,
           "title": "Port",
           "type": "integer"
+        },
+        "service": {
+          "pattern": "^[a-z0-9][a-z0-9_.-]{0,62}$",
+          "title": "Service",
+          "type": "string"
         }
       },
       "required": [
+        "service",
         "port",
         "path"
       ],
@@ -302,6 +308,14 @@
   "properties": {
     "backup": {
       "$ref": "#/$defs/Backup"
+    },
+    "bus": {
+      "items": {
+        "pattern": "^[a-z0-9][a-z0-9_.-]{0,62}$",
+        "type": "string"
+      },
+      "title": "Bus",
+      "type": "array"
     },
     "category": {
       "pattern": "^[a-z][a-z0-9-]{0,29}$",

@@ -67,7 +67,12 @@ class Variant(_Strict):
     min_ram_mb: int = Field(default=0, ge=0)
 
 
+SERVICE = r"^[a-z0-9][a-z0-9_.-]{0,62}$"
+ServiceName = Annotated[str, StringConstraints(pattern=SERVICE)]
+
+
 class WebUi(_Strict):
+    service: ServiceName
     port: int = Field(ge=1, le=65535)
     path: str = Field(pattern=r"^/[A-Za-z0-9._~/-]*$")
 
@@ -149,6 +154,8 @@ class Manifest(_Strict):
     images: list[str] = Field(min_length=1)
     host_access: list[Literal["docker_socket"]] = Field(default_factory=list)
     web_ui: WebUi | None = None
+    # Compose services that join the shared platform network (the web_ui service always does).
+    bus: list[ServiceName] = Field(default_factory=list)
     settings: list[Setting] = Field(default_factory=list)
     secrets: list[Key] = Field(default_factory=list)
     healthcheck: Healthcheck | None = None
@@ -190,6 +197,7 @@ class Manifest(_Strict):
         _unique([v.id for v in self.variants], "variants")
         _unique(self.images, "images")
         _unique(self.backup.volumes, "backup.volumes")
+        _unique(self.bus, "bus")
         if set(self.exclusive) - set(provided):
             raise ValueError("'exclusive' may only list capabilities the module provides")
         if set(self.requires) & set(provided):

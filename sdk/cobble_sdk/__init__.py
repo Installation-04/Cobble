@@ -22,11 +22,14 @@ from .resolve import (
     plan_uninstall,
     resolve,
 )
+from .rewrite import ComposeRejected, Limits, RewriteResult, Violation, rewrite_compose
 
 __all__ = [
+    "ComposeRejected",
     "Conflict",
     "DependencyCycle",
     "Hardware",
+    "Limits",
     "Link",
     "Manifest",
     "ManifestError",
@@ -37,9 +40,11 @@ __all__ = [
     "Plan",
     "Resolution",
     "ResolveError",
+    "RewriteResult",
     "Step",
     "UnknownModule",
     "Unsatisfiable",
+    "Violation",
     "choose_variant",
     "desired_links",
     "load_manifest",
@@ -48,4 +53,5 @@ __all__ = [
     "plan_install",
     "plan_uninstall",
     "resolve",
+    "rewrite_compose",
 ]
