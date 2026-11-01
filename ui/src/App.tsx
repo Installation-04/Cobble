@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { useAuth } from "./auth/AuthProvider";
+import { WelcomePage } from "./pages/WelcomePage";
 import { ActivatePage } from "./pages/ActivatePage";
 import { HomePage } from "./pages/HomePage";
 import { LoginPage } from "./pages/LoginPage";
@@ -61,6 +62,7 @@ export function App() {
         <Route path="demos" element={<GlobalView view="demos" />} />
         <Route path="costs" element={<GlobalView view="costs" />} />
         <Route path="store" element={<StorePage />} />
+        <Route path="welcome" element={<WelcomePage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

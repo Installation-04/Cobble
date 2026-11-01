@@ -120,3 +120,9 @@ export const modelsApi = {
   makeDefault: (name: string) => api.post<ModelListing>(`/models/${name}/default`),
   test: (name: string) => api.post<ModelProbe>(`/models/${name}/test`),
 };
+
+/** The first-run wizard: has the administrator been through it? */
+export const setupApi = {
+  progress: () => api.get<{ completed: boolean }>("/setup/progress"),
+  complete: () => api.post<{ completed: boolean }>("/setup/complete"),
+};
