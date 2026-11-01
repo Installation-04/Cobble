@@ -60,7 +60,11 @@ qualité d'un modèle ni le coût réel): 2026-10-31, `PASS` en 12 min 39 s. Les
 (lint, tests, gitleaks, semgrep, trivy) et une fusion « squash » Forgejo; les 3 démos de jalon ont
 été construites et validées; la phase a atteint `done`. Mesuré par le routeur de coûts: 59 251 jetons
 d'entrée et 13 754 de sortie, 0,087 $ (le plan estimait 420 000 jetons, 0,84 $, pour un vrai modèle).
-Le parcours `--comment` n'a **pas** été exécuté.
+
+
+Un second essai avec `--comment` a aussi réussi (13 min 43 s, 75 385 jetons d'entrée et 20 518 de
+sortie, 0,116 $): le commentaire sur la dernière démo a créé `C-001`, qui a passé tests, CI et fusion
+à la première tentative, puis la démo du jalon a été validée de nouveau.
 
 Les premiers essais ont trouvé et fait corriger sept défauts, invisibles aux tests unitaires et
 navigateur: les scripts `gen-env.sh` qui échouaient au premier lancement, `git` absent de l'image du
@@ -69,4 +73,8 @@ magasin pnpm préchauffés), l'environnement uv d'Aider qui fuyait dans les test
 frontend lancés avant `pnpm install`, une fusion refusée un instant par Forgejo juste après une autre
 fusion, et un magasin pnpm resté vide sans erreur.
 
-Non couvert: un vrai modèle, l'installation sur VM vierge (étape 11), le parcours `--comment`, HTTPS.
+Un essai ultérieur a révélé un huitième défaut: Forgejo peut signaler une demande de fusion comme
+non fusionnable pendant quelques secondes après qu'une autre fusion a déplacé la branche de base;
+l'étape de fusion laisse donc l'indicateur se stabiliser (trois lectures) avant de parler de conflit.
+
+Non couvert: un vrai modèle, l'installation sur VM vierge (étape 11), HTTPS.

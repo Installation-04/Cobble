@@ -57,7 +57,11 @@ or real cost): 2026-10-31, `PASS` in 12 min 39 s. All 11 plan tasks and the 3 de
 `merged` on their first attempt, each through Woodpecker CI (lint, tests, gitleaks, semgrep, trivy)
 and a Forgejo squash merge; the 3 milestone demos were built and validated; the phase reached
 `done`. Measured by the cost router: 59,251 prompt and 13,754 completion tokens, $0.087 (the
-plan estimated 420,000 tokens, $0.84, for a real model). The `--comment` flow was **not** run.
+plan estimated 420,000 tokens, $0.84, for a real model).
+
+A second run with `--comment` also passed (13 min 43 s, 75,385 prompt and 20,518 completion tokens,
+$0.116): commenting on the last demo created `C-001`, which went through tests, CI and merge on its
+first attempt, and the milestone demo was validated again.
 
 The first runs found and fixed seven defects, all invisible to the unit and browser tests: the
 `gen-env.sh` scripts failing on a first run, `git` missing in the backend image, the agent's
@@ -65,4 +69,8 @@ registry access (the runner image now ships a pre-warmed uv cache and pnpm store
 environment leaking into the project's test runs, frontend tests run before `pnpm install`, a
 merge refused by Forgejo for a moment right after another merge, and a silently empty pnpm store.
 
-Not covered: a real model, the clean-VM install (step 11), the `--comment` flow, HTTPS.
+A later run found an eighth defect: Forgejo can report a pull request as not mergeable for a few
+seconds after another merge moved the base branch, so the merge step now lets the flag settle
+(three reads) before treating it as a conflict.
+
+Not covered: a real model, the clean-VM install (step 11), HTTPS.
