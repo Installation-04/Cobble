@@ -75,6 +75,9 @@ class WebUi(_Strict):
     service: ServiceName
     port: int = Field(ge=1, le=65535)
     path: str = Field(pattern=r"^/[A-Za-z0-9._~/-]*$")
+    # True: the proxy removes `path` before forwarding (the product lives at its root);
+    # False: the product is configured for the prefix and expects to see it.
+    strip_prefix: bool = True
 
     @field_validator("path")
     @classmethod

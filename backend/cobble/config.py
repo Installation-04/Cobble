@@ -47,6 +47,11 @@ class Settings(BaseSettings):
     module_ram_mb: int = 0
     module_gpu: Literal["auto", "none", "nvidia", "amd"] = "auto"
     module_health_timeout_s: float = 120.0
+    # The reverse proxy: where the module routes are written, the main Caddyfile to reload with
+    # them, and Caddy's admin socket. An empty routes dir means "no proxy to configure".
+    module_routes_dir: str = ""
+    module_caddyfile: str = "/etc/caddy-main/Caddyfile"
+    module_caddy_admin_socket: str = "/run/caddy/admin.sock"
     # Base URL agents use to reach the internal LLM endpoint (seen from the agent network).
     internal_api_url: str = "http://api:8000"
     # --- scheduler (ADR 0006) ---

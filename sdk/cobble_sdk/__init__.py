@@ -23,6 +23,7 @@ from .resolve import (
     resolve,
 )
 from .rewrite import ComposeRejected, Limits, RewriteResult, Violation, rewrite_compose
+from .routes import render_route, upstream
 
 __all__ = [
     "ComposeRejected",
@@ -52,6 +53,8 @@ __all__ = [
     "parse_manifest",
     "plan_install",
     "plan_uninstall",
+    "render_route",
     "resolve",
     "rewrite_compose",
+    "upstream",
 ]

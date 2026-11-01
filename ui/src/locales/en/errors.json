@@ -45,6 +45,7 @@
   "invalid_request": "The request is invalid: {{fields}}.",
   "module_code_up_failed": "The module could not be started.",
   "module_code_down_failed": "The module could not be stopped.",
+  "module_code_route_failed": "The module runs but its web address could not be published.",
   "module_code_unhealthy": "The module started but did not become healthy in time.",
   "module_code_hook_failed": "A setup step of the module failed.",
   "module_code_compose_rejected": "The module breaks a platform rule and was refused.",

@@ -17,6 +17,7 @@ from cobble.events import publish_module
 
 from .app import create_app
 from .disk_catalog import DiskCatalog
+from .edge import CaddyEdge, Edge, NullEdge, caddy_reload
 from .hardware import host_hardware
 from .manager import ModuleManager
 from .redaction import RedactingFilter, Redactor
@@ -45,6 +46,13 @@ def build_app(settings: Settings, redis: Redis) -> tuple[FastAPI, ModuleManager]
     def publish(kind: str, payload: dict[str, Any]) -> None:
         publish_module(redis, kind, payload)
 
+    edge: Edge = NullEdge()
+    if settings.module_routes_dir:
+        edge = CaddyEdge(
+            Path(settings.module_routes_dir),
+            Path(settings.module_caddyfile),
+            caddy_reload(Path(settings.module_caddy_admin_socket)),
+        )
     controller = OperationController(publish)
     manager = ModuleManager(
         make_session_factory(make_engine(settings.database_url)),
@@ -54,6 +62,7 @@ def build_app(settings: Settings, redis: Redis) -> tuple[FastAPI, ModuleManager]
         host_hardware(settings.module_ram_mb, settings.module_gpu),
         health_timeout_s=settings.module_health_timeout_s,
         on_event=controller.on_step,
+        edge=edge,
     )
     controller.bind(manager)
     return create_app(controller, settings.module_manager_token, catalog), manager

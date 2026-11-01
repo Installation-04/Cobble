@@ -108,3 +108,34 @@ def test_the_default_backend_image_target_stays_the_plain_backend() -> None:
     manager_stage = text.split("AS module-manager", 1)[1].split("AS backend", 1)[0]
     assert "COPY --from=docker-cli" in manager_stage
     assert "docker-cli" not in text.split("AS backend", 1)[1]
+
+
+def _volume_users(volume: str) -> dict[str, str]:
+    """service -> mount string, for every service that mounts the named volume."""
+    found: dict[str, str] = {}
+    for name, service in SERVICES.items():
+        for mount in service.get("volumes", []):  # type: ignore[attr-defined]
+            if str(mount).startswith(f"{volume}:"):
+                found[name] = str(mount)
+    return found
+
+
+def test_only_the_module_manager_can_write_the_routes_and_only_caddy_reads_them() -> None:
+    mounts = _volume_users("cobble-caddy-routes")
+    assert set(mounts) == {"module-manager", "caddy", "caddy-init"}
+    assert mounts["caddy"].endswith(":ro")
+    assert not mounts["module-manager"].endswith(":ro")
+    # the one-shot that fixes the owner may only change an owner, once
+    init = SERVICES["caddy-init"]
+    assert init["restart"] == "no" and init["cap_add"] == ["CHOWN"]
+    assert SERVICES["caddy"]["depends_on"]["caddy-init"] == {  # type: ignore[index]
+        "condition": "service_completed_successfully"
+    }
+
+
+def test_the_caddy_admin_socket_is_shared_with_the_module_manager_only() -> None:
+    assert set(_volume_users("cobble-caddy-run")) == {"caddy", "module-manager"}
+    caddyfile = (ROOT / "core" / "caddy" / "Caddyfile").read_text("utf-8")
+    assert "admin unix//run/caddy/admin.sock" in caddyfile
+    assert re.search(r"^\s*admin\s+(off|:|localhost|\d)", caddyfile, re.M) is None  # no TCP admin
+    assert "import /etc/caddy/routes/*.caddy" in caddyfile

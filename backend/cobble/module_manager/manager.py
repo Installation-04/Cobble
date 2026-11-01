@@ -33,12 +33,14 @@ from cobble_sdk import (
     rewrite_compose,
 )
 from cobble_sdk.resolve import install_order
+from cobble_sdk.routes import render_route, upstream
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from cobble.db.models import Module, ModuleEvent, ModuleLink, PlatformState
 
 from .catalog_source import CatalogSource
+from .edge import Edge, NullEdge
 from .runner import HookResult, Runner, RunnerError
 from .secret_store import SecretStore
 from .vault import SecretValue, VaultError
@@ -103,6 +105,7 @@ class ModuleManager:
         health_timeout_s: float = 120.0,
         bus_network: str = "cobble_core",
         on_event: EventSink | None = None,
+        edge: Edge | None = None,
     ) -> None:
         self._sessions = sessions
         self._catalog = catalog
@@ -112,6 +115,7 @@ class ModuleManager:
         self._health_timeout_s = health_timeout_s
         self._bus_network = bus_network
         self._on_event = on_event
+        self._edge: Edge = edge if edge is not None else NullEdge()
         self._lock = threading.Lock()  # one operation at a time
 
     # --- reading the state ---------------------------------------------------------------------
@@ -172,11 +176,8 @@ class ModuleManager:
                 manifest = manifests.get(row.id)
                 if manifest is None:
                     continue
-                url = (
-                    f"http://{manifest.web_ui.service}:{manifest.web_ui.port}"
-                    if manifest.web_ui
-                    else ""
-                )
+                target = upstream(manifest)
+                url = f"http://{target}" if target else ""
                 secrets: dict[str, str] = {}
                 for key in manifest.core_secrets:
                     value = self._store.get(session, row.id, key)
@@ -266,6 +267,7 @@ class ModuleManager:
             self._apply_explicit(plan.explicit)
         except _StepFailed as failure:
             rolled = self._rollback(done, failing=current)
+            self._sync_edge_quietly()
             raise ModuleOperationFailed(
                 failure.module,
                 failure.step,
@@ -273,6 +275,29 @@ class ModuleManager:
                 rolled_back=rolled,
                 partial=any(action == "uninstall" for action, _ in done),
             ) from None
+        self._sync_edge_quietly()  # removals leave their route behind otherwise
+
+    def _sync_edge(self) -> None:
+        """Publish the routes of the modules that run (and only those)."""
+        manifests = self._manifests()
+        with self._sessions() as session:
+            running = sorted(session.scalars(select(Module.id).where(Module.state == "running")))
+        routes: dict[str, str] = {}
+        for module_id in running:
+            manifest = manifests.get(module_id)
+            text = render_route(manifest) if manifest is not None else None
+            if text is not None:
+                routes[module_id] = text
+        self._edge.sync(routes)
+
+    def _sync_edge_quietly(self) -> None:
+        """After a removal or a rollback: a proxy that cannot be updated must not block it."""
+        try:
+            self._sync_edge()
+        except Exception as exc:
+            code = exc.code if isinstance(exc, RunnerError) else "internal_error"
+            log.warning("could not update the proxy routes: %s", code)
+            self._event("platform", "route", "sync", ok=False, code=code)
 
     def _apply_explicit(self, explicit: frozenset[str]) -> None:
         with self._sessions() as session:
@@ -424,6 +449,9 @@ class ModuleManager:
                 self._bump_generation(session)
                 session.commit()
 
+        def route() -> None:
+            self._sync_edge()
+
         def link() -> None:
             self._link_new(module_id)
 
@@ -437,6 +465,7 @@ class ModuleManager:
             ("post_install", post_install),
             ("register_core", register_core),
             ("health", health),
+            ("route", route),
             ("link", link),
         ):
             self._step(module_id, "install", name, action)
@@ -600,4 +629,5 @@ class ModuleManager:
                     recovered.append(module_id)
                 except _StepFailed:
                     log.error("recovery of %s failed; the module is marked failed", module_id)
+            self._sync_edge_quietly()
             return recovered

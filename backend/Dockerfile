@@ -24,8 +24,9 @@ COPY migrations ./migrations
 COPY cobble ./cobble
 RUN useradd --system --uid 10001 --no-create-home cobble \
     # Where the module-manager keeps its vault master key (a named volume inherits this owner).
-    && mkdir -p /var/lib/cobble-keys && chown 10001:10001 /var/lib/cobble-keys \
-    && chmod 700 /var/lib/cobble-keys
+    && mkdir -p /var/lib/cobble-keys /var/lib/cobble-routes \
+    && chown 10001:10001 /var/lib/cobble-keys /var/lib/cobble-routes \
+    && chmod 700 /var/lib/cobble-keys && chmod 755 /var/lib/cobble-routes
 USER 10001
 
 # The module-manager: this image plus the Docker CLI and compose plugin. It is the only image that

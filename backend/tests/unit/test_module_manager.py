@@ -86,6 +86,7 @@ class Rig:
         modules: list[Manifest] | None = None,
         hardware: Hardware | None = None,
         store: SecretStore | None = None,
+        edge: Any = None,
     ) -> None:
         engine = create_engine(
             "sqlite://", poolclass=StaticPool, connect_args={"check_same_thread": False}
@@ -96,7 +97,12 @@ class Rig:
         self.runner = FakeRunner()
         self.store = store or SecretStore(Vault({1: MASTER}))
         self.manager = ModuleManager(
-            self.sessions, self.catalog, self.runner, self.store, hardware or Hardware(ram_mb=16384)
+            self.sessions,
+            self.catalog,
+            self.runner,
+            self.store,
+            hardware or Hardware(ram_mb=16384),
+            edge=edge,
         )
 
     def modules(self) -> dict[str, Module]:
@@ -147,6 +153,7 @@ def test_install_one_module() -> None:
         "post_install",
         "register_core",
         "health",
+        "route",
         "link",
     ]
 

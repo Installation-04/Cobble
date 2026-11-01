@@ -336,7 +336,7 @@ def test_connections_give_the_core_its_address_and_only_its_secrets() -> None:
     assert token is not None and password is not None
     assert connections["forgejo"] == {
         "provides": ["git"],
-        "url": "http://forgejo:3000",
+        "url": "http://cobble-forgejo-forgejo:3000",
         "secrets": {"api_token": token.reveal()},
     }
     assert password.reveal() not in json.dumps(connections)
