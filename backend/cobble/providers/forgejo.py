@@ -35,6 +35,7 @@ _SKIP_DIRS = {".git", "node_modules", ".venv", "__pycache__", ".pytest_cache", "
 _MERGE_REFUSED_STATUSES = {403, 405, 409, 422}
 MERGE_ATTEMPTS = 4  # a refusal while the server recomputes mergeability is retried
 MERGE_RETRY_DELAY_S = 2.0
+MERGE_SETTLE_READS = 3  # reads (spaced by the delay) before a refusal counts as a conflict
 _TAG_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$")
 
 
@@ -308,16 +309,22 @@ class ForgejoGit:
                 if exc.status not in _MERGE_REFUSED_STATUSES:
                     raise
                 # Right after another merge moved the base branch, Forgejo refuses for a moment
-                # while it recomputes mergeability. If the pull request reads as mergeable
-                # again, ask once more instead of failing the task.
-                if attempt + 1 < MERGE_ATTEMPTS and self._is_mergeable(path, request.number):
-                    self._sleep(MERGE_RETRY_DELAY_S)
+                # (and even reports the pull request as not mergeable) while it recomputes
+                # mergeability. Give it a few reads to settle; only a pull request that stays
+                # unmergeable is a real conflict.
+                if attempt + 1 < MERGE_ATTEMPTS and self._settles_mergeable(path, request.number):
                     continue
                 raise MergeRefused(str(exc)) from None
 
-    def _is_mergeable(self, path: str, number: int) -> bool:
-        pull = self._api.request("GET", f"{path}/pulls/{number}")
-        return bool(pull.get("mergeable")) and not pull.get("merged")
+    def _settles_mergeable(self, path: str, number: int) -> bool:
+        for _ in range(MERGE_SETTLE_READS):
+            self._sleep(MERGE_RETRY_DELAY_S)
+            pull = self._api.request("GET", f"{path}/pulls/{number}")
+            if pull.get("merged"):
+                return False  # nothing left to merge
+            if pull.get("mergeable"):
+                return True
+        return False
 
     def _require_green(self, repo: RepoRef, head_sha: str) -> None:
         if self.ci is not None:
