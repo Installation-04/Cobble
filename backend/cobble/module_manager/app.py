@@ -200,6 +200,10 @@ def create_app(
             raise ServiceError(404, "not_found")
         return operation.as_dict()
 
+    @app.get("/v1/connections", dependencies=[auth])
+    def get_connections() -> dict[str, Any]:
+        return {"connections": controller.manager.connections()}
+
     @app.get("/v1/modules/{module_id}/secrets", dependencies=[auth])
     def get_secret_status(module_id: str) -> dict[str, bool]:
         try:

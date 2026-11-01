@@ -324,6 +324,32 @@ def test_secret_status_says_set_or_not_and_nothing_else() -> None:
     assert svc.get("/v1/modules/nope/secrets").json()["error"]["code"] == "module_unknown"
 
 
+def test_connections_give_the_core_its_address_and_only_its_secrets() -> None:
+    svc = Service()
+    assert svc.get("/v1/connections").json() == {"connections": {}}
+    svc.post("/v1/operations", {"action": "install", "modules": ["forgejo"]})
+    connections = svc.get("/v1/connections").json()["connections"]
+    assert set(connections) == {"forgejo"}
+    with svc.rig.sessions() as session:
+        token = svc.rig.store.get(session, "forgejo", "api_token")
+        password = svc.rig.store.get(session, "forgejo", "admin_password")
+    assert token is not None and password is not None
+    assert connections["forgejo"] == {
+        "provides": ["git"],
+        "url": "http://forgejo:3000",
+        "secrets": {"api_token": token.reveal()},
+    }
+    assert password.reveal() not in json.dumps(connections)
+
+
+def test_connections_need_the_token_and_skip_modules_that_are_not_running() -> None:
+    svc = Service()
+    assert svc.client.get("/v1/connections").status_code == 401
+    svc.post("/v1/operations", {"action": "install", "modules": ["forgejo"]})
+    svc.post("/v1/operations", {"action": "uninstall", "modules": ["forgejo"]})
+    assert svc.get("/v1/connections").json() == {"connections": {}}
+
+
 # --- hardware ---------------------------------------------------------------------------------
 
 

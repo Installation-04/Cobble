@@ -162,6 +162,33 @@ class ModuleManager:
         with self._sessions() as session:
             return self._store.status(session, module_id, manifest.secrets)
 
+    def connections(self) -> dict[str, dict[str, Any]]:
+        """What the core needs to reach each running module: its capabilities, its in-network
+        address and the secrets its manifest lists in `core_secrets` (and nothing else)."""
+        manifests = self._manifests()
+        result: dict[str, dict[str, Any]] = {}
+        with self._sessions() as session:
+            for row in session.scalars(select(Module).where(Module.state == "running")):
+                manifest = manifests.get(row.id)
+                if manifest is None:
+                    continue
+                url = (
+                    f"http://{manifest.web_ui.service}:{manifest.web_ui.port}"
+                    if manifest.web_ui
+                    else ""
+                )
+                secrets: dict[str, str] = {}
+                for key in manifest.core_secrets:
+                    value = self._store.get(session, row.id, key)
+                    if value is not None:
+                        secrets[key] = value.reveal()
+                result[row.id] = {
+                    "provides": [p.capability for p in manifest.provides],
+                    "url": url,
+                    "secrets": secrets,
+                }
+        return result
+
     def plan_install(
         self,
         wanted: Sequence[str],

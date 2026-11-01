@@ -15,12 +15,83 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from cobble.capabilities.llm import Role
 from cobble.config import Settings
+from cobble.db.models import PlatformState
 
 from .engine import Scheduler
+from .supervisor import BuildResult, SchedulerSupervisor
 
 log = logging.getLogger(__name__)
 
 PACK_ENV_FILE = "COBBLE_PACK_ENV_FILE"
+
+
+def make_scheduler_supervisor(
+    settings: Settings, sessions: sessionmaker[Session], redis: Redis | None
+) -> SchedulerSupervisor | None:
+    """A supervisor that follows the installed modules, or None when modules are not in use
+    (fake pack, or no module-manager token): the caller then uses `build_scheduler`."""
+    if settings.pack_mode == "fake" or not settings.module_manager_token:
+        return None
+    if not settings.run_token_secret:
+        log.warning("scheduler disabled: COBBLE_RUN_TOKEN_SECRET is not set")
+        return None
+    from cobble.providers.module_manager import HttpModuleManager, ModuleManagerUnavailable
+    from cobble.providers.registry import Connection, default_registry
+
+    client = HttpModuleManager.from_settings(settings)
+    registry = default_registry()
+    supervisor: SchedulerSupervisor | None = None
+    unreachable = False  # log the outage once, not at every retry
+
+    def build() -> BuildResult:
+        nonlocal unreachable
+        try:
+            raw = client.connections()
+        except ModuleManagerUnavailable:
+            if not unreachable:
+                log.warning("module-manager unreachable, using what is already running")
+                unreachable = True
+            if supervisor is not None and supervisor.current is not None:
+                return BuildResult(None, final=False, keep=True)
+            return BuildResult(build_scheduler(settings, sessions, redis), final=False)
+        unreachable = False
+        connections = {mid: Connection.from_json(mid, data) for mid, data in raw.items()}
+        from cobble.providers.agent_service import build_runtime_services
+        from cobble.providers.settings import load_settings
+
+        env_file = os.environ.get(PACK_ENV_FILE)
+        built = registry.build(connections, load_settings(Path(env_file) if env_file else None))
+        if built is None:
+            # No git+ci module installed: the v0.1 pack (configured by files) still works.
+            return BuildResult(build_scheduler(settings, sessions, redis))
+        runtime = build_runtime_services(settings)
+        if runtime is None:
+            return BuildResult(None)
+        agents, preview = runtime
+
+        def model_for(role: Role) -> str:
+            return settings.role_models.get(role.value, settings.default_model)
+
+        return BuildResult(
+            Scheduler(
+                sessions,
+                built.git,
+                built.ci,
+                agents,
+                settings,
+                redis=redis,
+                model_for=model_for,
+                preview=preview,
+            )
+        )
+
+    def generation() -> int:
+        with sessions() as session:
+            state = session.get(PlatformState, 1)
+            return state.modules_generation if state is not None else 0
+
+    supervisor = SchedulerSupervisor(build, generation, settings.scheduler_interval_s)
+    return supervisor
 
 
 def build_scheduler(

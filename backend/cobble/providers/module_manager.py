@@ -85,6 +85,11 @@ class HttpModuleManager:
         result: dict[str, Any] = self._request("GET", f"/v1/operations/{operation_id}")
         return result
 
+    def connections(self) -> dict[str, dict[str, Any]]:
+        """Running modules with their in-network URL and core-visible secrets (worker only)."""
+        result: dict[str, dict[str, Any]] = self._request("GET", "/v1/connections")["connections"]
+        return result
+
     def secret_status(self, module_id: str) -> dict[str, bool]:
         result: dict[str, bool] = self._request("GET", f"/v1/modules/{module_id}/secrets")
         return result

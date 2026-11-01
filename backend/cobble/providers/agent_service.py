@@ -197,10 +197,21 @@ def build_pack_services(settings: Settings, env_file: Path | None = None) -> Pac
     if not pack.configured():
         log.warning("the pack is not configured (COBBLE_PACK_* tokens are empty)")
         return None
+    runtime = build_runtime_services(settings)
+    if runtime is None:
+        return None
+    agents, preview = runtime
+    ci = WoodpeckerCI(pack)
+    return PackServices(ForgejoGit(pack, ci=ci), ci, agents, preview)
+
+
+def build_runtime_services(
+    settings: Settings,
+) -> tuple[HttpAgentRunner, PreviewProvider | None] | None:
+    """The agent runner and the optional preview service, or None without an agent token."""
     if not settings.agent_service_token:
         log.warning("COBBLE_AGENT_SERVICE_TOKEN is empty")
         return None
-    ci = WoodpeckerCI(pack)
     preview: PreviewProvider | None = None
     if settings.preview_service_token:
         from .preview_service import HttpPreviewProvider
@@ -208,6 +219,4 @@ def build_pack_services(settings: Settings, env_file: Path | None = None) -> Pac
         preview = HttpPreviewProvider.from_settings(settings)
     else:
         log.warning("COBBLE_PREVIEW_SERVICE_TOKEN is empty: milestone demos are disabled")
-    return PackServices(
-        ForgejoGit(pack, ci=ci), ci, HttpAgentRunner.from_settings(settings), preview
-    )
+    return HttpAgentRunner.from_settings(settings), preview

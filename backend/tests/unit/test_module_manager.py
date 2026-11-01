@@ -43,6 +43,7 @@ FORGEJO = manifest(
     provides=["git"],
     exclusive=["git"],
     secrets=["admin_password", "api_token"],
+    core_secrets=["api_token"],
     web_ui={"service": "forgejo", "port": 3000, "path": "/git"},
     hooks={
         "post_install": "hooks/post.sh",
