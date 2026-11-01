@@ -191,3 +191,83 @@ def test_the_sdk_never_imports_the_agpl_core() -> None:
         if re.search(r"^\s*(?:from|import)\s+cobble(?:\.|\s|$)", path.read_text("utf-8"), re.M)
     ]
     assert offenders == []
+
+
+# --- language-model backends ------------------------------------------------------------------
+
+LLM = {
+    "service": "ollama",
+    "port": 11434,
+    "models": [
+        {
+            "name": "coder-small",
+            "model": "ollama_chat/qwen2.5-coder:1.5b",
+            "pull": "qwen2.5-coder:1.5b",
+        }
+    ],
+}
+
+
+def _llm(**fields: Any) -> dict[str, Any]:
+    return _with(
+        **{"provides": ["llm-backend"], "exclusive": [], "requires": [], "llm": LLM, **fields}
+    )
+
+
+def test_a_language_model_backend_declares_where_it_listens_and_what_it_serves() -> None:
+    parsed = parse_manifest(_llm())
+    assert parsed.llm is not None and parsed.llm.port == 11434
+    assert [m.name for m in parsed.llm_models()] == ["coder-small"]
+    assert parsed.llm_models("anything") == parsed.llm_models()  # no variant: the default models
+
+
+def test_a_variant_may_serve_other_models() -> None:
+    big = {"name": "coder", "model": "ollama_chat/qwen2.5-coder:7b", "pull": "qwen2.5-coder:7b"}
+    parsed = parse_manifest(
+        _llm(variants=[{"id": "cpu"}, {"id": "nvidia", "gpu": "nvidia", "models": [big]}])
+    )
+    assert [m.name for m in parsed.llm_models("nvidia")] == ["coder"]
+    assert [m.name for m in parsed.llm_models("cpu")] == ["coder-small"]
+
+
+@pytest.mark.parametrize(
+    ("label", "fields", "fragment"),
+    [
+        ("llm without the capability", _with(llm=LLM), "llm-backend"),
+        ("variant models without llm", _with(variants=[{"id": "a", "models": []}]), "llm"),
+        ("duplicate model names", _llm(llm={**LLM, "models": LLM["models"] * 2}), "duplicate"),
+        (
+            "hostile model string",
+            _llm(llm={**LLM, "models": [{"name": "x", "model": "ollama/a\nmodel_list: []"}]}),
+            "llm.models",
+        ),
+        (
+            "hostile model name",
+            _llm(llm={**LLM, "models": [{"name": "Bad Name", "model": "ollama/a"}]}),
+            "llm.models",
+        ),
+        (
+            "hostile pull",
+            _llm(
+                llm={**LLM, "models": [{"name": "x", "model": "ollama/a", "pull": "a; rm -rf /"}]}
+            ),
+            "pull",
+        ),
+    ],
+)
+def test_bad_llm_declarations_are_rejected(
+    label: str, fields: dict[str, Any], fragment: str
+) -> None:
+    with pytest.raises(ManifestError) as caught:
+        parse_manifest(fields)
+    assert fragment in str(caught.value), label
+
+
+def test_a_variant_may_bring_its_own_compose_file_inside_the_module() -> None:
+    parsed = parse_manifest(
+        _with(variants=[{"id": "nvidia", "gpu": "nvidia", "compose": "compose.nvidia.yml"}])
+    )
+    assert parsed.variants[0].compose == "compose.nvidia.yml"
+    for bad in ("../x.yml", "/etc/passwd"):
+        with pytest.raises(ManifestError):
+            parse_manifest(_with(variants=[{"id": "a", "compose": bad}]))

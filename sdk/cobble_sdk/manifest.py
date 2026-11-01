@@ -59,12 +59,33 @@ class Hardware(_Strict):
     gpu: GpuKind = "none"
 
 
+class LlmModel(_Strict):
+    """A model a language-model backend serves, as the router will see it."""
+
+    # The name clients use through the gateway.
+    name: Annotated[str, StringConstraints(pattern=r"^[a-z0-9][a-z0-9._:/-]{0,79}$")]
+    # The gateway's own model string: provider prefix and the backend's model name.
+    model: Annotated[str, StringConstraints(pattern=r"^[a-z0-9_]+/[A-Za-z0-9._:/-]{1,100}$")]
+    # What the module's hook must fetch before the model can answer (backend-native name).
+    pull: Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9._:/-]{1,100}$")] | None = None
+
+
 class Variant(_Strict):
     """A hardware-specific flavour of a module (for example Ollama CPU, NVIDIA, AMD)."""
 
     id: Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9-]{0,19}$")]
     gpu: GpuKind = "none"
     min_ram_mb: int = Field(default=0, ge=0)
+    # Models served by this flavour instead of the module's default ones (a small model on CPU,
+    # a larger one on a GPU).
+    models: list[LlmModel] | None = None
+    # A compose file for this flavour instead of the module's (GPU access differs per vendor).
+    compose: str | None = None
+
+    @field_validator("compose")
+    @classmethod
+    def _compose_path(cls, value: str | None) -> str | None:
+        return None if value is None else _safe_relative_path(value)
 
 
 SERVICE = r"^[a-z0-9][a-z0-9_.-]{0,62}$"
@@ -85,6 +106,14 @@ class WebUi(_Strict):
         if ".." in value.split("/"):
             raise ValueError("path must not contain '..'")
         return value
+
+
+class Llm(_Strict):
+    """Where a language-model backend listens and which models it serves by default."""
+
+    service: ServiceName
+    port: int = Field(ge=1, le=65535)
+    models: list[LlmModel] = Field(default_factory=list)
 
 
 class Setting(_Strict):
@@ -161,6 +190,9 @@ class Manifest(_Strict):
     images: list[str] = Field(min_length=1)
     host_access: list[Literal["docker_socket"]] = Field(default_factory=list)
     web_ui: WebUi | None = None
+    # A module that provides `llm-backend` says where it listens; the platform adds its models
+    # to the language-model gateway.
+    llm: Llm | None = None
     # Compose services that join the shared platform network (the web_ui service always does).
     bus: list[ServiceName] = Field(default_factory=list)
     settings: list[Setting] = Field(default_factory=list)
@@ -176,6 +208,15 @@ class Manifest(_Strict):
     hooks: Hooks = Field(default_factory=Hooks)
     backup: Backup = Field(default_factory=Backup)
     offline: bool = False
+
+    def llm_models(self, variant: str | None = None) -> list[LlmModel]:
+        """The models served by `variant` (or the module's default ones)."""
+        if self.llm is None:
+            return []
+        for candidate in self.variants:
+            if candidate.id == variant and candidate.models is not None:
+                return list(candidate.models)
+        return list(self.llm.models)
 
     @field_validator("provides", mode="before")
     @classmethod
@@ -214,6 +255,15 @@ class Manifest(_Strict):
         _unique(self.images, "images")
         _unique(self.backup.volumes, "backup.volumes")
         _unique(self.bus, "bus")
+        if self.llm is not None and "llm-backend" not in provided:
+            raise ValueError("'llm' needs the module to provide 'llm-backend'")
+        if self.llm is None and any(v.models is not None for v in self.variants):
+            raise ValueError("variant 'models' need an 'llm' block")
+        if self.llm is not None:
+            _unique([m.name for m in self.llm.models], "llm models")
+            for variant in self.variants:
+                if variant.models is not None:
+                    _unique([m.name for m in variant.models], f"llm models of {variant.id}")
         if set(self.exclusive) - set(provided):
             raise ValueError("'exclusive' may only list capabilities the module provides")
         if set(self.requires) & set(provided):

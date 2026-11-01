@@ -59,4 +59,8 @@ class DiskCatalog:
         self, module_id: str, variant: str | None, env: Mapping[str, str]
     ) -> dict[str, Any]:
         manifest = self.manifests()[module_id]
-        return self._render(self.module_dir(module_id), manifest.compose, env, variant)
+        compose_file = manifest.compose
+        for candidate in manifest.variants:  # a flavour may bring its own compose file
+            if candidate.id == variant and candidate.compose:
+                compose_file = candidate.compose
+        return self._render(self.module_dir(module_id), compose_file, env, variant)

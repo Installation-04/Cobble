@@ -355,3 +355,17 @@ def test_two_modules_with_identical_compose_files_share_no_resource_name(
     for compose, _ in (first, second):
         for name in _resource_names(compose, {}) - {compose["name"]}:
             assert name.startswith("cobble-")
+
+
+def test_the_service_of_a_language_model_backend_joins_the_shared_network() -> None:
+    data = manifest(
+        provides=["llm-backend"],
+        exclusive=[],
+        requires=[],
+        llm={"service": "agent", "port": 11434, "models": []},
+    )
+    result = rewrite_compose(base_compose(), data, module_dir=MODULE_DIR)
+    assert result.bus_aliases == {
+        "agent": "cobble-woodpecker-agent",
+        "server": "cobble-woodpecker-server",
+    }

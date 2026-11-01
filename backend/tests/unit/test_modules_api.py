@@ -310,6 +310,7 @@ def test_every_refusal_and_failure_code_has_a_translation_in_both_languages() ->
         "module_manager/runner.py",
         "module_manager/vault.py",
         "module_manager/edge.py",
+        "module_manager/llm.py",
         "module_manager/manager.py",
         pattern=r'(?:RunnerError|VaultError)\("([a-z_]+)"\)',
     ) | {"no_compatible_variant", "compose_rejected", "internal_error"}

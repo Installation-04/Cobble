@@ -141,6 +141,71 @@
       "title": "Hooks",
       "type": "object"
     },
+    "Llm": {
+      "additionalProperties": false,
+      "description": "Where a language-model backend listens and which models it serves by default.",
+      "properties": {
+        "models": {
+          "items": {
+            "$ref": "#/$defs/LlmModel"
+          },
+          "title": "Models",
+          "type": "array"
+        },
+        "port": {
+          "maximum": 65535,
+          "minimum": 1,
+          "title": "Port",
+          "type": "integer"
+        },
+        "service": {
+          "pattern": "^[a-z0-9][a-z0-9_.-]{0,62}$",
+          "title": "Service",
+          "type": "string"
+        }
+      },
+      "required": [
+        "service",
+        "port"
+      ],
+      "title": "Llm",
+      "type": "object"
+    },
+    "LlmModel": {
+      "additionalProperties": false,
+      "description": "A model a language-model backend serves, as the router will see it.",
+      "properties": {
+        "model": {
+          "pattern": "^[a-z0-9_]+/[A-Za-z0-9._:/-]{1,100}$",
+          "title": "Model",
+          "type": "string"
+        },
+        "name": {
+          "pattern": "^[a-z0-9][a-z0-9._:/-]{0,79}$",
+          "title": "Name",
+          "type": "string"
+        },
+        "pull": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9._:/-]{1,100}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pull"
+        }
+      },
+      "required": [
+        "name",
+        "model"
+      ],
+      "title": "LlmModel",
+      "type": "object"
+    },
     "Localized": {
       "additionalProperties": false,
       "description": "A user-visible text in both supported languages.",
@@ -256,6 +321,18 @@
       "additionalProperties": false,
       "description": "A hardware-specific flavour of a module (for example Ollama CPU, NVIDIA, AMD).",
       "properties": {
+        "compose": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Compose"
+        },
         "gpu": {
           "default": "none",
           "enum": [
@@ -278,6 +355,21 @@
           "minimum": 0,
           "title": "Min Ram Mb",
           "type": "integer"
+        },
+        "models": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/LlmModel"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Models"
         }
       },
       "required": [
@@ -414,6 +506,17 @@
       },
       "title": "Link Secrets",
       "type": "array"
+    },
+    "llm": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Llm"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
     },
     "name": {
       "maxLength": 60,

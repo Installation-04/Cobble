@@ -538,3 +538,26 @@ def test_extra_platform_variables_are_a_json_object_of_cobble_variables() -> Non
     for bad in ('["x"]', '{"PATH": "/evil"}', '{"COBBLE_X": 1}', "not json"):
         with pytest.raises(ValueError):
             extra_env(bad)
+
+
+def test_a_flavour_with_its_own_compose_file_is_rendered_from_it(tmp_path: Path) -> None:
+    write_module(
+        tmp_path,
+        "gpu",
+        provides=["llm-backend"],
+        variants=[
+            {"id": "nvidia", "gpu": "nvidia", "compose": "compose.nvidia.yml"},
+            {"id": "cpu"},
+        ],
+        llm={"service": "s", "port": 1, "models": []},
+    )
+    seen: list[str] = []
+
+    def render(module_dir: str, compose_file: str, env: Any, variant: str | None) -> dict[str, Any]:
+        seen.append(compose_file)
+        return {}
+
+    catalog = DiskCatalog(tmp_path, render)
+    for variant in ("nvidia", "cpu", None):
+        catalog.compose("gpu", variant, {})
+    assert seen == ["compose.nvidia.yml", "compose.yml", "compose.yml"]

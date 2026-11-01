@@ -35,9 +35,14 @@ def _absolute_binds(raw: dict[str, Any], directory: Path) -> dict[str, Any]:
     return raw
 
 
-def _rewrite(directory: Path, manifest: Manifest) -> dict[str, object]:
+def compose_files(manifest: Manifest) -> list[str]:
+    """The module's compose file and the ones its flavours bring."""
+    return [manifest.compose, *sorted({v.compose for v in manifest.variants if v.compose})]
+
+
+def _rewrite(directory: Path, manifest: Manifest, file: str | None = None) -> dict[str, object]:
     raw = _absolute_binds(
-        yaml.safe_load((directory / manifest.compose).read_text("utf-8")), directory
+        yaml.safe_load((directory / (file or manifest.compose)).read_text("utf-8")), directory
     )
     return rewrite_compose(
         raw, manifest, module_dir=str(directory), bus_network="cobble_core"
@@ -47,15 +52,18 @@ def _rewrite(directory: Path, manifest: Manifest) -> dict[str, object]:
 @pytest.mark.parametrize("directory", MODULES, ids=ids)
 def test_the_compose_file_follows_the_platform_rules(directory: Path) -> None:
     manifest = load_manifest(directory / "manifest.yaml")
-    compose = _rewrite(directory, manifest)
-    assert compose["name"] == f"cobble-{manifest.id}"
+    for file in compose_files(manifest):
+        compose = _rewrite(directory, manifest, file)
+        assert compose["name"] == f"cobble-{manifest.id}", file
 
 
 @pytest.mark.parametrize("directory", MODULES, ids=ids)
 def test_images_in_the_compose_file_are_the_declared_ones(directory: Path) -> None:
     manifest = load_manifest(directory / "manifest.yaml")
-    raw = yaml.safe_load((directory / manifest.compose).read_text("utf-8"))
-    used = {service["image"] for service in raw["services"].values() if "image" in service}
+    used: set[str] = set()
+    for file in compose_files(manifest):
+        raw = yaml.safe_load((directory / file).read_text("utf-8"))
+        used |= {service["image"] for service in raw["services"].values() if "image" in service}
     assert used == set(manifest.images)
 
 
@@ -110,3 +118,22 @@ def test_only_woodpecker_mounts_the_docker_socket() -> None:
         manifest = load_manifest(directory / "manifest.yaml")
         text = (directory / manifest.compose).read_text("utf-8")
         assert ("docker.sock" in text) == (manifest.id == "woodpecker"), manifest.id
+
+
+def test_ollama_serves_models_through_the_gateway_with_a_flavour_per_kind_of_hardware() -> None:
+    manifest = load_manifest(CATALOG / "ollama" / "manifest.yaml")
+    assert [p.capability for p in manifest.provides] == ["llm-backend"]
+    assert {v.id for v in manifest.variants} == {"cpu", "nvidia", "amd"}
+    # a small model on the CPU, a larger one when a GPU is there
+    assert [m.pull for m in manifest.llm_models("cpu")] == ["qwen2.5-coder:1.5b"]
+    assert [m.pull for m in manifest.llm_models("nvidia")] == ["qwen2.5-coder:7b"]
+    assert manifest.llm_models("amd") == manifest.llm_models("nvidia")
+    assert manifest.llm is not None and manifest.llm.service == "ollama"
+    # only the flavours that need a GPU declare one, and each brings its own compose file
+    gpus = {v.id: v.gpu for v in manifest.variants}
+    assert gpus == {"cpu": "none", "nvidia": "nvidia", "amd": "amd"}
+    assert {v.id: v.compose for v in manifest.variants} == {
+        "cpu": None,
+        "nvidia": "compose.nvidia.yml",
+        "amd": "compose.amd.yml",
+    }

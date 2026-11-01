@@ -213,8 +213,8 @@ t_doctor() {
   { [ "$rc" -eq 1 ] && [[ "$out" == *"FAIL"*"worker"* && "$out" == *"->"* ]]; } || fail="$fail bad-container(rc=$rc)"
   out="$(STUB_BAD_CONTAINER=worker STUB_BAD_EXIT=0 run_cli doctor 2>&1)" && rc=0 || rc=$?
   { [ "$rc" -eq 1 ] && [[ "$out" == *"FAIL"*"worker"* ]]; } || fail="$fail stopped-cleanly(rc=$rc)"
-  out="$(STUB_BAD_CONTAINER=caddy-init run_cli doctor 2>&1)" && rc=0 || rc=$?
-  { [ "$rc" -eq 1 ] && [[ "$out" == *"FAIL"*"caddy-init"* ]]; } || fail="$fail failed-oneshot(rc=$rc)"
+  out="$(STUB_BAD_CONTAINER=volume-init run_cli doctor 2>&1)" && rc=0 || rc=$?
+  { [ "$rc" -eq 1 ] && [[ "$out" == *"FAIL"*"volume-init"* ]]; } || fail="$fail failed-oneshot(rc=$rc)"
   out="$(COBBLE_DOCTOR_FAKE_DOWN=1 run_cli doctor 2>&1)" && rc=0 || rc=$?
   { [ "$rc" -eq 1 ] && [[ "$out" == *"FAIL"*"http"* ]]; } || fail="$fail fake-down(rc=$rc)"
   chmod 644 "$S/opt/.env"

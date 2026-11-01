@@ -1,6 +1,14 @@
 """Cobble module SDK (Apache-2.0). It must never import anything from the AGPL `cobble` package."""
 
-from .manifest import Manifest, ManifestError, load_manifest, manifest_json_schema, parse_manifest
+from .manifest import (
+    Llm,
+    LlmModel,
+    Manifest,
+    ManifestError,
+    load_manifest,
+    manifest_json_schema,
+    parse_manifest,
+)
 from .resolve import (
     Conflict,
     DependencyCycle,
@@ -23,7 +31,7 @@ from .resolve import (
     resolve,
 )
 from .rewrite import ComposeRejected, Limits, RewriteResult, Violation, rewrite_compose
-from .routes import render_route, upstream
+from .routes import llm_endpoint, render_route, upstream
 
 __all__ = [
     "ComposeRejected",
@@ -32,6 +40,8 @@ __all__ = [
     "Hardware",
     "Limits",
     "Link",
+    "Llm",
+    "LlmModel",
     "Manifest",
     "ManifestError",
     "NeedsChoice",
@@ -48,6 +58,7 @@ __all__ = [
     "Violation",
     "choose_variant",
     "desired_links",
+    "llm_endpoint",
     "load_manifest",
     "manifest_json_schema",
     "parse_manifest",

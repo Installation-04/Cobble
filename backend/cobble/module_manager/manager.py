@@ -33,7 +33,7 @@ from cobble_sdk import (
     rewrite_compose,
 )
 from cobble_sdk.resolve import install_order
-from cobble_sdk.routes import render_route, upstream
+from cobble_sdk.routes import llm_endpoint, render_route, upstream
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -41,6 +41,7 @@ from cobble.db.models import Module, ModuleEvent, ModuleLink, PlatformState
 
 from .catalog_source import CatalogSource
 from .edge import Edge, NullEdge
+from .llm import LlmEntry, LlmGateway, NullGateway
 from .runner import HookResult, Runner, RunnerError
 from .secret_store import SecretStore
 from .vault import SecretValue, VaultError
@@ -106,6 +107,7 @@ class ModuleManager:
         bus_network: str = "cobble_core",
         on_event: EventSink | None = None,
         edge: Edge | None = None,
+        llm: LlmGateway | None = None,
         platform_env: Mapping[str, str] | None = None,
     ) -> None:
         self._sessions = sessions
@@ -119,6 +121,7 @@ class ModuleManager:
         # Facts about the platform every module may use (public URL...): compose variables and
         # hook environment. Never secrets.
         self._platform_env = dict(platform_env or {})
+        self._llm: LlmGateway = llm if llm is not None else NullGateway()
         self._edge: Edge = edge if edge is not None else NullEdge()
         self._lock = threading.Lock()  # one operation at a time
 
@@ -272,6 +275,7 @@ class ModuleManager:
         except _StepFailed as failure:
             rolled = self._rollback(done, failing=current)
             self._sync_edge_quietly()
+            self._sync_llm_quietly()
             raise ModuleOperationFailed(
                 failure.module,
                 failure.step,
@@ -280,6 +284,7 @@ class ModuleManager:
                 partial=any(action == "uninstall" for action, _ in done),
             ) from None
         self._sync_edge_quietly()  # removals leave their route behind otherwise
+        self._sync_llm_quietly()  # and their models in the gateway
 
     def _sync_edge(self) -> None:
         """Publish the routes of the modules that run (and only those)."""
@@ -293,6 +298,31 @@ class ModuleManager:
             if text is not None:
                 routes[module_id] = text
         self._edge.sync(routes)
+
+    def _sync_llm(self) -> None:
+        """Give the language-model gateway the models of the backends that run."""
+        manifests = self._manifests()
+        with self._sessions() as session:
+            rows = [
+                (row.id, row.variant)
+                for row in session.scalars(select(Module).where(Module.state == "running"))
+            ]
+        entries: list[LlmEntry] = []
+        for module_id, variant in sorted(rows):
+            manifest = manifests.get(module_id)
+            endpoint = llm_endpoint(manifest) if manifest is not None else None
+            if manifest is None or endpoint is None:
+                continue
+            entries += [LlmEntry(m.name, m.model, endpoint) for m in manifest.llm_models(variant)]
+        self._llm.sync(entries)
+
+    def _sync_llm_quietly(self) -> None:
+        try:
+            self._sync_llm()
+        except Exception as exc:
+            code = exc.code if isinstance(exc, RunnerError) else "internal_error"
+            log.warning("could not update the language-model gateway: %s", code)
+            self._event("platform", "llm", "sync", ok=False, code=code)
 
     def _sync_edge_quietly(self) -> None:
         """After a removal or a rollback: a proxy that cannot be updated must not block it."""
@@ -384,12 +414,32 @@ class ModuleManager:
                     env[f"COBBLE_SECRET_{key.upper()}"] = value.reveal()
         return env
 
+    def _own_facts(self, module_id: str) -> dict[str, str]:
+        """What a module's hooks may know about their own installation: the chosen variant and,
+        for a language-model backend, what to fetch (`COBBLE_LLM_PULL`, comma separated)."""
+        manifest = self._manifests().get(module_id)
+        with self._sessions() as session:
+            row = session.get(Module, module_id)
+            variant = row.variant if row is not None else None
+        facts: dict[str, str] = {}
+        if variant:
+            facts["COBBLE_VARIANT"] = variant
+        if manifest is not None and manifest.llm is not None:
+            pulls = [m.pull for m in manifest.llm_models(variant) if m.pull]
+            facts["COBBLE_LLM_PULL"] = ",".join(pulls)
+        return facts
+
     def _run_hook(
         self, module_id: str, script: str, extra: Mapping[str, str] | None = None
     ) -> None:
         manifest = self._manifests().get(module_id)
         peers = self._required_peers(manifest) if manifest is not None else {}
-        env = {**self._secret_env(module_id), **peers, **(extra or {})}
+        env = {
+            **self._secret_env(module_id),
+            **peers,
+            **self._own_facts(module_id),
+            **(extra or {}),
+        }
         result: HookResult = self._runner.run_hook(
             f"{self._catalog.module_dir(module_id)}/{script}", env
         )
@@ -463,6 +513,10 @@ class ModuleManager:
         def route() -> None:
             self._sync_edge()
 
+        def gateway() -> None:
+            if manifest.llm is not None:  # only backends change the gateway's list
+                self._sync_llm()
+
         def link() -> None:
             self._link_new(module_id)
 
@@ -478,6 +532,7 @@ class ModuleManager:
             ("register_core", register_core),
             ("health", health),
             ("route", route),
+            ("gateway", gateway),
             ("link", link),
         ):
             self._step(module_id, "install", name, action)
@@ -674,4 +729,5 @@ class ModuleManager:
                 except _StepFailed:
                     log.error("recovery of %s failed; the module is marked failed", module_id)
             self._sync_edge_quietly()
+            self._sync_llm_quietly()
             return recovered

@@ -122,13 +122,13 @@ def _volume_users(volume: str) -> dict[str, str]:
 
 def test_only_the_module_manager_can_write_the_routes_and_only_caddy_reads_them() -> None:
     mounts = _volume_users("cobble-caddy-routes")
-    assert set(mounts) == {"module-manager", "caddy", "caddy-init"}
+    assert set(mounts) == {"module-manager", "caddy", "volume-init"}
     assert mounts["caddy"].endswith(":ro")
     assert not mounts["module-manager"].endswith(":ro")
     # the one-shot that fixes the owner may only change an owner, once
-    init = SERVICES["caddy-init"]
+    init = SERVICES["volume-init"]
     assert init["restart"] == "no" and init["cap_add"] == ["CHOWN"]
-    assert SERVICES["caddy"]["depends_on"]["caddy-init"] == {  # type: ignore[index]
+    assert SERVICES["caddy"]["depends_on"]["volume-init"] == {  # type: ignore[index]
         "condition": "service_completed_successfully"
     }
 
@@ -141,3 +141,15 @@ def test_the_caddy_admin_socket_is_shared_with_the_module_manager_only() -> None
     assert "import /etc/caddy/routes/*.caddy" in caddyfile
     # a module wins over the v0.1 pack route of the same path
     assert caddyfile.index("/etc/caddy/routes/") < caddyfile.index("/etc/caddy/pack/")
+
+
+def test_the_model_list_is_written_by_the_module_manager_and_only_read_by_the_gateway() -> None:
+    mounts = _volume_users("cobble-litellm-generated")
+    assert set(mounts) == {"module-manager", "litellm", "volume-init"}
+    assert mounts["litellm"].endswith(":ro")
+    assert not mounts["module-manager"].endswith(":ro")
+    assert SERVICES["litellm"]["depends_on"]["volume-init"] == {  # type: ignore[index]
+        "condition": "service_completed_successfully"
+    }
+    config = (ROOT / "core" / "litellm" / "config.yaml").read_text("utf-8")
+    assert "/app/generated/models.yaml" in config

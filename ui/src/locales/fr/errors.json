@@ -46,6 +46,7 @@
   "module_code_up_failed": "Le module n'a pas pu démarrer.",
   "module_code_down_failed": "Le module n'a pas pu être arrêté.",
   "module_code_route_failed": "Le module fonctionne mais son adresse web n'a pas pu être publiée.",
+  "module_code_llm_failed": "Le module fonctionne mais la passerelle de modèles de langage n'a pas accepté ses modèles.",
   "module_code_unhealthy": "Le module a démarré mais n'est pas devenu sain à temps.",
   "module_code_hook_failed": "Une étape de configuration du module a échoué.",
   "module_code_compose_rejected": "Le module enfreint une règle de la plateforme et a été refusé.",

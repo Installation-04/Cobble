@@ -175,7 +175,7 @@ doctor_docker() {
 }
 
 # Services of core/compose.yml that run once and exit (restart: "no").
-ONESHOT_SERVICES=(caddy-init)
+ONESHOT_SERVICES=(volume-init)
 is_oneshot() {
   local s
   for s in "${ONESHOT_SERVICES[@]}"; do [ "$s" = "$1" ] && return 0; done

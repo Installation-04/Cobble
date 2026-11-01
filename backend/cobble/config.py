@@ -56,6 +56,9 @@ class Settings(BaseSettings):
     # pipeline steps behind a TLS-inspecting proxy). Operator-chosen, never secrets.
     # JSON object, e.g. {"COBBLE_SKIP_STEPS": "trivy"}. Empty: none.
     module_extra_env: str = ""
+    # Where the module-manager writes the list of models of the installed backends (the file the
+    # language-model gateway includes). Empty: no gateway to configure.
+    module_litellm_dir: str = ""
     module_routes_dir: str = ""
     module_caddyfile: str = "/etc/caddy-main/Caddyfile"
     module_caddy_admin_socket: str = "/run/caddy/admin.sock"

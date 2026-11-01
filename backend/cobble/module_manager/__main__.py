@@ -22,6 +22,7 @@ from .app import create_app
 from .disk_catalog import DiskCatalog
 from .edge import CaddyEdge, Edge, NullEdge, caddy_reload
 from .hardware import host_hardware
+from .llm import LlmGateway, NullGateway, docker_gateway
 from .manager import ModuleManager
 from .redaction import RedactingFilter, Redactor
 from .runner import ComposeRunner
@@ -97,6 +98,9 @@ def build_app(settings: Settings, redis: Redis) -> tuple[FastAPI, ModuleManager]
             Path(settings.module_caddyfile),
             caddy_reload(Path(settings.module_caddy_admin_socket)),
         )
+    llm: LlmGateway = NullGateway()
+    if settings.module_litellm_dir:
+        llm = docker_gateway(Path(settings.module_litellm_dir) / "models.yaml")
     controller = OperationController(publish)
     manager = ModuleManager(
         make_session_factory(make_engine(settings.database_url)),
@@ -107,6 +111,7 @@ def build_app(settings: Settings, redis: Redis) -> tuple[FastAPI, ModuleManager]
         health_timeout_s=settings.module_health_timeout_s,
         on_event=controller.on_step,
         edge=edge,
+        llm=llm,
         platform_env={
             **extra_env(settings.module_extra_env),
             **public_env(settings.module_public_url),

@@ -77,9 +77,13 @@ services:
       LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY}
       # Use the bundled price table: no network access needed at startup (offline-first).
       LITELLM_LOCAL_MODEL_COST_MAP: "True"
-    volumes: [./litellm/config.yaml:/app/config.yaml:ro]
+    volumes:
+      - ./litellm/config.yaml:/app/config.yaml:ro
+      # The models of the installed backends, written by the module-manager (see config.yaml).
+      - cobble-litellm-generated:/app/generated:ro
     depends_on:
       fake-llm: {condition: service_healthy}
+      volume-init: {condition: service_completed_successfully}
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://localhost:4000/health/liveliness')"]
       interval: 5s
@@ -167,6 +171,7 @@ services:
       COBBLE_MODULE_RAM_MB: ${COBBLE_MODULE_RAM_MB:-0}
       COBBLE_MODULE_GPU: ${COBBLE_MODULE_GPU:-auto}
       COBBLE_MODULE_ROUTES_DIR: /var/lib/cobble-routes
+      COBBLE_MODULE_LITELLM_DIR: /var/lib/cobble-llm
       COBBLE_MODULE_PUBLIC_URL: ${COBBLE_PUBLIC_URL:-http://localhost}
       COBBLE_MODULE_EXTRA_ENV: ${COBBLE_MODULE_EXTRA_ENV:-}
     volumes:
@@ -175,6 +180,7 @@ services:
       - cobble-caddy-routes:/var/lib/cobble-routes
       - cobble-caddy-run:/run/caddy
       - ./caddy/Caddyfile:/etc/caddy-main/Caddyfile:ro
+      - cobble-litellm-generated:/var/lib/cobble-llm
       - /var/run/docker.sock:/var/run/docker.sock
       - cobble-module-keys:/var/lib/cobble-keys
       - ${COBBLE_CATALOG_DIR:-/opt/cobble/catalog}:${COBBLE_CATALOG_DIR:-/opt/cobble/catalog}:ro
@@ -201,16 +207,25 @@ services:
     mem_limit: 64m
     networks: [core]
 
-  # Gives the module-manager (uid 10001) the right to write the routes volume, whichever
-  # container mounts the volume first (a named volume is created root-owned otherwise).
-  caddy-init:
+  # Gives the module-manager (uid 10001) the right to write the volumes it fills for others
+  # (the proxy routes and the gateway's model list), whichever container mounts a volume first
+  # (a named volume is created root-owned otherwise), and makes sure the gateway has a list to
+  # include. Runs once and exits.
+  volume-init:
     image: caddy:2-alpine@sha256:e70b164da81ef698b3ad19af799ea6086ce6d9e48ed4079eb9fe26f6fbf14ee5
     security_opt: ["no-new-privileges:true"]
     cap_drop: [ALL]
     cap_add: [CHOWN]
     restart: "no"
-    command: ["chown", "10001:10001", "/routes"]
-    volumes: [cobble-caddy-routes:/routes]
+    command:
+      - sh
+      - -c
+      - |
+        [ -f /llm/models.yaml ] || echo 'model_list: []' > /llm/models.yaml
+        chown 10001:10001 /routes /llm /llm/models.yaml
+    volumes:
+      - cobble-caddy-routes:/routes
+      - cobble-litellm-generated:/llm
     networks: [core]
 
   caddy:
@@ -227,7 +242,7 @@ services:
     depends_on:
       api: {condition: service_healthy}
       ui: {condition: service_healthy}
-      caddy-init: {condition: service_completed_successfully}
+      volume-init: {condition: service_completed_successfully}
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:80/api/v1/health"]
       interval: 5s
@@ -248,4 +263,5 @@ volumes:
   cobble-caddy-data:
   cobble-caddy-routes:
   cobble-caddy-run:
+  cobble-litellm-generated:
   cobble-module-keys:  # the vault master key: only the module-manager mounts it

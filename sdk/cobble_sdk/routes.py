@@ -17,6 +17,13 @@ def upstream(manifest: Manifest) -> str | None:
     return f"cobble-{manifest.id}-{manifest.web_ui.service}:{manifest.web_ui.port}"
 
 
+def llm_endpoint(manifest: Manifest) -> str | None:
+    """`http://host:port` of a language-model backend on the shared network, or None."""
+    if manifest.llm is None:
+        return None
+    return f"http://cobble-{manifest.id}-{manifest.llm.service}:{manifest.llm.port}"
+
+
 def render_route(manifest: Manifest) -> str | None:
     """A Caddy snippet exposing the module under its `web_ui.path`, or None without web_ui."""
     target = upstream(manifest)

@@ -106,6 +106,8 @@ def rewrite_compose(
     bus_services: set[str] = set(manifest.bus)
     if manifest.web_ui is not None:
         bus_services.add(manifest.web_ui.service)
+    if manifest.llm is not None:
+        bus_services.add(manifest.llm.service)
     for name in sorted(bus_services - set(services)):
         violate(
             "unknown_service", name, "declared in the manifest but absent from the compose file"

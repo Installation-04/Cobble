@@ -70,7 +70,31 @@ WOODPECKER = manifest(
 OLLAMA = manifest(
     "ollama",
     provides=["llm-backend"],
-    variants=[{"id": "nvidia", "gpu": "nvidia"}, {"id": "cpu", "gpu": "none", "min_ram_mb": 4096}],
+    variants=[
+        {
+            "id": "nvidia",
+            "gpu": "nvidia",
+            "models": [
+                {
+                    "name": "coder",
+                    "model": "ollama_chat/qwen2.5-coder:7b",
+                    "pull": "qwen2.5-coder:7b",
+                }
+            ],
+        },
+        {"id": "cpu", "gpu": "none", "min_ram_mb": 4096},
+    ],
+    llm={
+        "service": "ollama",
+        "port": 11434,
+        "models": [
+            {
+                "name": "coder-small",
+                "model": "ollama_chat/qwen2.5-coder:1.5b",
+                "pull": "qwen2.5-coder:1.5b",
+            }
+        ],
+    },
 )
 GPU_ONLY = manifest("gpu-only", hardware={"gpu": "nvidia"})
 
@@ -95,6 +119,8 @@ class Rig:
         hardware: Hardware | None = None,
         store: SecretStore | None = None,
         edge: Any = None,
+        llm: Any = None,
+        hardware_gpu: str = "none",
     ) -> None:
         engine = create_engine(
             "sqlite://", poolclass=StaticPool, connect_args={"check_same_thread": False}
@@ -109,8 +135,9 @@ class Rig:
             self.catalog,
             self.runner,
             self.store,
-            hardware or Hardware(ram_mb=16384),
+            hardware or Hardware(ram_mb=16384, gpu=hardware_gpu),  # type: ignore[arg-type]
             edge=edge,
+            llm=llm,
         )
 
     def modules(self) -> dict[str, Module]:
@@ -163,6 +190,7 @@ def test_install_one_module() -> None:
         "register_core",
         "health",
         "route",
+        "gateway",
         "link",
     ]
 
