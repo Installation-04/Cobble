@@ -6,6 +6,7 @@ requires-python = ">=3.12"
 license = "AGPL-3.0-only"
 dependencies = [
     "alembic>=1.14",
+    "cryptography>=43",
     "fastapi>=0.115",
     "httpx>=0.28",
     "psycopg[binary]>=3.2",
