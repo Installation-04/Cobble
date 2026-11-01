@@ -157,7 +157,7 @@ export function ModuleSheet({
               <div className="flex gap-2">
                 {!module.installed && (
                   <Button
-                    onClick={() => operation.begin("install", module.id)}
+                    onClick={() => operation.begin("install", [module.id])}
                     disabled={!module.hardware.ok || busy}
                     data-testid="module-install"
                   >
@@ -167,7 +167,7 @@ export function ModuleSheet({
                 {module.installed && (
                   <Button
                     variant="destructive"
-                    onClick={() => operation.begin("uninstall", module.id)}
+                    onClick={() => operation.begin("uninstall", [module.id])}
                     disabled={state === "installing" || state === "removing"}
                     data-testid="module-uninstall"
                   >

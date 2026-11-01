@@ -16,8 +16,9 @@ export type Stage =
 export interface Flow {
   stage: Stage;
   action: ModuleAction | null;
-  /** The module the user clicked on. */
+  /** What the user clicked on: a module, or a starter pack (then `pack` is its id too). */
   target: string | null;
+  pack: string | null;
   plan: ModulePlan | null;
   /** `module_needs_choice`: the capability to settle and the modules that can provide it. */
   choice: { capability: string; candidates: string[] } | null;
@@ -35,6 +36,7 @@ const IDLE: Flow = {
   stage: "idle",
   action: null,
   target: null,
+  pack: null,
   plan: null,
   choice: null,
   cascade: [],
@@ -93,9 +95,9 @@ export function useModuleOperation(onFinished: () => void, pollMs: number = POLL
   }, []);
 
   const begin = useCallback(
-    (action: ModuleAction, target: string) => {
-      request.current = { action, modules: [target], choices: {}, confirm_cascade: false };
-      setFlow({ ...IDLE, action, target });
+    (action: ModuleAction, modules: string[], pack: string | null = null) => {
+      request.current = { action, modules, choices: {}, confirm_cascade: false };
+      setFlow({ ...IDLE, action, target: pack ?? modules[0] ?? null, pack });
       void plan();
     },
     [plan],

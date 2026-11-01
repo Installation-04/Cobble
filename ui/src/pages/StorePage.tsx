@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { modulesApi } from "../api/endpoints";
 import { errorMessage } from "../api/errors";
-import type { ModuleEntry } from "../api/types";
+import type { ModuleEntry, ModulePack } from "../api/types";
 import { useAuth } from "../auth/AuthProvider";
 import { Badge } from "../components/ui/badge";
 import { Input } from "../components/ui/input";
@@ -11,7 +11,8 @@ import { Select } from "../components/ui/select";
 import { cn } from "../lib";
 import { useFetched } from "../project/useFetched";
 import { ModuleSheet } from "../store/ModuleSheet";
-import { fitProblems, localizedDescription, stateTone } from "../store/moduleView";
+import { PackSheet, packText } from "../store/PackSheet";
+import { fitProblems, localizedDescription, packProblems, stateTone } from "../store/moduleView";
 import { useModuleOperation } from "../store/useModuleOperation";
 import { useModuleStream } from "../store/useModuleStream";
 
@@ -73,6 +74,42 @@ function ModuleCard({ module, onOpen }: { module: ModuleEntry; onOpen: () => voi
   );
 }
 
+function PackCard({ pack, onOpen }: { pack: ModulePack; onOpen: () => void }) {
+  const { t, i18n } = useTranslation("store");
+  const problems = packProblems(t, pack);
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={onOpen}
+        data-testid={`pack-card-${pack.id}`}
+        data-fits={pack.fit.ok}
+        data-recommended={pack.recommended}
+        className={cn(
+          "flex h-full w-full flex-col gap-2 rounded-lg border bg-card p-4 text-left text-card-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+          pack.recommended ? "border-primary" : "border-border",
+          pack.fit.ok ? "hover:bg-accent" : "opacity-60",
+        )}
+      >
+        <span className="font-medium">{packText(pack, "name", i18n.language)}</span>
+        <span className="text-sm text-muted-foreground">
+          {packText(pack, "description", i18n.language)}
+        </span>
+        <span className="mt-auto flex flex-wrap items-center gap-2 pt-1">
+          {pack.recommended && <Badge tone="primary">{t("packs.recommended")}</Badge>}
+          {pack.installed && <Badge tone="success">{t("packs.installed")}</Badge>}
+          {!pack.fit.ok && <Badge tone="warning">{t("fit.no")}</Badge>}
+        </span>
+        {!pack.fit.ok && problems.length > 0 && (
+          <span className="text-xs text-muted-foreground" data-testid={`pack-reason-${pack.id}`}>
+            {problems.join(" · ")}
+          </span>
+        )}
+      </button>
+    </li>
+  );
+}
+
 /**
  * The Store: what can be installed, what is, and the install / removal flow. Only administrators
  * get the view (and make any request): the server refuses the others anyway.
@@ -96,16 +133,26 @@ export function StorePage() {
 function StoreView() {
   const { t, i18n } = useTranslation(["store", "errors", "common"]);
   const catalog = useFetched(() => modulesApi.catalog(), "modules");
+  // The packs are a convenience on top of the catalogue: if they cannot be read, the catalogue
+  // still works and the section is simply not shown.
+  const packsData = useFetched(() => modulesApi.packs(), "packs");
+  const [openPackId, setOpenPackId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
 
-  const operation = useModuleOperation(catalog.reload);
+  const reloadCatalog = catalog.reload;
+  const reloadPacks = packsData.reload;
+  const operation = useModuleOperation(() => {
+    reloadCatalog();
+    reloadPacks();
+  });
   useModuleStream({
     onStep: operation.onStep,
     onOperation: operation.onOperation,
     onResync: () => {
       catalog.reload();
+      packsData.reload();
       void operation.resync();
     },
   });
@@ -119,6 +166,8 @@ function StoreView() {
     (m) => (!category || m.category === category) && matches(m, query, i18n.language),
   );
   const open = modules.find((m) => m.id === openId) ?? null;
+  const packs = packsData.data?.packs ?? [];
+  const openPack = packs.find((p) => p.id === openPackId) ?? null;
   const running = operation.flow.stage === "running";
   const failed = operation.flow.stage === "failed";
   const finished = operation.flow.stage === "done";
@@ -126,8 +175,8 @@ function StoreView() {
   // An operation that ends while nobody is looking at it needs no further attention: the
   // catalogue has been refreshed. A failure stays visible until it is opened.
   useEffect(() => {
-    if (finished && openId === null) reset();
-  }, [finished, openId, reset]);
+    if (finished && openId === null && openPackId === null) reset();
+  }, [finished, openId, openPackId, reset]);
 
   return (
     <div className="flex flex-col gap-4 p-6" data-testid="view-store">
@@ -139,10 +188,13 @@ function StoreView() {
         <p className="text-sm text-muted-foreground">{t("store:description")}</p>
       </header>
 
-      {(running || failed) && open === null && (
+      {(running || failed) && open === null && openPack === null && (
         <button
           type="button"
-          onClick={() => setOpenId(operation.flow.target)}
+          onClick={() => {
+            if (operation.flow.pack) setOpenPackId(operation.flow.pack);
+            else setOpenId(operation.flow.target);
+          }}
           data-testid="store-operation-banner"
           role={failed ? "alert" : "status"}
           className={cn(
@@ -153,6 +205,22 @@ function StoreView() {
           {running && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
           {t(failed ? "store:bannerFailed" : "store:banner", { module: operation.flow.target })}
         </button>
+      )}
+
+      {packs.length > 0 && (
+        <section aria-labelledby="store-packs-title" className="flex flex-col gap-2">
+          <div className="flex flex-col gap-0.5">
+            <h2 id="store-packs-title" className="text-base font-semibold">
+              {t("store:packs.title")}
+            </h2>
+            <p className="text-sm text-muted-foreground">{t("store:packs.description")}</p>
+          </div>
+          <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3" data-testid="store-packs">
+            {packs.map((pack) => (
+              <PackCard key={pack.id} pack={pack} onOpen={() => setOpenPackId(pack.id)} />
+            ))}
+          </ul>
+        </section>
       )}
 
       <div className="flex flex-col gap-2 sm:flex-row">
@@ -210,6 +278,7 @@ function StoreView() {
       )}
 
       <ModuleSheet module={open} operation={operation} onClose={() => setOpenId(null)} />
+      <PackSheet pack={openPack} operation={operation} onClose={() => setOpenPackId(null)} />
     </div>
   );
 }

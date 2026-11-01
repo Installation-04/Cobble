@@ -106,7 +106,8 @@ Docker to install other software (Git server, CI, model server...). It is config
 `MODULE_MANAGER_TOKEN` (generated, a secret), `COBBLE_CATALOG_DIR` (the catalogue shipped in
 `<dir>/src/catalog`), `DOCKER_GID` (the group of the Docker socket) and `COMPOSE_PROFILES=modules`.
 The same thing is available in the browser: the **Store** entry in the sidebar (administrators only)
-lists the modules with their state and whether they fit this machine (a module that needs more memory
+starts with the **starter packs** (a ready-made set of modules; the one recommended for this machine
+is marked) and lists the modules with their state and whether they fit this machine (a module that needs more memory
 or a GPU you do not have is greyed, with the reason), and its drawer installs or removes a module:
 you see what will happen first, you choose when several modules can provide something, you confirm
 when removing a module takes others with it, and you follow the steps live.

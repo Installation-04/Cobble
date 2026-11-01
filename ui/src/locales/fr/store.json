@@ -97,5 +97,14 @@
       "down": "Arrêt des conteneurs",
       "pre_uninstall": "Nettoyage"
     }
+  },
+  "packs": {
+    "title": "Packs de départ",
+    "description": "Un ensemble de modules prêt à l'emploi pour démarrer vite. Vous pourrez le modifier ensuite, module par module.",
+    "recommended": "Recommandé pour cette machine",
+    "installed": "Installé",
+    "progress": "{{count}} modules sur {{total}} installés",
+    "modules": "Modules",
+    "install": "Installer ce pack"
   }
 }

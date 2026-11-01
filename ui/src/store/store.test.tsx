@@ -2,7 +2,7 @@ import { act, renderHook, screen, waitFor, within } from "@testing-library/react
 import userEvent from "@testing-library/user-event";
 import { Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { ModuleEntry, ModuleOperation, ModulePlan } from "../api/types";
+import type { ModuleEntry, ModuleOperation, ModulePack, ModulePlan } from "../api/types";
 import { StorePage } from "../pages/StorePage";
 import { FakeEventSource, installFakeEventSource } from "../test/fakeEventSource";
 import { ME, mockFetch, renderApp, type Handler } from "../test/utils";
@@ -81,6 +81,8 @@ function world() {
       error: null,
     } as ModuleOperation,
     secrets: {} as Record<string, boolean>,
+    packs: [] as ModulePack[],
+    packsStatus: 200,
     catalogStatus: 200,
     me: ME as object,
   };
@@ -95,6 +97,19 @@ function world() {
         ? { body: { modules: state.modules, hardware: { ram_mb: 4096, gpu: "none" } } }
         : {
             status: state.catalogStatus,
+            body: { error: { code: "module_manager_unavailable", params: {} } },
+          },
+    "GET /modules/packs": () =>
+      state.packsStatus === 200
+        ? {
+            body: {
+              packs: state.packs,
+              problems: {},
+              recommended: state.packs.find((p) => p.recommended)?.id ?? null,
+            },
+          }
+        : {
+            status: state.packsStatus,
             body: { error: { code: "module_manager_unavailable", params: {} } },
           },
     "POST /modules/plan": () =>
@@ -482,11 +497,168 @@ describe("polling", () => {
     });
     const finished = vi.fn();
     const { result } = renderHook(() => useModuleOperation(finished, 20));
-    act(() => result.current.begin("install", "forgejo"));
+    act(() => result.current.begin("install", ["forgejo"]));
     await waitFor(() => expect(result.current.flow.stage).toBe("preview"));
     await act(async () => result.current.start());
     await waitFor(() => expect(result.current.flow.stage).toBe("done"));
     expect(reads).toBeGreaterThanOrEqual(3);
     expect(finished).toHaveBeenCalledTimes(1);
+  });
+});
+
+function pack(id: string, modules: string[], over: Partial<ModulePack> = {}): ModulePack {
+  return {
+    id,
+    name: { en: `${id} pack`, fr: `pack ${id}` },
+    description: { en: `${id} in English`, fr: `${id} en français` },
+    modules,
+    hardware: { min_ram_mb: 0, gpu: "none" },
+    priority: 0,
+    fit: { ok: true, problems: [] },
+    recommended: false,
+    installed: false,
+    installed_modules: [],
+    ...over,
+  };
+}
+
+describe("starter packs", () => {
+  it("are offered first, the one for this machine is marked, the others say why not", async () => {
+    const w = world();
+    w.state.packs = [
+      pack("local-cpu", ["forgejo", "woodpecker", "ollama"], { recommended: true }),
+      pack("local-gpu", ["forgejo", "woodpecker", "ollama"], {
+        fit: {
+          ok: false,
+          problems: [
+            { module: null, code: "gpu", needed: "any", have: "none" },
+            { module: "ollama", code: "ram", needed: "8192", have: "4096" },
+          ],
+        },
+      }),
+    ];
+    mockFetch(w.routes);
+    await renderApp(page, "/store");
+    const cpu = await screen.findByTestId("pack-card-local-cpu");
+    expect(cpu).toHaveAttribute("data-recommended", "true");
+    expect(cpu).toHaveTextContent("Recommended for this machine");
+    const gpu = screen.getByTestId("pack-card-local-gpu");
+    expect(gpu).toHaveAttribute("data-fits", "false");
+    expect(screen.getByTestId("pack-reason-local-gpu")).toHaveTextContent(
+      "needs a GPU, this machine has no GPU · ollama: needs 8192 MB of memory, this machine has 4096 MB",
+    );
+  });
+
+  it("install every module of the pack in one operation", async () => {
+    const w = world();
+    w.state.packs = [pack("api-only", ["forgejo", "woodpecker"], { recommended: true })];
+    w.state.plans = [plan(["install", "forgejo"], ["install", "woodpecker"])];
+    const { calls } = mockFetch(w.routes);
+    await renderApp(page, "/store");
+    const user = userEvent.setup();
+    await user.click(await screen.findByTestId("pack-card-api-only"));
+    expect(screen.getByTestId("pack-modules")).toHaveTextContent("forgejo, woodpecker");
+    await user.click(screen.getByTestId("pack-install"));
+    expect(await screen.findByTestId("flow-steps")).toHaveTextContent("Install woodpecker");
+    expect(calls.find((c) => c.path === "/modules/plan")?.body).toMatchObject({
+      action: "install",
+      modules: ["forgejo", "woodpecker"],
+    });
+    await user.click(screen.getByTestId("flow-start"));
+    await screen.findByTestId("flow-progress");
+    expect(calls.find((c) => c.path === "/modules/operations")?.body).toMatchObject({
+      modules: ["forgejo", "woodpecker"],
+    });
+    w.state.packs = [
+      pack("api-only", ["forgejo", "woodpecker"], {
+        installed: true,
+        installed_modules: ["forgejo", "woodpecker"],
+      }),
+    ];
+    FakeEventSource.last.emit("module.operation", {
+      operation_id: "op1",
+      state: "done",
+      error: null,
+    });
+    expect(await screen.findByTestId("flow-done")).toBeInTheDocument();
+    // the packs and the catalogue are read again when it ends
+    await waitFor(() =>
+      expect(
+        calls.filter((c) => c.method === "GET" && c.path === "/modules/packs").length,
+      ).toBeGreaterThan(1),
+    );
+    await user.click(screen.getByTestId("flow-dismiss"));
+    expect(screen.queryByTestId("pack-install")).not.toBeInTheDocument(); // already installed
+    expect(screen.getByTestId("pack-sheet")).toHaveTextContent("Installed");
+  });
+
+  it("cannot be installed when they do not fit, and the reasons are in the drawer", async () => {
+    const w = world();
+    w.state.packs = [
+      pack("local-gpu", ["ollama"], {
+        fit: {
+          ok: false,
+          problems: [{ module: null, code: "gpu", needed: "nvidia", have: "none" }],
+        },
+      }),
+    ];
+    const { calls } = mockFetch(w.routes);
+    await renderApp(page, "/store");
+    const user = userEvent.setup();
+    await user.click(await screen.findByTestId("pack-card-local-gpu"));
+    expect(screen.getByTestId("pack-install")).toBeDisabled();
+    expect(screen.getByTestId("pack-problems")).toHaveTextContent("needs an NVIDIA GPU");
+    expect(calls.some((c) => c.path === "/modules/plan")).toBe(false);
+  });
+
+  it("show how far a half installed pack is", async () => {
+    const w = world();
+    w.state.packs = [
+      pack("p", ["forgejo", "woodpecker", "ollama"], { installed_modules: ["forgejo"] }),
+    ];
+    mockFetch(w.routes);
+    await renderApp(page, "/store");
+    const user = userEvent.setup();
+    await user.click(await screen.findByTestId("pack-card-p"));
+    expect(screen.getByTestId("pack-sheet")).toHaveTextContent("1 of 3 modules installed");
+  });
+
+  it("are shown in the language of the interface", async () => {
+    const w = world();
+    w.state.me = { ...ME, lang: "fr" };
+    w.state.packs = [pack("p", ["forgejo"], { recommended: true })];
+    mockFetch(w.routes);
+    await renderApp(page, "/store");
+    expect(await screen.findByTestId("pack-card-p")).toHaveTextContent("pack p");
+    expect(screen.getByTestId("pack-card-p")).toHaveTextContent("p en français");
+    expect(screen.getByTestId("pack-card-p")).toHaveTextContent("Recommandé pour cette machine");
+  });
+
+  it("do not stop the catalogue from working when they cannot be read", async () => {
+    const w = world();
+    w.state.packsStatus = 503;
+    mockFetch(w.routes);
+    await renderApp(page, "/store");
+    expect(await screen.findByTestId("module-card-forgejo")).toBeInTheDocument();
+    expect(screen.queryByTestId("store-packs")).not.toBeInTheDocument();
+  });
+
+  it("keep running when their drawer is closed, and the banner brings it back", async () => {
+    const w = world();
+    w.state.packs = [pack("api-only", ["forgejo", "woodpecker"])];
+    w.state.plans = [plan(["install", "forgejo"], ["install", "woodpecker"])];
+    mockFetch(w.routes);
+    await renderApp(page, "/store");
+    const user = userEvent.setup();
+    await user.click(await screen.findByTestId("pack-card-api-only"));
+    await user.click(screen.getByTestId("pack-install"));
+    await user.click(await screen.findByTestId("flow-start"));
+    await screen.findByTestId("flow-progress");
+    await user.click(screen.getByTestId("sheet-close"));
+    const banner = await screen.findByTestId("store-operation-banner");
+    expect(banner).toHaveTextContent("api-only");
+    await user.click(banner);
+    expect(await screen.findByTestId("pack-sheet")).toBeInTheDocument();
+    expect(screen.getByTestId("module-flow")).toHaveAttribute("data-stage", "running");
   });
 });

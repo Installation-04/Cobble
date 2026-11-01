@@ -48,6 +48,29 @@ async function mockModules(page: Page) {
   await page.route("**/api/v1/modules", (route) =>
     json(route, { modules: modules(), hardware: { ram_mb: 4096, gpu: "none" } }),
   );
+  await page.route("**/api/v1/modules/packs", (route) =>
+    json(route, {
+      packs: [
+        {
+          id: "api-only",
+          name: { en: "API only", fr: "API seulement" },
+          description: {
+            en: "Git and CI, models from a service.",
+            fr: "Git et CI, modèles d'un service.",
+          },
+          modules: ["forgejo", "woodpecker"],
+          hardware: { min_ram_mb: 4096, gpu: "none" },
+          priority: 10,
+          fit: { ok: true, problems: [] },
+          recommended: true,
+          installed: installed,
+          installed_modules: installed ? ["forgejo"] : [],
+        },
+      ],
+      problems: {},
+      recommended: "api-only",
+    }),
+  );
   await page.route("**/api/v1/modules/plan", (route) =>
     json(route, {
       steps: [{ action: "install", module: "forgejo" }],
@@ -85,6 +108,12 @@ test("the Store lists, filters, explains and installs modules", async ({ page })
   await page.getByTestId("nav-store").click();
   await expect(page.getByTestId("view-store")).toBeVisible();
   await expect(page.getByTestId("store-grid").getByRole("listitem")).toHaveCount(3);
+
+  // the starter pack proposed for this machine comes first
+  await expect(page.getByTestId("pack-card-api-only")).toHaveAttribute("data-recommended", "true");
+  await expect(page.getByTestId("pack-card-api-only")).toContainText(
+    "Recommended for this machine",
+  );
 
   // filter by category, then by search
   await page.getByTestId("store-category").selectOption("ci");

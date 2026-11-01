@@ -97,5 +97,14 @@
       "down": "Stopping the containers",
       "pre_uninstall": "Cleaning up"
     }
+  },
+  "packs": {
+    "title": "Starter packs",
+    "description": "A ready-made set of modules to get going quickly. You can change it later, module by module.",
+    "recommended": "Recommended for this machine",
+    "installed": "Installed",
+    "progress": "{{count}} of {{total}} modules installed",
+    "modules": "Modules",
+    "install": "Install this pack"
   }
 }

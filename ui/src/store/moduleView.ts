@@ -1,6 +1,6 @@
 import type { TFunction } from "i18next";
 import type { BadgeTone } from "../components/ui/badge";
-import type { ModuleEntry, ModuleState } from "../api/types";
+import type { ModuleEntry, ModulePack, ModuleState } from "../api/types";
 
 /** The description in the user's language; English if a translation is ever missing. */
 export function localizedDescription(module: ModuleEntry, lang: string): string {
@@ -33,4 +33,16 @@ export function fitProblems(t: TFunction, module: ModuleEntry): string[] {
       ? t("store:fit.ram", { needed: problem.needed, have: problem.have })
       : t("store:fit.gpu", { needed: gpu(problem.needed), have: gpu(problem.have) }),
   );
+}
+
+/** Why a starter pack does not fit, in words, naming the module that asks when it is one. */
+export function packProblems(t: TFunction, pack: ModulePack): string[] {
+  const gpu = (value: string) => t(`store:gpu.${value}`, { defaultValue: value });
+  return pack.fit.problems.map((problem) => {
+    const text =
+      problem.code === "ram"
+        ? t("store:fit.ram", { needed: problem.needed, have: problem.have })
+        : t("store:fit.gpu", { needed: gpu(problem.needed), have: gpu(problem.have) });
+    return problem.module ? `${problem.module}: ${text}` : text;
+  });
 }

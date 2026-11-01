@@ -111,7 +111,8 @@ Il se configure dans `.env` : `MODULE_MANAGER_TOKEN` (généré, un secret), `CO
 besoin est ajouté avec lui).
 
 La même chose est disponible dans le navigateur : l'entrée **Magasin** du menu latéral (réservée aux
-administrateurs) liste les modules avec leur état et s'ils conviennent à cette machine (un module qui
+administrateurs) commence par les **packs de départ** (un ensemble de modules prêt à l'emploi; celui qui est recommandé
+pour cette machine est signalé) et liste les modules avec leur état et s'ils conviennent à cette machine (un module qui
 demande plus de mémoire ou un GPU que vous n'avez pas est grisé, avec la raison), et son panneau
 installe ou retire un module : vous voyez d'abord ce qui va se passer, vous choisissez quand plusieurs
 modules peuvent fournir la même chose, vous confirmez quand retirer un module en emporte d'autres, et

@@ -7,6 +7,7 @@ import type {
   ModuleCatalog,
   ModuleOperation,
   ModuleOperationRequest,
+  ModulePacks,
   ModulePlan,
   Plan,
   Project,
@@ -98,6 +99,7 @@ export const costsApi = {
 
 export const modulesApi = {
   catalog: () => api.get<ModuleCatalog>("/modules"),
+  packs: () => api.get<ModulePacks>("/modules/packs"),
   /** What an install or removal would do; changes nothing. */
   plan: (request: ModuleOperationRequest) => api.post<ModulePlan>("/modules/plan", request),
   start: (request: ModuleOperationRequest) =>

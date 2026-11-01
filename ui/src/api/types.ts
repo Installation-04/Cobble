@@ -289,3 +289,27 @@ export interface ModuleStepEvent {
   ok: boolean;
   code: string | null;
 }
+
+/** A starter pack: a ready-made set of modules, with its fit for this machine. */
+export interface ModulePack {
+  id: string;
+  name: { fr: string; en: string };
+  description: { fr: string; en: string };
+  modules: string[];
+  hardware: { min_ram_mb: number; gpu: string };
+  priority: number;
+  fit: {
+    ok: boolean;
+    /** `module` is null when the pack itself asks for it. */
+    problems: { module: string | null; code: "ram" | "gpu"; needed: string; have: string }[];
+  };
+  recommended: boolean;
+  installed: boolean;
+  installed_modules: string[];
+}
+
+export interface ModulePacks {
+  packs: ModulePack[];
+  problems: Record<string, string[]>;
+  recommended: string | null;
+}
