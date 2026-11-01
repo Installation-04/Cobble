@@ -30,10 +30,17 @@ def test_every_compose_image_is_pinned_by_digest() -> None:
 def test_dockerfile_images_are_pinned_and_run_as_non_root(dockerfile: Path) -> None:
     text = dockerfile.read_text("utf-8")
     stages = set(re.findall(r"^FROM\s+\S+\s+AS\s+(\S+)", text, re.M | re.I))
+    # Named build contexts that compose provides from a local directory (not images).
+    contexts = {
+        name
+        for service in SERVICES.values()
+        if isinstance(service.get("build"), dict)
+        for name in service["build"].get("additional_contexts", {})
+    }
     refs = [
         ref
         for ref in re.findall(r"^FROM\s+(\S+)", text, re.M) + re.findall(r"--from=(\S+)", text)
-        if ref not in stages
+        if ref not in stages and ref not in contexts
     ]
     assert refs
     for ref in refs:

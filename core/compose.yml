@@ -88,7 +88,10 @@ services:
     networks: [core, egress]
 
   api:
-    build: ../backend
+    build:
+      context: ../backend
+      additional_contexts:
+        sdk: ../sdk
     # Pack settings (Forgejo/Woodpecker endpoints and tokens), written by packs/v01/hooks.
     env_file:
       - path: ../packs/v01/.env.pack
@@ -115,7 +118,10 @@ services:
     networks: [core]
 
   worker:
-    build: ../backend
+    build:
+      context: ../backend
+      additional_contexts:
+        sdk: ../sdk
     # Pack settings (Forgejo/Woodpecker endpoints and tokens), written by packs/v01/hooks.
     env_file:
       - path: ../packs/v01/.env.pack

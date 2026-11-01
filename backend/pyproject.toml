@@ -6,6 +6,7 @@ requires-python = ">=3.12"
 license = "AGPL-3.0-only"
 dependencies = [
     "alembic>=1.14",
+    "cobble-sdk",
     "cryptography>=43",
     "fastapi>=0.115",
     "httpx>=0.28",
@@ -51,3 +52,7 @@ files = ["cobble"]
 testpaths = ["tests", "../scripts/tests"]
 markers = ["integration: needs Postgres, Redis and the core stack (see make test-integration)"]
 addopts = "-m 'not integration'"
+
+[tool.uv.sources]
+# The Apache-2.0 module SDK lives next to the backend; the image build provides it as /sdk.
+cobble-sdk = { path = "../sdk" }

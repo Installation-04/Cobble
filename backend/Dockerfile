@@ -3,6 +3,10 @@ COPY --from=ghcr.io/astral-sh/uv:0.11.32@sha256:df4cae8f3a96d175e2e5f992e5975500
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PROJECT_ENVIRONMENT=/opt/venv \
     PYTHONUNBUFFERED=1 PYTHONPATH=/app PATH=/opt/venv/bin:$PATH
 WORKDIR /app
+# The module SDK (Apache-2.0) is a path dependency (../sdk from /app): compose passes it as the
+# named build context `sdk`.
+COPY --from=sdk pyproject.toml uv.lock LICENSE /sdk/
+COPY --from=sdk cobble_sdk /sdk/cobble_sdk
 # git: the worker pushes the project template to the Git provider through the git binary.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends git \
