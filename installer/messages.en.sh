@@ -128,6 +128,7 @@ Usage: cobble <command>
   doctor               diagnose problems and suggest fixes (exit 1 if one fails)
   reset-admin [--yes]  print a one-use link to set a new admin email and password
   modules <command>    list, install and uninstall modules (cobble modules help)
+  models <command>     connect a model service with an API key: list, add, test, default, remove
   uninstall [--keep-data] [--yes]
                        stop and remove Cobble (--keep-data keeps .env and the volumes)
   version              print versions

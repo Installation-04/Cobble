@@ -235,7 +235,7 @@ def _code_text(code: str, lang: str) -> str:
     return text if text != key else t("cli.modules.code.unknown", lang, code=code)
 
 
-_REFUSAL_PARAMS = ("module", "capability", "candidates", "cascade", "modules", "problems")
+_REFUSAL_PARAMS = ("module", "capability", "candidates", "cascade", "modules", "problems", "name")
 
 
 def _refusal_text(exc: ModuleManagerRejected, lang: str) -> str:

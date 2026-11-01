@@ -14,7 +14,7 @@ case "$*" in
     done
     if [ "${STUB_BAD_CONTAINER:-}" = "volume-init" ]; then echo "volume-init|exited||1"; fi
     ;;
-  *"cobble.cli modules"*)
+  *"cobble.cli modules"* | *"cobble.cli models"*)
     echo "modules stub: $*"
     exit "${STUB_MODULES_RC:-0}"
     ;;

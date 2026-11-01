@@ -10,7 +10,7 @@ from redis import Redis
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session, sessionmaker
 
-from cobble import cli_modules
+from cobble import cli_models, cli_modules
 from cobble.auth.activation import ACTIVATION_LIFETIME, create_activation_token
 from cobble.config import Settings, get_settings
 from cobble.db import AuthSession, User, make_engine, make_session_factory
@@ -81,6 +81,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     sub.add_parser("activation-link")
     sub.add_parser("reset-admin")
     cli_modules.add_parser(sub)
+    cli_models.add_parser(sub)
     args = parser.parse_args(argv)
 
     if args.command == "activation-link":
@@ -89,6 +90,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _reset_admin(settings)
     if args.command == "modules":
         return cli_modules.run(args, settings)
+    if args.command == "models":
+        return cli_models.run(args, settings)
 
     gateway = LiteLLMGateway(
         settings.litellm_url,

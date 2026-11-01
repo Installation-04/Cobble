@@ -43,7 +43,9 @@
         "module_busy": "Une autre opération sur les modules est en cours. Réessayez quand elle sera terminée.",
         "module_invalid": "Cette demande ne peut pas être planifiée.",
         "invalid_request": "La demande est invalide.",
-        "unknown": "Le gestionnaire de modules a refusé la demande ({code})."
+        "unknown": "Le gestionnaire de modules a refusé la demande ({code}).",
+        "model_unknown": "Il n'y a pas de modèle connecté appelé « {name} ».",
+        "model_gateway_failed": "La passerelle de modèles n'a pas accepté ce changement; rien n'a été modifié. Vérifiez la clé puis réessayez."
       },
       "code": {
         "up_failed": "le module n'a pas pu démarrer",
@@ -95,6 +97,26 @@
         "nothing": "Nommez au moins un module, ou choisissez un pack de départ avec --pack.",
         "no_fit": "Le pack « {pack} » ne convient pas à cette machine ({problems}).",
         "ignored": "Le pack « {pack} » est inutilisable et a été ignoré : {problems}"
+      }
+    },
+    "models": {
+      "empty": "Aucun service de modèles n'est connecté. Le modèle de démonstration intégré répond.",
+      "default": "(par défaut)",
+      "now_default": "« {name} » est maintenant le modèle par défaut.",
+      "removed": "« {name} » a été retiré; sa clé est supprimée.",
+      "remove_question": "Retirer « {name} » et supprimer sa clé ?",
+      "key_prompt": "Clé d'API (masquée) : ",
+      "empty_key": "Aucune clé n'a été donnée.",
+      "need_base_url": "Un service personnalisé demande --base-url.",
+      "working": "Connexion… la passerelle de modèles redémarre, cela prend environ 20 secondes.",
+      "added": "« {name} » est connecté.",
+      "test": {
+        "ok": "répond: la clé fonctionne.",
+        "auth_failed": "a refusé la clé. Vérifiez qu'elle est correcte et n'a pas expiré.",
+        "model_not_found": "ne connaît pas ce nom de modèle. Vérifiez l'orthographe.",
+        "rate_limited": "a refusé à cause d'une limite ou d'un solde manquant sur votre compte.",
+        "unreachable": "est injoignable. Vérifiez l'adresse et le réseau.",
+        "failed": "n'a pas répondu correctement."
       }
     }
   }

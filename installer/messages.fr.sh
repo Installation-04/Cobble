@@ -126,6 +126,7 @@ Utilisation : cobble <commande>
   logs [service]       suivre les journaux
   update [--source S]  reconstruire et redémarrer (ou installer la source S : dossier, archive, URL git)
   doctor               diagnostiquer les problèmes et proposer des correctifs (code 1 si échec)
+  models <commande>    connecter un service de modèles avec une clé d’API : list, add, test, default, remove
   reset-admin [--yes]  afficher un lien à usage unique pour définir un nouvel admin (courriel, mot de passe)
   modules <commande>   lister, installer et désinstaller des modules (cobble modules help)
   uninstall [--keep-data] [--yes]

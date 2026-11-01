@@ -315,6 +315,9 @@ t_cli_misc() {
   out="$(run_cli help 2>&1)" && [[ "$out" == *"doctor"* && "$out" == *"modules"* ]] || fail="$fail help"
   out="$(run_cli modules list 2>&1)" && grep -q 'exec -T api python -m cobble.cli modules list' "$STUB_LOG" || fail="$fail modules-passthrough"
   out="$(run_cli modules install forgejo --yes 2>&1)" && grep -q 'cobble.cli modules install forgejo --yes' "$STUB_LOG" || fail="$fail modules-args"
+  out="$(printf 'k\n' | run_cli models add openai gpt-4.1-mini 2>&1)" && grep -q 'exec -T api python -m cobble.cli models add openai gpt-4.1-mini' "$STUB_LOG" || fail="$fail models-passthrough"
+  out="$(printf 'k\n' | STUB_MODULES_RC=3 run_cli models list 2>&1)" && rc=0 || rc=$?
+  { [ "$rc" -eq 3 ] && [[ "$out" == *"could not reach the module-manager"* ]]; } || fail="$fail models-unreachable(rc=$rc)"
   out="$(STUB_MODULES_RC=3 run_cli modules list 2>&1)" && rc=0 || rc=$?
   { [ "$rc" -eq 3 ] && [[ "$out" == *"could not reach the module-manager"* ]]; } || fail="$fail modules-unreachable(rc=$rc)"
   out="$(STUB_MODULES_RC=1 run_cli modules list 2>&1)" && rc=0 || rc=$?

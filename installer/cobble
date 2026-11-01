@@ -324,6 +324,19 @@ cmd_modules() {
   }
 }
 
+cmd_models() {
+  need_install
+  # The API key is typed at a hidden prompt (needs a terminal) or piped on stdin; it is never
+  # an argument, so it stays out of the process list and the shell history.
+  local tty=(-T)
+  if [ -t 0 ]; then tty=(); fi
+  "${COMPOSE[@]}" exec "${tty[@]}" api python -m cobble.cli models "$@" || {
+    local rc=$?
+    if [ "$rc" -eq 3 ]; then warn modules_unreachable; fi
+    return "$rc"
+  }
+}
+
 cmd_version() {
   printf 'cobble %s\n' "$COBBLE_VERSION"
   local v
@@ -342,6 +355,7 @@ main() {
     doctor) cmd_doctor "$@" ;;
     reset-admin) cmd_reset_admin "$@" ;;
     modules) cmd_modules "$@" ;;
+    models) cmd_models "$@" ;;
     backup | restore)
       warn not_available "$cmd"
       exit 1

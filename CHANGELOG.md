@@ -6,6 +6,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 ## [Unreleased]
 
 ### Added
+- `cobble models list|add|test|default|remove`: the same model connections from a terminal. The API key is typed at a hidden prompt or piped on stdin, never an argument.
 - Settings → Models (administrators): connect a model service (OpenAI, Anthropic, OpenRouter or any OpenAI-compatible address) with an API key, test it, choose which one answers, remove it. The key is sent once, stored encrypted and never shown again; the gateway restarts in about 20 seconds. French and English.
 - v0.2 started (explicit owner decision, before the v0.1 step 11 validation): `sdk/` (Apache-2.0) with the module manifest schema and validation (`cobble_sdk`), a generated JSON Schema, and tests; digest-pinned images, FR+EN descriptions and strict fields are enforced.
 - `cobble_sdk.resolve`: pure dependency resolution and planning for modules. The installed set is a function of the explicitly requested modules, so installs and uninstalls converge whatever their order; required capabilities are added automatically (or a choice is requested), exclusive conflicts and cascades are reported, and a hardware-aware variant chooser is included. Property tests (Hypothesis) encode the "any order" criterion.

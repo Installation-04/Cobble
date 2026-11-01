@@ -43,7 +43,9 @@
         "module_busy": "Another module operation is running. Try again when it is finished.",
         "module_invalid": "This request cannot be planned.",
         "invalid_request": "The request is invalid.",
-        "unknown": "The module-manager refused the request ({code})."
+        "unknown": "The module-manager refused the request ({code}).",
+        "model_unknown": "There is no connected model called “{name}”.",
+        "model_gateway_failed": "The model gateway did not accept this change, so nothing was changed. Check the key, then try again."
       },
       "code": {
         "up_failed": "the module could not be started",
@@ -95,6 +97,26 @@
         "nothing": "Name at least one module, or choose a starter pack with --pack.",
         "no_fit": "The pack “{pack}” does not fit this machine ({problems}).",
         "ignored": "The pack “{pack}” is not usable and was ignored: {problems}"
+      }
+    },
+    "models": {
+      "empty": "No model service is connected. The built-in demo model answers.",
+      "default": "(default)",
+      "now_default": "“{name}” is now the default model.",
+      "removed": "“{name}” was removed; its key was deleted.",
+      "remove_question": "Remove “{name}” and delete its key?",
+      "key_prompt": "API key (hidden): ",
+      "empty_key": "No key was given.",
+      "need_base_url": "A custom service needs --base-url.",
+      "working": "Connecting… the model gateway restarts, this takes about 20 seconds.",
+      "added": "“{name}” is connected.",
+      "test": {
+        "ok": "answers: the key works.",
+        "auth_failed": "refused the key. Check that it is correct and has not expired.",
+        "model_not_found": "does not know this model name. Check the spelling.",
+        "rate_limited": "refused because of a limit or a missing balance on your account.",
+        "unreachable": "cannot be reached. Check the address and the network.",
+        "failed": "did not answer correctly."
       }
     }
   }
