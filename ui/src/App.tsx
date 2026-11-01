@@ -5,6 +5,7 @@ import { ActivatePage } from "./pages/ActivatePage";
 import { HomePage } from "./pages/HomePage";
 import { LoginPage } from "./pages/LoginPage";
 import { GlobalView } from "./pages/GlobalViews";
+import { StorePage } from "./pages/StorePage";
 import { ProjectPage } from "./pages/ProjectPage";
 import { Shell } from "./pages/Shell";
 
@@ -59,6 +60,7 @@ export function App() {
         <Route path="agents" element={<GlobalView view="agents" />} />
         <Route path="demos" element={<GlobalView view="demos" />} />
         <Route path="costs" element={<GlobalView view="costs" />} />
+        <Route path="store" element={<StorePage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

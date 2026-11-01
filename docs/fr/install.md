@@ -108,6 +108,13 @@ Il se configure dans `.env` : `MODULE_MANAGER_TOKEN` (généré, un secret), `CO
 `cobble modules list`, puis par exemple `cobble modules install woodpecker` (le serveur Git dont il a
 besoin est ajouté avec lui).
 
+La même chose est disponible dans le navigateur : l'entrée **Magasin** du menu latéral (réservée aux
+administrateurs) liste les modules avec leur état et s'ils conviennent à cette machine (un module qui
+demande plus de mémoire ou un GPU que vous n'avez pas est grisé, avec la raison), et son panneau
+installe ou retire un module : vous voyez d'abord ce qui va se passer, vous choisissez quand plusieurs
+modules peuvent fournir la même chose, vous confirmez quand retirer un module en emporte d'autres, et
+vous suivez les étapes en direct.
+
 Le gestionnaire garde les secrets des modules dans un coffre chiffré dont la clé vit dans le volume
 Docker `cobble-module-keys`. `cobble uninstall --keep-data` conserve ce volume; sans cette option, la
 clé et les secrets des modules sont supprimés ensemble. Si la clé est perdue alors que les modules

@@ -1,4 +1,5 @@
 import {
+  Blocks,
   Bot,
   ChevronDown,
   ChevronRight,
@@ -101,7 +102,14 @@ function ProjectRow({ project, actions }: { project: Project; actions: SidebarAc
   );
 }
 
-export function Sidebar({ actions }: { actions: SidebarActions }) {
+export function Sidebar({
+  actions,
+  showStore = false,
+}: {
+  actions: SidebarActions;
+  /** Administrators only: the Store installs software on the machine. */
+  showStore?: boolean;
+}) {
   const { t } = useTranslation(["shell", "common"]);
   const { folders, projects, loading } = useWorkspace();
   const [query, setQuery] = useState("");
@@ -140,6 +148,9 @@ export function Sidebar({ actions }: { actions: SidebarActions }) {
     { to: "/agents", icon: Bot, label: t("shell:sidebar.agents"), id: "agents" },
     { to: "/demos", icon: MonitorPlay, label: t("shell:sidebar.demos"), id: "demos" },
     { to: "/costs", icon: Coins, label: t("shell:sidebar.costs"), id: "costs" },
+    ...(showStore
+      ? [{ to: "/store", icon: Blocks, label: t("shell:sidebar.store"), id: "store" }]
+      : []),
   ];
 
   return (

@@ -13,7 +13,8 @@
     "global": "Vues globales",
     "agents": "Agents",
     "demos": "Démos",
-    "costs": "Coûts"
+    "costs": "Coûts",
+    "store": "Magasin"
   },
   "topbar": {
     "projectSelector": "Projet",

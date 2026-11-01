@@ -4,6 +4,10 @@ import type {
   Folder,
   GlobalCostRow,
   Milestone,
+  ModuleCatalog,
+  ModuleOperation,
+  ModuleOperationRequest,
+  ModulePlan,
   Plan,
   Project,
   ProjectCosts,
@@ -90,4 +94,15 @@ export const demoApi = {
 export const costsApi = {
   project: (id: string) => api.get<ProjectCosts>(`/projects/${id}/costs`),
   all: () => api.get<GlobalCostRow[]>("/costs"),
+};
+
+export const modulesApi = {
+  catalog: () => api.get<ModuleCatalog>("/modules"),
+  /** What an install or removal would do; changes nothing. */
+  plan: (request: ModuleOperationRequest) => api.post<ModulePlan>("/modules/plan", request),
+  start: (request: ModuleOperationRequest) =>
+    api.post<{ operation_id: string }>("/modules/operations", request),
+  operation: (id: string) => api.get<ModuleOperation>(`/modules/operations/${id}`),
+  /** Which secrets of a module are set (never their values). */
+  secrets: (id: string) => api.get<Record<string, boolean>>(`/modules/${id}/secrets`),
 };

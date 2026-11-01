@@ -1,0 +1,101 @@
+{
+  "title": "Magasin",
+  "description": "Installez les logiciels sur lesquels Cobble s'appuie : le serveur Git, la CI, le serveur de modèles…",
+  "search": "Rechercher des modules",
+  "searchPlaceholder": "Rechercher…",
+  "categoryLabel": "Catégorie",
+  "allCategories": "Toutes les catégories",
+  "category": {
+    "git": "Git",
+    "ci": "CI",
+    "llm": "Modèles de langage"
+  },
+  "state": {
+    "none": "Non installé",
+    "running": "Installé",
+    "installing": "Installation…",
+    "removing": "Retrait…",
+    "failed": "En échec"
+  },
+  "fit": {
+    "ok": "Convient à cette machine",
+    "okVariant": "Convient à cette machine (variante : {{variant}})",
+    "no": "Ne convient pas à cette machine",
+    "ram": "il faut {{needed}} Mo de mémoire, cette machine en a {{have}} Mo",
+    "gpu": "il faut {{needed}}, cette machine a {{have}}"
+  },
+  "gpu": {
+    "none": "aucun GPU",
+    "nvidia": "un GPU NVIDIA",
+    "amd": "un GPU AMD",
+    "any": "un GPU",
+    "optional": "un GPU"
+  },
+  "emptyCatalog": "Le catalogue est vide.",
+  "noMatch": "Aucun module ne correspond à votre recherche.",
+  "listLabel": "Modules",
+  "forbidden": "Seul un administrateur peut utiliser le Magasin.",
+  "banner": "{{module}} en cours… ouvrir pour suivre",
+  "bannerFailed": "L'opération sur {{module}} a échoué : ouvrir pour voir pourquoi",
+  "sheet": {
+    "version": "Version",
+    "license": "Licence",
+    "category": "Catégorie",
+    "provides": "Fournit",
+    "requires": "Nécessite",
+    "hostAccess": "Accès spécial",
+    "dockerSocket": "Démarre des conteneurs sur cette machine (Docker)",
+    "open": "Ouvrir",
+    "newTab": "(s'ouvre dans un nouvel onglet)",
+    "secrets": "Secrets",
+    "secretSet": "défini",
+    "secretUnset": "non défini",
+    "lastError": "Dernière erreur : {{reason}}"
+  },
+  "flow": {
+    "label": "Étapes de l'installation",
+    "planning": "Vérification de ce qui est nécessaire…",
+    "choose": "Plusieurs modules peuvent fournir « {{capability}} ». Lequel voulez-vous ?",
+    "continue": "Continuer",
+    "cascade": "Retirer ce module retire aussi les modules qui en dépendent : {{modules}}.",
+    "cascadeConfirm": "Les retirer aussi",
+    "preview": "Cela va :",
+    "action": {
+      "install": "Installer",
+      "uninstall": "Retirer"
+    },
+    "autoAdded": "Également installés car ils sont nécessaires :",
+    "autoRemoved": "Également retirés car plus rien n'en a besoin :",
+    "replaced": "Remplace :",
+    "go": {
+      "install": "Installer",
+      "uninstall": "Désinstaller"
+    },
+    "running": "En cours… cela peut prendre plusieurs minutes (images et modèles à télécharger).",
+    "undoing": "annulation",
+    "done": "Terminé.",
+    "nothing": "Rien à faire : les modules sont déjà dans l'état demandé.",
+    "failedAt": "Échec sur « {{module}} », étape « {{step}} » : {{reason}}",
+    "rolledBack": "Annulé : {{modules}}. Rien n'est resté à moitié installé.",
+    "partial": "Certains retraits étaient déjà faits avant l'échec.",
+    "dismiss": "OK"
+  },
+  "step": {
+    "names": {
+      "record": "Enregistrement du module",
+      "hardware": "Vérification de la machine",
+      "secrets": "Génération des secrets",
+      "pre_up": "Préparation",
+      "render": "Lecture de la description du module",
+      "up": "Démarrage des conteneurs",
+      "post_install": "Configuration",
+      "register_core": "Déclaration auprès de Cobble",
+      "health": "Attente que le module soit en bonne santé",
+      "route": "Publication de son adresse web",
+      "gateway": "Transmission de ses modèles à la passerelle",
+      "link": "Connexion aux autres modules",
+      "down": "Arrêt des conteneurs",
+      "pre_uninstall": "Nettoyage"
+    }
+  }
+}

@@ -4,7 +4,7 @@ import type { Lang } from "../i18n";
 export interface User {
   id: string;
   email: string;
-  role: "admin";
+  role: "admin" | "user";
   lang: Lang;
   theme: ThemeMode;
 }
@@ -184,4 +184,108 @@ export interface GlobalCostRow {
   spent_usd: string;
   budget_usd: string | null;
   status: "active" | "paused";
+}
+
+// --- Modules (the Store) -------------------------------------------------------------------------
+
+export type ModuleState = "installing" | "running" | "removing" | "failed";
+
+/** Why a module does not fit this machine: `ram` (MB) or `gpu` (kind). */
+export interface ModuleProblem {
+  code: "ram" | "gpu";
+  needed: string;
+  have: string;
+}
+
+export interface ModuleHardware {
+  ok: boolean;
+  variant: string | null;
+  problems: ModuleProblem[];
+}
+
+export interface ModuleInstalled {
+  state: ModuleState;
+  explicit: boolean;
+  variant: string | null;
+  version: string;
+  error: string | null;
+}
+
+export interface ModuleEntry {
+  id: string;
+  name: string;
+  version: string;
+  category: string;
+  description: { fr: string; en: string };
+  license: string;
+  provides: string[];
+  requires: string[];
+  exclusive: string[];
+  variants: string[];
+  web_ui: { service: string; port: number; path: string; strip_prefix: boolean } | null;
+  secrets: string[];
+  host_access: string[];
+  offline: boolean;
+  hardware: ModuleHardware;
+  installed: ModuleInstalled | null;
+}
+
+export interface ModuleCatalog {
+  modules: ModuleEntry[];
+  hardware: { ram_mb: number; gpu: string };
+}
+
+export type ModuleAction = "install" | "uninstall";
+
+export interface ModuleOperationRequest {
+  action: ModuleAction;
+  modules: string[];
+  choices?: Record<string, string>;
+  replace?: boolean;
+  confirm_cascade?: boolean;
+}
+
+export interface ModuleLink {
+  consumer: string;
+  provider: string;
+  capability: string;
+}
+
+export interface ModulePlan {
+  steps: { action: ModuleAction; module: string }[];
+  explicit: string[];
+  installed: string[];
+  auto_added: string[];
+  cascade: string[];
+  replaced: string[];
+  auto_removed: string[];
+  links_added: ModuleLink[];
+  links_removed: ModuleLink[];
+}
+
+export interface ModuleOperationError {
+  module: string | null;
+  step: string | null;
+  code: string;
+  rolled_back?: string[];
+  partial?: boolean;
+}
+
+export interface ModuleOperation {
+  id: string;
+  action: ModuleAction;
+  modules: string[];
+  state: "running" | "done" | "failed";
+  plan: ModulePlan | null;
+  error: ModuleOperationError | null;
+}
+
+/** `module.step` of the modules stream: one step of an install or removal. */
+export interface ModuleStepEvent {
+  operation_id: string | null;
+  module: string;
+  kind: string;
+  step: string | null;
+  ok: boolean;
+  code: string | null;
 }
