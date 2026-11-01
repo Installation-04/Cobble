@@ -26,7 +26,7 @@ lint-backend:
 	cd providers/fake-llm && uv run --quiet mypy
 	cd packs/v01/agent-service && uv run --quiet ruff check . && uv run --quiet ruff format --check . && uv run --quiet mypy
 	cd packs/v01/preview-service && uv run --quiet ruff check . && uv run --quiet ruff format --check . && uv run --quiet mypy
-	cd sdk && uv run --quiet ruff check . && uv run --quiet ruff format --check . && uv run --quiet mypy && uv run --quiet python -m cobble_sdk.schema --check
+	cd sdk && uv run --quiet ruff check . && uv run --quiet ruff format --check . && uv run --quiet mypy && uv run --quiet python -m cobble_sdk.schema --check && uv run --quiet python -m cobble_sdk lint ../catalog --no-compose
 
 lint-ui:
 	cd ui && pnpm run lint && pnpm run format:check && pnpm run typecheck

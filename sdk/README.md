@@ -18,4 +18,19 @@ manifest = load_manifest("catalog/forgejo/manifest.yaml")  # raises ManifestErro
 - `schema/manifest.schema.json` is generated: `uv run python -m cobble_sdk.schema` (CI runs `--check`).
 
 This package must never import anything from the AGPL `cobble` package (a test enforces it).
-Planned next: the dependency resolver, the compose rewriter, and the `cobble-sdk init|lint|test` CLI.
+## Writing a module: `cobble-sdk`
+
+```bash
+uv run cobble-sdk init my-module --dir catalog   # a skeleton: manifest.yaml + compose.yml
+uv run cobble-sdk lint catalog/my-module         # manifest, files, hooks, platform compose rules
+uv run cobble-sdk test catalog/my-module         # install and remove it on sample machines
+```
+
+- `lint` checks the manifest, that the compose files and hooks exist (hooks executable), that no
+  placeholder digest is left, and the platform rules on the compose file as Docker resolves it
+  (`docker compose config`; without Docker it says the rules were not checked, or use `--no-compose`).
+  Give it a catalogue directory to check every module in it.
+- `test` resolves the module against its sibling modules (or `--catalog DIR`) on five sample machines
+  (1/4/16 GB, NVIDIA, AMD): it must install, or declare that it does not fit, and removing it must
+  leave nothing behind.
+- Exit codes: 0 fine, 1 problems found, 2 usage.
