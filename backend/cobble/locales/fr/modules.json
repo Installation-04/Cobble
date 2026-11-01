@@ -84,7 +84,18 @@
       "still_running": "Toujours en cours après une heure (opération {id}). Elle continue en arrière-plan : vérifiez avec cobble modules list.",
       "unavailable": "Le gestionnaire de modules n'est pas démarré ou ne répond pas.",
       "bad_choose": "--choose attend CAPACITÉ=MODULE.",
-      "working_remove": "En cours…"
+      "working_remove": "En cours…",
+      "pack": {
+        "recommended": "recommandé pour cette machine",
+        "installed": "installé",
+        "todo": "non installé",
+        "modules": "modules",
+        "empty": "Il n'y a aucun pack de départ.",
+        "unknown": "Aucun pack de départ nommé « {pack} ». Voir : cobble modules packs",
+        "nothing": "Nommez au moins un module, ou choisissez un pack de départ avec --pack.",
+        "no_fit": "Le pack « {pack} » ne convient pas à cette machine ({problems}).",
+        "ignored": "Le pack « {pack} » est inutilisable et a été ignoré : {problems}"
+      }
     }
   }
 }

@@ -21,6 +21,8 @@ from cobble_sdk import (
     UnknownModule,
     Unsatisfiable,
     choose_variant,
+    pack_fit,
+    recommend,
 )
 from cobble_sdk.resolve import InvalidChoice
 from fastapi import Depends, FastAPI, Header, Request
@@ -175,6 +177,43 @@ def create_app(
             "problems": catalog.problems() if catalog is not None else {},
             "hardware": {"ram_mb": manager.hardware.ram_mb, "gpu": manager.hardware.gpu},
         }
+
+    @app.get("/v1/packs", dependencies=[auth])
+    def get_packs() -> dict[str, Any]:
+        """The starter packs: what each contains, whether it fits this machine, which one is
+        proposed first, and how much of it is already installed."""
+        if catalog is None:
+            return {"packs": [], "problems": {}, "recommended": None}
+        packs, problems = catalog.packs()
+        manager = controller.manager
+        manifests = manager.catalog()
+        states = manager.states()
+        recommended = recommend(packs, manifests, manager.hardware)
+        entries = []
+        for pack in sorted(packs.values(), key=lambda p: (-p.priority, p.id)):
+            fit = pack_fit(pack, manifests, manager.hardware)
+            running = [m for m in pack.modules if states.get(m, {}).get("state") == "running"]
+            entries.append(
+                {
+                    "id": pack.id,
+                    "name": pack.name.model_dump(),
+                    "description": pack.description.model_dump(),
+                    "modules": list(pack.modules),
+                    "hardware": pack.hardware.model_dump(),
+                    "priority": pack.priority,
+                    "fit": {
+                        "ok": fit.ok,
+                        "problems": [
+                            {"module": p.module, "code": p.code, "needed": p.needed, "have": p.have}
+                            for p in fit.problems
+                        ],
+                    },
+                    "recommended": pack.id == recommended,
+                    "installed": len(running) == len(pack.modules),
+                    "installed_modules": running,
+                }
+            )
+        return {"packs": entries, "problems": problems, "recommended": recommended}
 
     @app.post("/v1/plan", dependencies=[auth])
     def post_plan(body: OperationBody) -> dict[str, Any]:

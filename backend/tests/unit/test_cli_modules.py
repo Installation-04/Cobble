@@ -57,6 +57,7 @@ class FakeAPI:
         self.started: list[dict[str, Any]] = []
         self.start_error: Exception | None = None
         self.down = False
+        self.pack_body: dict[str, Any] = {"packs": [], "problems": {}, "recommended": None}
 
     def _check(self) -> None:
         if self.down:
@@ -87,6 +88,10 @@ class FakeAPI:
 
     def secret_status(self, module_id: str) -> dict[str, bool]:
         return self.secrets
+
+    def packs(self) -> dict[str, Any]:
+        self._check()
+        return self.pack_body
 
 
 class Rig:
@@ -473,3 +478,121 @@ def test_a_removal_does_not_talk_about_downloads() -> None:
     install.api.operations = [DONE]
     install.go("install", "x", "--yes")
     assert "downloaded" in install.said
+
+
+# --- starter packs ------------------------------------------------------------------------------
+
+
+def pack(pack_id: str, modules: list[str], *, fits: bool = True, **over: Any) -> dict[str, Any]:
+    return {
+        "id": pack_id,
+        "name": {"en": f"{pack_id} name", "fr": f"{pack_id} nom"},
+        "description": {"en": f"{pack_id} in English", "fr": f"{pack_id} en français"},
+        "modules": modules,
+        "fit": {
+            "ok": fits,
+            "problems": []
+            if fits
+            else [
+                {"module": None, "code": "gpu", "needed": "any", "have": "none"},
+                {"module": "ollama", "code": "ram", "needed": "4096", "have": "2048"},
+            ],
+        },
+        "recommended": False,
+        "installed": False,
+        **over,
+    }
+
+
+def test_packs_are_listed_with_their_fit_and_what_is_proposed() -> None:
+    rig = Rig()
+    rig.api.pack_body = {
+        "packs": [
+            pack("local-cpu", ["forgejo", "ollama"], recommended=True),
+            pack("local-gpu", ["forgejo", "ollama"], fits=False),
+            pack("api-only", ["forgejo"], installed=True),
+        ],
+        "problems": {},
+        "recommended": "local-cpu",
+    }
+    assert rig.go("packs") == 0
+    text = rig.said
+    assert (
+        "local-cpu name  [recommended for this machine, not installed]  fits this machine" in text
+    )
+    assert (
+        "does not fit this machine (gpu: needs any, has none; ollama: ram: needs 4096, has 2048)"
+        in text
+    )
+    assert "[installed]" in text and "modules: forgejo, ollama" in text
+    assert "local-cpu in English" in text
+
+
+def test_packs_in_french_and_when_there_are_none() -> None:
+    rig = Rig(lang="fr")
+    rig.api.pack_body = {"packs": [pack("p", ["forgejo"], recommended=True)], "problems": {}}
+    rig.go("packs")
+    assert "p nom" in rig.said and "recommandé pour cette machine" in rig.said
+    assert "p en français" in rig.said
+    empty = Rig()
+    empty.go("packs")
+    assert "no starter pack" in empty.said
+
+
+def test_a_pack_that_cannot_be_used_is_reported_not_hidden() -> None:
+    rig = Rig()
+    rig.api.pack_body = {"packs": [], "problems": {"ghosts": ["unknown module: ghost"]}}
+    rig.go("packs")
+    assert "“ghosts” is not usable" in rig.warned and "unknown module: ghost" in rig.warned
+
+
+def test_installing_a_pack_installs_all_its_modules_in_one_operation() -> None:
+    rig = Rig()
+    rig.api.pack_body = {"packs": [pack("api-only", ["forgejo", "woodpecker"])], "problems": {}}
+    rig.api.plans = [plan(("install", "forgejo"), ("install", "woodpecker"))]
+    rig.api.operations = [DONE]
+    assert rig.go("install", "--pack", "api-only", "--yes") == 0
+    assert rig.api.bodies[0]["modules"] == ["forgejo", "woodpecker"]
+    assert rig.api.started[0]["modules"] == ["forgejo", "woodpecker"]
+
+
+def test_modules_named_next_to_a_pack_are_added_once() -> None:
+    rig = Rig()
+    rig.api.pack_body = {"packs": [pack("p", ["forgejo", "woodpecker"])], "problems": {}}
+    rig.api.plans = [plan(("install", "forgejo"))]
+    rig.api.operations = [DONE]
+    rig.go("install", "forgejo", "extra", "--pack", "p", "--yes")
+    assert rig.api.bodies[0]["modules"] == ["forgejo", "woodpecker", "extra"]
+
+
+def test_a_pack_that_does_not_fit_is_refused_with_the_reasons_and_nothing_is_planned() -> None:
+    rig = Rig()
+    rig.api.pack_body = {"packs": [pack("local-gpu", ["ollama"], fits=False)], "problems": {}}
+    assert rig.go("install", "--pack", "local-gpu", "--yes") == 1
+    assert "does not fit this machine" in rig.warned and "gpu: needs any, has none" in rig.warned
+    assert rig.api.bodies == [] and rig.api.started == []
+
+
+def test_an_unknown_pack_is_named() -> None:
+    rig = Rig()
+    assert rig.go("install", "--pack", "nope", "--yes") == 1
+    assert "no starter pack called “nope”" in rig.warned
+
+
+def test_install_needs_a_module_or_a_pack() -> None:
+    rig = Rig()
+    assert rig.go("install", "--yes") == 2
+    assert "Name at least one module" in rig.warned
+    assert rig.api.bodies == []
+
+
+def test_uninstall_still_needs_a_module() -> None:
+    with pytest.raises(SystemExit):
+        Rig().go("uninstall", "--yes")
+
+
+def test_an_unreachable_manager_is_reported_for_packs_too() -> None:
+    for argv in (["packs"], ["install", "--pack", "p", "--yes"]):
+        rig = Rig()
+        rig.api.down = True
+        assert rig.go(*argv) == EXIT_UNAVAILABLE

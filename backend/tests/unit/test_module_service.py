@@ -561,3 +561,147 @@ def test_a_flavour_with_its_own_compose_file_is_rendered_from_it(tmp_path: Path)
     for variant in ("nvidia", "cpu", None):
         catalog.compose("gpu", variant, {})
     assert seen == ["compose.nvidia.yml", "compose.yml", "compose.yml"]
+
+
+# --- starter packs ------------------------------------------------------------------------------
+
+
+class StubPacks:
+    """What the service needs of the on-disk catalogue to serve packs."""
+
+    def __init__(self, packs: dict[str, Any], problems: dict[str, list[str]] | None = None) -> None:
+        self._packs = packs
+        self._problems = problems or {}
+
+    def packs(self) -> tuple[dict[str, Any], dict[str, list[str]]]:
+        return self._packs, self._problems
+
+    def problems(self) -> dict[str, list[str]]:
+        return {}
+
+
+def pack_service(ram_mb: int = 16384, gpu: str = "none") -> tuple[Service, TestClient]:
+    from cobble_sdk import parse_pack
+
+    from .test_module_manager import Rig
+
+    rig = Rig(modules=[FORGEJO, WOODPECKER, OLLAMA], hardware=Hardware(ram_mb=ram_mb, gpu=gpu))  # type: ignore[arg-type]
+    svc = Service(rig)
+
+    def pack(pack_id: str, modules: list[str], priority: int, **hardware: Any) -> Any:
+        return parse_pack(
+            {
+                "id": pack_id,
+                "name": {"fr": f"{pack_id} fr", "en": f"{pack_id} en"},
+                "description": {"fr": "d", "en": "d"},
+                "modules": modules,
+                "priority": priority,
+                "hardware": hardware,
+            }
+        )
+
+    packs = {
+        "local": pack("local", ["forgejo", "woodpecker", "ollama"], 20, min_ram_mb=8192),
+        "api": pack("api", ["forgejo", "woodpecker"], 10, min_ram_mb=4096),
+    }
+    client = TestClient(create_app(svc.controller, TOKEN, StubPacks(packs)))  # type: ignore[arg-type]
+    return svc, client
+
+
+def get_packs(client: TestClient) -> dict[str, Any]:
+    response = client.get("/v1/packs", headers=AUTH)
+    assert response.status_code == 200
+    body: dict[str, Any] = response.json()
+    return body
+
+
+def test_packs_are_listed_best_first_with_their_fit_and_the_recommendation() -> None:
+    _svc, client = pack_service()
+    body = get_packs(client)
+    assert [p["id"] for p in body["packs"]] == ["local", "api"]
+    assert body["recommended"] == "local"
+    local, api = body["packs"]
+    assert local["recommended"] is True and api["recommended"] is False
+    assert local["fit"] == {"ok": True, "problems": []}
+    assert local["modules"] == ["forgejo", "woodpecker", "ollama"]
+    assert local["name"] == {"fr": "local fr", "en": "local en"}
+    assert local["hardware"]["min_ram_mb"] == 8192 and local["installed"] is False
+
+
+def test_a_small_machine_gets_the_light_pack_and_the_reasons_for_the_other() -> None:
+    _svc, client = pack_service(ram_mb=6000)
+    body = get_packs(client)
+    assert body["recommended"] == "api"
+    local = next(p for p in body["packs"] if p["id"] == "local")
+    assert local["fit"]["ok"] is False
+    assert {"module": None, "code": "ram", "needed": "8192", "have": "6000"} in local["fit"][
+        "problems"
+    ]
+
+
+def test_a_machine_too_small_for_anything_is_proposed_nothing() -> None:
+    _svc, client = pack_service(ram_mb=1024)
+    body = get_packs(client)
+    assert body["recommended"] is None and all(not p["fit"]["ok"] for p in body["packs"])
+
+
+def test_a_pack_is_installed_when_all_its_modules_run() -> None:
+    svc, client = pack_service()
+    svc.post("/v1/operations", {"action": "install", "modules": ["forgejo", "woodpecker"]})
+    body = get_packs(client)
+    api = next(p for p in body["packs"] if p["id"] == "api")
+    local = next(p for p in body["packs"] if p["id"] == "local")
+    assert api["installed"] is True and api["installed_modules"] == ["forgejo", "woodpecker"]
+    assert local["installed"] is False and local["installed_modules"] == ["forgejo", "woodpecker"]
+
+
+def test_a_pack_can_be_installed_with_one_operation_of_its_modules() -> None:
+    svc, client = pack_service()
+    modules = get_packs(client)["packs"][0]["modules"]
+    response = svc.post("/v1/operations", {"action": "install", "modules": modules})
+    assert response.status_code == 202
+    assert all(
+        entry["installed"]["state"] == "running"
+        for entry in svc.get("/v1/catalog").json()["modules"]
+    )
+
+
+def test_pack_problems_are_passed_on_and_the_endpoint_needs_the_token() -> None:
+    svc = Service()
+    stub = StubPacks({}, {"broken": ["modules: unknown module: ghost"]})
+    client = TestClient(create_app(svc.controller, TOKEN, stub))  # type: ignore[arg-type]
+    body = get_packs(client)
+    assert body == {
+        "packs": [],
+        "problems": {"broken": ["modules: unknown module: ghost"]},
+        "recommended": None,
+    }
+    assert client.get("/v1/packs").status_code == 401
+    # without an on-disk catalogue there are simply no packs
+    assert svc.get("/v1/packs").json() == {"packs": [], "problems": {}, "recommended": None}
+
+
+def test_the_disk_catalogue_serves_only_packs_that_work_with_it(tmp_path: Path) -> None:
+    write_module(tmp_path, "good")
+    packs_dir = tmp_path / "packs"
+    packs_dir.mkdir()
+
+    def pack_file(name: str, modules: list[str]) -> None:
+        (packs_dir / f"{name}.yaml").write_text(
+            yaml.safe_dump(
+                {
+                    "id": name,
+                    "name": {"fr": "x", "en": "x"},
+                    "description": {"fr": "x", "en": "x"},
+                    "modules": modules,
+                }
+            )
+        )
+
+    pack_file("works", ["good"])
+    pack_file("ghosts", ["good", "ghost"])
+    (packs_dir / "broken.yaml").write_text("id: broken\n")
+    packs, problems = DiskCatalog(tmp_path, lambda *a: {}).packs()
+    assert set(packs) == {"works"}
+    assert problems["ghosts"] == ["unknown module: ghost"]
+    assert "broken" in problems

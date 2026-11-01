@@ -1,0 +1,94 @@
+{
+  "$defs": {
+    "Hardware": {
+      "additionalProperties": false,
+      "properties": {
+        "gpu": {
+          "default": "none",
+          "enum": [
+            "none",
+            "optional",
+            "nvidia",
+            "amd",
+            "any"
+          ],
+          "title": "Gpu",
+          "type": "string"
+        },
+        "min_ram_mb": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Min Ram Mb",
+          "type": "integer"
+        }
+      },
+      "title": "Hardware",
+      "type": "object"
+    },
+    "Localized": {
+      "additionalProperties": false,
+      "description": "A user-visible text in both supported languages.",
+      "properties": {
+        "en": {
+          "minLength": 1,
+          "title": "En",
+          "type": "string"
+        },
+        "fr": {
+          "minLength": 1,
+          "title": "Fr",
+          "type": "string"
+        }
+      },
+      "required": [
+        "fr",
+        "en"
+      ],
+      "title": "Localized",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "description": {
+      "$ref": "#/$defs/Localized"
+    },
+    "hardware": {
+      "$ref": "#/$defs/Hardware"
+    },
+    "id": {
+      "pattern": "^[a-z][a-z0-9-]{1,39}$",
+      "title": "Id",
+      "type": "string"
+    },
+    "modules": {
+      "items": {
+        "pattern": "^[a-z][a-z0-9-]{1,39}$",
+        "type": "string"
+      },
+      "maxItems": 20,
+      "minItems": 1,
+      "title": "Modules",
+      "type": "array"
+    },
+    "name": {
+      "$ref": "#/$defs/Localized"
+    },
+    "priority": {
+      "default": 0,
+      "maximum": 100,
+      "minimum": 0,
+      "title": "Priority",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "description",
+    "modules"
+  ],
+  "title": "Cobble starter pack",
+  "type": "object"
+}

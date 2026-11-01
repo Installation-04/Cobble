@@ -1,0 +1,13 @@
+# Language models run on this machine's graphics card: the fastest private option.
+id: local-gpu
+name:
+  en: Local GPU
+  fr: GPU local
+description:
+  en: Git server, CI and a language-model server that uses this machine's graphics card. Nothing leaves the machine and there is no per-token cost.
+  fr: Serveur Git, CI et serveur de modèles de langage qui utilise la carte graphique de cette machine. Rien ne sort de la machine et il n'y a aucun coût par jeton.
+modules: [forgejo, woodpecker, ollama]
+hardware:
+  min_ram_mb: 8192
+  gpu: any
+priority: 30

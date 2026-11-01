@@ -74,6 +74,10 @@ class HttpModuleManager:
         result: dict[str, Any] = self._request("GET", "/v1/catalog")
         return result
 
+    def packs(self) -> dict[str, Any]:
+        result: dict[str, Any] = self._request("GET", "/v1/packs")
+        return result
+
     def plan(self, body: dict[str, Any]) -> dict[str, Any]:
         result: dict[str, Any] = self._request("POST", "/v1/plan", json=body)
         return result

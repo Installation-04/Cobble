@@ -86,6 +86,7 @@ ROUTES = [
     ("POST", f"{API}/operations"),
     ("GET", f"{API}/operations/abc"),
     ("GET", f"{API}/stream"),
+    ("GET", f"{API}/packs"),
     ("GET", f"{API}/forgejo/secrets"),
 ]
 BODY = {"action": "install", "modules": ["forgejo"]}
@@ -331,3 +332,27 @@ def test_every_refusal_and_failure_code_has_a_translation_in_both_languages() ->
         missing += [f"module_code_{c}" for c in step_codes if f"module_code_{c}" not in messages]
         assert missing == [], f"{lang}: untranslated {missing}"
         assert "module_code_unknown" in messages
+
+
+def test_packs_come_from_the_module_manager_untouched(stack: Stack) -> None:
+    reply = stack.api.get(f"{API}/packs")
+    assert reply.status_code == 200
+    # the in-memory service has no on-disk catalogue: no packs, but the shape is the real one
+    assert reply.json() == {"packs": [], "problems": {}, "recommended": None}
+    assert [r.url.path for r in stack.requests] == ["/v1/packs"]
+
+
+def test_packs_say_when_the_module_manager_is_down(sessions: sessionmaker[Session]) -> None:
+    built = Stack(sessions)
+    built.service.client.close()
+
+    def refuse(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("refused")
+
+    built.api = built._client(
+        HttpModuleManager("http://mm", TOKEN, transport=httpx.MockTransport(refuse))
+    )
+    built.login(built.api)
+    reply = built.api.get(f"{API}/packs")
+    assert reply.status_code == 503
+    assert reply.json()["error"]["code"] == "module_manager_unavailable"

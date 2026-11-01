@@ -91,6 +91,8 @@ later. If `ufw` is active, ports 80 and 443 are opened; SSH is not touched.
 | `cobble doctor` | check Docker, containers, HTTP health, disk, port, `.env` mode, systemd unit, GPU; each failure comes with a fix; exit code 1 if any check fails |
 | `cobble reset-admin [--yes]` | sign the admin out and print a one-use link to set a new email and password (projects and data are kept) |
 | `cobble modules list` / `status <id>` | the catalogue with each module's state and whether it fits this machine; the details of one module (which secrets are set, never their values) |
+| `cobble modules packs` | the starter packs (a ready-made set of modules), whether each fits this machine, and which one is recommended |
+| `cobble modules install --pack <id>` | install a starter pack: all its modules in one go |
 | `cobble modules install <id>... [--yes] [--choose capability=module] [--replace]` | install modules; what they need is added automatically, you are shown the plan and asked first |
 | `cobble modules uninstall <id>... [--yes]` | remove modules; if other modules depend on them you are asked about those too |
 | `cobble uninstall [--keep-data] [--yes]` | stop and remove Cobble. `--keep-data` keeps `.env` and the data volumes |

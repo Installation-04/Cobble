@@ -84,7 +84,18 @@
       "still_running": "Still running after an hour (operation {id}). It continues in the background: check with cobble modules list.",
       "unavailable": "The module-manager is not running or does not answer.",
       "bad_choose": "--choose expects CAPABILITY=MODULE.",
-      "working_remove": "Working…"
+      "working_remove": "Working…",
+      "pack": {
+        "recommended": "recommended for this machine",
+        "installed": "installed",
+        "todo": "not installed",
+        "modules": "modules",
+        "empty": "There is no starter pack.",
+        "unknown": "There is no starter pack called “{pack}”. See: cobble modules packs",
+        "nothing": "Name at least one module, or choose a starter pack with --pack.",
+        "no_fit": "The pack “{pack}” does not fit this machine ({problems}).",
+        "ignored": "The pack “{pack}” is not usable and was ignored: {problems}"
+      }
     }
   }
 }

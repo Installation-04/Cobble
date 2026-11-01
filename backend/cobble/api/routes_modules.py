@@ -67,6 +67,11 @@ def list_modules(_admin: AdminUser, manager: Manager) -> dict[str, Any]:
     return _call(manager.catalog)
 
 
+@router.get("/modules/packs")
+def list_packs(_admin: AdminUser, manager: Manager) -> dict[str, Any]:
+    return _call(manager.packs)
+
+
 @router.post("/modules/plan")
 def plan(body: OperationBody, _admin: AdminUser, manager: Manager) -> dict[str, Any]:
     return _call(lambda: manager.plan(body.model_dump()))

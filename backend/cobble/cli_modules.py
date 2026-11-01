@@ -32,19 +32,24 @@ class ManagerAPI(Protocol):
     def start_operation(self, body: dict[str, Any]) -> str: ...
     def operation(self, operation_id: str) -> dict[str, Any]: ...
     def secret_status(self, module_id: str) -> dict[str, bool]: ...
+    def packs(self) -> dict[str, Any]: ...
 
 
 def add_parser(sub: Any) -> None:
     modules = sub.add_parser("modules")
     actions = modules.add_subparsers(dest="action", required=True)
     actions.add_parser("list")
+    actions.add_parser("packs")
     status = actions.add_parser("status")
     status.add_argument("module")
     for name in ("install", "uninstall"):
         action = actions.add_parser(name)
-        action.add_argument("modules", nargs="+")
+        action.add_argument("modules", nargs="*" if name == "install" else "+")
         action.add_argument("--yes", action="store_true", help="do not ask for confirmation")
     install = actions.choices["install"]
+    install.add_argument(
+        "--pack", metavar="PACK", help="install a starter pack (see `cobble modules packs`)"
+    )
     install.add_argument(
         "--choose",
         action="append",
@@ -124,6 +129,69 @@ def _list(api: ManagerAPI, term: Terminal, lang: str) -> int:
             )
         )
     return 0
+
+
+def _pack_problems(pack: Mapping[str, Any], lang: str) -> str:
+    parts = []
+    for problem in pack.get("fit", {}).get("problems", []):
+        text = t(
+            "cli.modules.problem",
+            lang,
+            code=problem["code"],
+            needed=problem["needed"],
+            have=problem["have"],
+        )
+        parts.append(f"{problem['module']}: {text}" if problem.get("module") else text)
+    return "; ".join(parts)
+
+
+def _packs(api: ManagerAPI, term: Terminal, lang: str) -> int:
+    body = api.packs()
+    packs = body.get("packs", [])
+    for pack_id, issues in sorted(body.get("problems", {}).items()):
+        term.warn(t("cli.modules.pack.ignored", lang, pack=pack_id, problems="; ".join(issues)))
+    if not packs:
+        term.say(t("cli.modules.pack.empty", lang))
+        return 0
+    for pack in packs:
+        marks = []
+        if pack.get("recommended"):
+            marks.append(t("cli.modules.pack.recommended", lang))
+        marks.append(
+            t(
+                "cli.modules.pack.installed" if pack.get("installed") else "cli.modules.pack.todo",
+                lang,
+            )
+        )
+        fit = (
+            t("cli.modules.fit.ok", lang)
+            if pack["fit"]["ok"]
+            else t("cli.modules.fit.no", lang, problems=_pack_problems(pack, lang))
+        )
+        name = pack["name"].get(lang) or pack["name"].get("en", "")
+        term.say(f"{pack['id']:<12} {name}  [{', '.join(marks)}]  {fit}")
+        description = pack["description"].get(lang) or pack["description"].get("en", "")
+        term.say(f"             {description}")
+        term.say(
+            f"             {t('cli.modules.pack.modules', lang)}: {', '.join(pack['modules'])}"
+        )
+    return 0
+
+
+def _pack_modules(
+    api: ManagerAPI, term: Terminal, lang: str, pack_id: str, extra: list[str]
+) -> list[str] | None:
+    """The modules of a pack (and any named next to it), or None when it cannot be installed."""
+    pack = next((p for p in api.packs().get("packs", []) if p["id"] == pack_id), None)
+    if pack is None:
+        term.warn(t("cli.modules.pack.unknown", lang, pack=pack_id))
+        return None
+    if not pack["fit"]["ok"]:
+        term.warn(
+            t("cli.modules.pack.no_fit", lang, pack=pack_id, problems=_pack_problems(pack, lang))
+        )
+        return None
+    return list(dict.fromkeys([*pack["modules"], *extra]))
 
 
 def _status(api: ManagerAPI, term: Terminal, lang: str, module_id: str) -> int:
@@ -324,18 +392,29 @@ def run(
     try:
         if args.action == "list":
             return _list(api, term, lang)
+        if args.action == "packs":
+            return _packs(api, term, lang)
         if args.action == "status":
             return _status(api, term, lang, args.module)
         choices = _parse_choices(getattr(args, "choose", []))
         if choices is None:
             term.warn(t("cli.modules.bad_choose", lang))
             return 2
+        modules = list(args.modules)
+        if getattr(args, "pack", None):
+            expanded = _pack_modules(api, term, lang, args.pack, modules)
+            if expanded is None:
+                return 1
+            modules = expanded
+        if not modules:
+            term.warn(t("cli.modules.pack.nothing", lang))
+            return 2
         return _change(
             api,
             term,
             lang,
             args.action,
-            list(args.modules),
+            modules,
             choices=choices,
             replace=getattr(args, "replace", False),
             yes=args.yes,

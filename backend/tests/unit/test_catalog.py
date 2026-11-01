@@ -137,3 +137,51 @@ def test_ollama_serves_models_through_the_gateway_with_a_flavour_per_kind_of_har
         "nvidia": "compose.nvidia.yml",
         "amd": "compose.amd.yml",
     }
+
+
+# --- starter packs ------------------------------------------------------------------------------
+
+
+def _manifests() -> dict[str, Manifest]:
+    return {p.name: load_manifest(p / "manifest.yaml") for p in MODULES}
+
+
+def test_every_starter_pack_is_valid_and_installs_with_nothing_left_to_choose() -> None:
+    from cobble_sdk import check_pack, load_packs
+
+    packs, problems = load_packs(CATALOG / "packs")
+    assert problems == {}
+    assert set(packs) == {"local-gpu", "local-cpu", "api-only"}
+    for pack in packs.values():
+        assert check_pack(pack, _manifests()) == [], pack.id
+        assert pack.name.en and pack.name.fr and pack.description.en and pack.description.fr
+
+
+@pytest.mark.parametrize(
+    ("ram_mb", "gpu", "expected"),
+    [
+        (32768, "nvidia", "local-gpu"),
+        (16384, "amd", "local-gpu"),
+        (16384, "none", "local-cpu"),
+        (8192, "none", "local-cpu"),
+        (6144, "none", "api-only"),
+        (4096, "none", "api-only"),
+        (2048, "none", None),
+    ],
+)
+def test_the_pack_proposed_for_a_machine_follows_what_it_has(
+    ram_mb: int, gpu: str, expected: str | None
+) -> None:
+    from cobble_sdk import Hardware, load_packs, recommend
+
+    packs, _ = load_packs(CATALOG / "packs")
+    assert recommend(packs, _manifests(), Hardware(ram_mb=ram_mb, gpu=gpu)) == expected  # type: ignore[arg-type]
+
+
+def test_the_local_packs_use_the_flavour_of_ollama_that_matches_the_machine() -> None:
+    from cobble_sdk import Hardware, choose_variant
+
+    ollama = _manifests()["ollama"]
+    assert choose_variant(ollama, Hardware(ram_mb=16384, gpu="nvidia")).id == "nvidia"  # type: ignore[union-attr]
+    assert choose_variant(ollama, Hardware(ram_mb=16384, gpu="amd")).id == "amd"  # type: ignore[union-attr]
+    assert choose_variant(ollama, Hardware(ram_mb=16384, gpu="none")).id == "cpu"  # type: ignore[union-attr]

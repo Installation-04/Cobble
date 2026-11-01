@@ -12,7 +12,14 @@ from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Any
 
-from cobble_sdk import Manifest, ManifestError, load_manifest
+from cobble_sdk import (
+    Manifest,
+    ManifestError,
+    Pack,
+    check_pack,
+    load_manifest,
+    load_packs,
+)
 
 log = logging.getLogger(__name__)
 
@@ -51,6 +58,19 @@ class DiskCatalog:
 
     def problems(self) -> dict[str, list[str]]:
         return dict(self._problems)
+
+    def packs(self) -> tuple[dict[str, Pack], dict[str, list[str]]]:
+        """The starter packs of `<root>/packs/` that work with this catalogue, and the problems of
+        the others (an unreadable file, an unknown module, modules that cannot be installed
+        together without a choice)."""
+        packs, problems = load_packs(self._root / "packs")
+        manifests = self.manifests()
+        for pack_id, pack in list(packs.items()):
+            issues = check_pack(pack, manifests)
+            if issues:
+                problems[pack_id] = issues
+                del packs[pack_id]
+        return packs, problems
 
     def module_dir(self, module_id: str) -> str:
         return str(self._root / module_id)
