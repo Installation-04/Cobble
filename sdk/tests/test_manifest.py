@@ -195,7 +195,7 @@ def test_the_sdk_never_imports_the_agpl_core() -> None:
 
 # --- language-model backends ------------------------------------------------------------------
 
-LLM = {
+LLM: dict[str, Any] = {
     "service": "ollama",
     "port": 11434,
     "models": [
