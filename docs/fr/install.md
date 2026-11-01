@@ -91,9 +91,32 @@ version 24 ou plus. Si `ufw` est actif, les ports 80 et 443 sont ouverts; SSH n'
 | `cobble update [--source S]` | sauvegarde `.env`, puis reconstruit et redémarre (ou installe la source `S`) |
 | `cobble doctor` | vérifie Docker, conteneurs, santé HTTP, disque, port, mode de `.env`, unité systemd, GPU; chaque échec est accompagné d'un correctif; code de sortie 1 si une vérification échoue |
 | `cobble reset-admin [--yes]` | déconnecte l'admin et affiche un lien à usage unique pour définir un nouveau courriel et mot de passe (projets et données conservés) |
+| `cobble modules list` / `status <id>` | le catalogue avec l'état de chaque module et s'il convient à cette machine; le détail d'un module (quels secrets sont définis, jamais leurs valeurs) |
+| `cobble modules install <id>... [--yes] [--choose capacité=module] [--replace]` | installe des modules; ce dont ils ont besoin est ajouté automatiquement, le plan vous est montré et on vous demande d'abord |
+| `cobble modules uninstall <id>... [--yes]` | retire des modules; si d'autres modules en dépendent, on vous interroge aussi à leur sujet |
 | `cobble uninstall [--keep-data] [--yes]` | arrête et retire Cobble. `--keep-data` garde `.env` et les volumes de données |
 | `cobble version` | versions |
 | `cobble backup`, `cobble restore` | pas encore disponibles |
+
+### Modules
+
+Depuis la v0.2, l'installateur démarre aussi le **gestionnaire de modules**, la seule partie de
+Cobble qui parle à Docker pour installer d'autres logiciels (serveur Git, CI, serveur de modèles...).
+Il se configure dans `.env` : `MODULE_MANAGER_TOKEN` (généré, un secret), `COBBLE_CATALOG_DIR`
+(le catalogue livré dans `<dir>/src/catalog`), `DOCKER_GID` (le groupe du socket Docker) et
+`COMPOSE_PROFILES=modules`. Rien n'est installé tant que vous ne le demandez pas : essayez
+`cobble modules list`, puis par exemple `cobble modules install woodpecker` (le serveur Git dont il a
+besoin est ajouté avec lui).
+
+Le gestionnaire garde les secrets des modules dans un coffre chiffré dont la clé vit dans le volume
+Docker `cobble-module-keys`. `cobble uninstall --keep-data` conserve ce volume; sans cette option, la
+clé et les secrets des modules sont supprimés ensemble. Si la clé est perdue alors que les modules
+restent, leurs secrets enregistrés ne peuvent plus être lus : retirez puis réinstallez les modules.
+
+Si vous avez installé **le pack v0.1 à la main** (`packs/v01/hooks/install.sh`), il continue de
+fonctionner mais n'est pas géré par `cobble modules`. L'installateur le signale; retirez le pack
+(`packs/v01/hooks/uninstall.sh`) et installez les modules à la place. Rien n'est converti ni supprimé
+à votre place.
 
 ## Désinstaller
 

@@ -14,6 +14,10 @@ case "$*" in
     done
     if [ "${STUB_BAD_CONTAINER:-}" = "volume-init" ]; then echo "volume-init|exited||1"; fi
     ;;
+  *"cobble.cli modules"*)
+    echo "modules stub: $*"
+    exit "${STUB_MODULES_RC:-0}"
+    ;;
   *"cobble.cli activation-link")
     if [ -n "${STUB_NO_ADMIN_LINK:-}" ]; then exit 1; fi
     echo "Activation link: http://10.0.0.5/activate?token=stubtoken"

@@ -1,0 +1,90 @@
+{
+  "cli": {
+    "modules": {
+      "yes_no": "[y/N]",
+      "state": {
+        "none": "not installed",
+        "running": "installed",
+        "installing": "installing…",
+        "removing": "removing…",
+        "failed": "failed",
+        "unknown": "unknown"
+      },
+      "problem": "{code}: needs {needed}, has {have}",
+      "fit": {
+        "ok": "fits this machine",
+        "ok_variant": "fits this machine (flavour: {variant})",
+        "no": "does not fit this machine ({problems})"
+      },
+      "empty": "The catalogue is empty.",
+      "label": {
+        "state": "State",
+        "variant": "Flavour",
+        "error": "Last error",
+        "fit": "This machine",
+        "provides": "Provides",
+        "requires": "Needs",
+        "secrets": "Secrets"
+      },
+      "secret": {
+        "set": "set",
+        "unset": "not set"
+      },
+      "refused": {
+        "module_needs_choice": "Several modules can provide “{capability}” ({candidates}). Pick one with --choose {capability}=<module>.",
+        "module_needs_confirmation": "This also removes the modules that depend on it: {cascade}.",
+        "module_conflict": "Only one module can provide “{capability}” at a time ({modules}). Use --replace to replace the current one.",
+        "module_unsatisfiable": "“{module}” needs “{capability}”, which no module in the catalogue provides.",
+        "module_unknown": "There is no module called “{module}” in the catalogue.",
+        "module_not_installed": "“{module}” is not installed.",
+        "module_invalid_choice": "“{module}” cannot provide “{capability}”.",
+        "module_cycle": "These modules depend on each other and cannot be installed: {modules}.",
+        "module_no_compatible_variant": "“{module}” does not fit this machine ({problems}).",
+        "module_busy": "Another module operation is running. Try again when it is finished.",
+        "module_invalid": "This request cannot be planned.",
+        "invalid_request": "The request is invalid.",
+        "unknown": "The module-manager refused the request ({code})."
+      },
+      "code": {
+        "up_failed": "the module could not be started",
+        "down_failed": "the module could not be stopped",
+        "unhealthy": "the module started but did not become healthy in time",
+        "hook_failed": "a setup step of the module failed",
+        "compose_rejected": "the module breaks a platform rule and was refused",
+        "no_compatible_variant": "the module does not fit this machine",
+        "render_failed": "the module description could not be read",
+        "docker_unavailable": "Docker is not available",
+        "module_missing": "the module disappeared during the operation",
+        "decrypt_failed": "a stored secret could not be read",
+        "unknown_key_version": "a stored secret was written with a key that is no longer available",
+        "empty_secret": "a secret cannot be empty",
+        "route_failed": "the module runs but its web address could not be published",
+        "llm_failed": "the module runs but the language-model gateway did not accept its models",
+        "internal_error": "an unexpected error occurred; nothing was left half installed",
+        "unknown": "{code}"
+      },
+      "step": {
+        "install": "install",
+        "uninstall": "remove"
+      },
+      "plan": {
+        "title": "This will:",
+        "auto_added": "Also installed because they are needed: {modules}",
+        "auto_removed": "Also removed because nothing needs them any more: {modules}"
+      },
+      "question": "Go ahead?",
+      "cascade_question": "Remove them too?",
+      "declined": "Nothing was changed.",
+      "nothing_to_do": "Nothing to do: the modules are already in the requested state.",
+      "working": "Working… this can take several minutes (images and models are downloaded).",
+      "done": "Done.",
+      "failed": "Failed at “{module}”, step “{step}”: {reason}.",
+      "rolled_back": "Rolled back: {modules}. Nothing was left half installed.",
+      "partial": "Some removals had already been done before the failure.",
+      "still_running": "Still running after an hour (operation {id}). It continues in the background: check with cobble modules list.",
+      "unavailable": "The module-manager is not running or does not answer.",
+      "bad_choose": "--choose expects CAPABILITY=MODULE.",
+      "working_remove": "Working…"
+    }
+  }
+}

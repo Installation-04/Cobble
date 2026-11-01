@@ -1,0 +1,90 @@
+{
+  "cli": {
+    "modules": {
+      "yes_no": "[o/N]",
+      "state": {
+        "none": "non installé",
+        "running": "installé",
+        "installing": "installation…",
+        "removing": "retrait…",
+        "failed": "en échec",
+        "unknown": "inconnu"
+      },
+      "problem": "{code} : il faut {needed}, il y a {have}",
+      "fit": {
+        "ok": "convient à cette machine",
+        "ok_variant": "convient à cette machine (variante : {variant})",
+        "no": "ne convient pas à cette machine ({problems})"
+      },
+      "empty": "Le catalogue est vide.",
+      "label": {
+        "state": "État",
+        "variant": "Variante",
+        "error": "Dernière erreur",
+        "fit": "Cette machine",
+        "provides": "Fournit",
+        "requires": "Nécessite",
+        "secrets": "Secrets"
+      },
+      "secret": {
+        "set": "défini",
+        "unset": "non défini"
+      },
+      "refused": {
+        "module_needs_choice": "Plusieurs modules peuvent fournir « {capability} » ({candidates}). Choisissez-en un avec --choose {capability}=<module>.",
+        "module_needs_confirmation": "Cela retire aussi les modules qui en dépendent : {cascade}.",
+        "module_conflict": "Un seul module peut fournir « {capability} » à la fois ({modules}). Utilisez --replace pour remplacer l'actuel.",
+        "module_unsatisfiable": "« {module} » a besoin de « {capability} », qu'aucun module du catalogue ne fournit.",
+        "module_unknown": "Aucun module nommé « {module} » dans le catalogue.",
+        "module_not_installed": "« {module} » n'est pas installé.",
+        "module_invalid_choice": "« {module} » ne peut pas fournir « {capability} ».",
+        "module_cycle": "Ces modules dépendent les uns des autres et ne peuvent pas être installés : {modules}.",
+        "module_no_compatible_variant": "« {module} » ne convient pas à cette machine ({problems}).",
+        "module_busy": "Une autre opération sur les modules est en cours. Réessayez quand elle sera terminée.",
+        "module_invalid": "Cette demande ne peut pas être planifiée.",
+        "invalid_request": "La demande est invalide.",
+        "unknown": "Le gestionnaire de modules a refusé la demande ({code})."
+      },
+      "code": {
+        "up_failed": "le module n'a pas pu démarrer",
+        "down_failed": "le module n'a pas pu être arrêté",
+        "unhealthy": "le module a démarré mais n'est pas devenu sain à temps",
+        "hook_failed": "une étape de configuration du module a échoué",
+        "compose_rejected": "le module enfreint une règle de la plateforme et a été refusé",
+        "no_compatible_variant": "le module ne convient pas à cette machine",
+        "render_failed": "la description du module n'a pas pu être lue",
+        "docker_unavailable": "Docker n'est pas disponible",
+        "module_missing": "le module a disparu pendant l'opération",
+        "decrypt_failed": "un secret enregistré n'a pas pu être lu",
+        "unknown_key_version": "un secret enregistré a été écrit avec une clé qui n'est plus disponible",
+        "empty_secret": "un secret ne peut pas être vide",
+        "route_failed": "le module fonctionne mais son adresse web n'a pas pu être publiée",
+        "llm_failed": "le module fonctionne mais la passerelle de modèles de langage n'a pas accepté ses modèles",
+        "internal_error": "une erreur inattendue s'est produite ; rien n'est resté à moitié installé",
+        "unknown": "{code}"
+      },
+      "step": {
+        "install": "installer",
+        "uninstall": "retirer"
+      },
+      "plan": {
+        "title": "Cela va :",
+        "auto_added": "Également installés car ils sont nécessaires : {modules}",
+        "auto_removed": "Également retirés car plus rien n'en a besoin : {modules}"
+      },
+      "question": "Continuer ?",
+      "cascade_question": "Les retirer aussi ?",
+      "declined": "Rien n'a été modifié.",
+      "nothing_to_do": "Rien à faire : les modules sont déjà dans l'état demandé.",
+      "working": "En cours… cela peut prendre plusieurs minutes (images et modèles à télécharger).",
+      "done": "Terminé.",
+      "failed": "Échec sur « {module} », étape « {step} » : {reason}.",
+      "rolled_back": "Annulé : {modules}. Rien n'est resté à moitié installé.",
+      "partial": "Certains retraits étaient déjà faits avant l'échec.",
+      "still_running": "Toujours en cours après une heure (opération {id}). Elle continue en arrière-plan : vérifiez avec cobble modules list.",
+      "unavailable": "Le gestionnaire de modules n'est pas démarré ou ne répond pas.",
+      "bad_choose": "--choose attend CAPACITÉ=MODULE.",
+      "working_remove": "En cours…"
+    }
+  }
+}

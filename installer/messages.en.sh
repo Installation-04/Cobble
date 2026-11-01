@@ -64,7 +64,8 @@ M_done_url_ip='Open Cobble at: %s'
 M_done_url_host='Or by host name:   %s'
 M_done_activation='One-use link to create the admin account (valid 24 h):'
 M_done_admin_exists='No activation link: the admin account already exists (or the API is not ready). To get a new link run: cobble reset-admin'
-M_done_next='Useful commands: cobble status | cobble doctor | cobble logs | cobble help'
+M_done_next='Useful commands: cobble status | cobble doctor | cobble logs | cobble modules | cobble help'
+M_done_v01_pack='A v0.1 pack (Git server and CI installed by hand) was found. It keeps running, but modules replace it: remove the pack (packs/v01/hooks/uninstall.sh), then run: cobble modules install woodpecker'
 
 M_cli_not_installed='Cobble does not seem to be installed in %s (set COBBLE_DIR if you used --dir).'
 M_cli_unknown='Unknown command: %s (see: cobble help)'
@@ -101,6 +102,12 @@ M_doc_unit_bad='cobble.service is not active'
 M_doc_gpu='GPU: %s (container toolkit: %s)'
 M_doc_summary_fail='%s check(s) failed.'
 M_doc_summary_ok='All checks passed.'
+M_doc_modules_notoken='MODULE_MANAGER_TOKEN is missing from .env'
+M_doc_modules_nocatalog='the module catalogue is missing or empty (%s)'
+M_doc_modules_ok='module catalogue found (%s modules)'
+M_doc_modules_gid='Docker socket group changed (installed %s, now %s): the module-manager cannot use Docker'
+M_modules_unreachable='cobble modules could not reach the module-manager: run cobble doctor'
+M_fix_modules='Re-run the installer to repair the module settings: sudo bash install.sh --yes'
 M_fix_docker_install='Install or upgrade Docker, or re-run the installer: sudo bash install.sh --yes'
 M_fix_docker_start='Start it: sudo systemctl start docker'
 M_fix_start='Start Cobble: sudo systemctl start cobble (or: cobble update)'
@@ -120,6 +127,7 @@ Usage: cobble <command>
   update [--source S]  rebuild and restart (or install the source S: dir, tarball, git URL)
   doctor               diagnose problems and suggest fixes (exit 1 if one fails)
   reset-admin [--yes]  print a one-use link to set a new admin email and password
+  modules <command>    list, install and uninstall modules (cobble modules help)
   uninstall [--keep-data] [--yes]
                        stop and remove Cobble (--keep-data keeps .env and the volumes)
   version              print versions

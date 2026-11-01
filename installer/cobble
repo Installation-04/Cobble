@@ -256,6 +256,26 @@ doctor_unit() {
   fi
 }
 
+doctor_modules() {
+  local token catalog gid socket_gid
+  token="$(env_get MODULE_MANAGER_TOKEN "$DIR/.env")"
+  catalog="$(env_get COBBLE_CATALOG_DIR "$DIR/.env")"
+  if [ -z "$token" ]; then
+    report FAIL modules "$(msg doc_modules_notoken)" fix_modules
+  elif [ ! -d "$catalog" ] || ! ls "$catalog"/*/manifest.yaml >/dev/null 2>&1; then
+    report FAIL modules "$(msg doc_modules_nocatalog "${catalog:--}")" fix_modules
+  else
+    report OK modules "$(msg doc_modules_ok "$(ls "$catalog"/*/manifest.yaml | wc -l | tr -d ' ')")"
+  fi
+  # The module-manager is given the Docker socket's group at install time: a Docker that was
+  # reinstalled with another group would lock it out of the socket.
+  gid="$(env_get DOCKER_GID "$DIR/.env")"
+  socket_gid="$(stat -c %g "${COBBLE_DOCKER_SOCKET:-/var/run/docker.sock}" 2>/dev/null || true)"
+  if [ -n "$gid" ] && [ -n "$socket_gid" ] && [ "$gid" != "$socket_gid" ]; then
+    report FAIL docker-group "$(msg doc_modules_gid "$gid" "$socket_gid")" fix_modules
+  fi
+}
+
 doctor_gpu() {
   local gpu tk
   gpu="$(state_get gpu "$DIR/state.json")"
@@ -272,6 +292,7 @@ cmd_doctor() {
   doctor_port
   doctor_env
   doctor_unit
+  doctor_modules
   doctor_gpu
   echo
   if [ "$DOCTOR_FAILS" -gt 0 ]; then
@@ -286,6 +307,18 @@ cmd_reset_admin() {
   parse_yes "$@"
   confirm reset_confirm
   "${COMPOSE[@]}" exec -T api python -m cobble.cli reset-admin
+}
+
+cmd_modules() {
+  need_install
+  # The command runs in the api container, which asks the module-manager (the only part of
+  # Cobble that touches Docker). Messages are translated there; the language is the installed one.
+  "${COMPOSE[@]}" exec -T api python -m cobble.cli modules "$@" || {
+    local rc=$?
+    # 3: the CLI could not reach the module-manager (1 is a refusal it already explained).
+    if [ "$rc" -eq 3 ]; then warn modules_unreachable; fi
+    return "$rc"
+  }
 }
 
 cmd_version() {
@@ -305,6 +338,7 @@ main() {
     uninstall) cmd_uninstall "$@" ;;
     doctor) cmd_doctor "$@" ;;
     reset-admin) cmd_reset_admin "$@" ;;
+    modules) cmd_modules "$@" ;;
     backup | restore)
       warn not_available "$cmd"
       exit 1

@@ -90,9 +90,31 @@ later. If `ufw` is active, ports 80 and 443 are opened; SSH is not touched.
 | `cobble update [--source S]` | back up `.env`, then rebuild and restart (or install the source `S`) |
 | `cobble doctor` | check Docker, containers, HTTP health, disk, port, `.env` mode, systemd unit, GPU; each failure comes with a fix; exit code 1 if any check fails |
 | `cobble reset-admin [--yes]` | sign the admin out and print a one-use link to set a new email and password (projects and data are kept) |
+| `cobble modules list` / `status <id>` | the catalogue with each module's state and whether it fits this machine; the details of one module (which secrets are set, never their values) |
+| `cobble modules install <id>... [--yes] [--choose capability=module] [--replace]` | install modules; what they need is added automatically, you are shown the plan and asked first |
+| `cobble modules uninstall <id>... [--yes]` | remove modules; if other modules depend on them you are asked about those too |
 | `cobble uninstall [--keep-data] [--yes]` | stop and remove Cobble. `--keep-data` keeps `.env` and the data volumes |
 | `cobble version` | versions |
 | `cobble backup`, `cobble restore` | not available yet |
+
+### Modules
+
+From v0.2 the installer also starts the **module-manager**, the only part of Cobble that talks to
+Docker to install other software (Git server, CI, model server...). It is configured in `.env`:
+`MODULE_MANAGER_TOKEN` (generated, a secret), `COBBLE_CATALOG_DIR` (the catalogue shipped in
+`<dir>/src/catalog`), `DOCKER_GID` (the group of the Docker socket) and `COMPOSE_PROFILES=modules`.
+Nothing is installed until you ask: try `cobble modules list`, then for example
+`cobble modules install woodpecker` (the Git server it needs is added with it).
+
+The module-manager keeps the secrets of the modules in an encrypted vault whose key lives in the
+Docker volume `cobble-module-keys`. `cobble uninstall --keep-data` keeps that volume; without it, the
+key and the modules' secrets are deleted together. If the key is lost while the modules remain, their
+stored secrets cannot be read any more: remove and reinstall the modules.
+
+If you installed the **v0.1 pack by hand** (`packs/v01/hooks/install.sh`), it keeps running but is
+not managed by `cobble modules`. The installer says so; remove the pack
+(`packs/v01/hooks/uninstall.sh`) and install the modules instead. Nothing is converted or deleted
+for you.
 
 If you installed with `--dir`, set `COBBLE_DIR` only when the CLI cannot find the install
 (the installer already records the directory in the CLI).
