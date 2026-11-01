@@ -327,6 +327,14 @@
       "title": "Compose",
       "type": "string"
     },
+    "core_secrets": {
+      "items": {
+        "pattern": "^[a-z][a-z0-9_]{0,39}$",
+        "type": "string"
+      },
+      "title": "Core Secrets",
+      "type": "array"
+    },
     "description": {
       "$ref": "#/$defs/Localized"
     },

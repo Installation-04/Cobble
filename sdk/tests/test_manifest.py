@@ -77,6 +77,7 @@ def test_provides_shorthand_and_defaults() -> None:
     parsed = parse_manifest(minimal)
     assert parsed.compose == "compose.yml"
     assert parsed.host_access == []
+    assert parsed.core_secrets == []
     assert parsed.offline is False
 
 
@@ -130,6 +131,8 @@ INVALID: list[tuple[str, dict[str, Any], str]] = [
     ("negative ram", _with(hardware={"min_ram_mb": -1}), "min_ram_mb"),
     ("web_ui without a service", _with(web_ui={"port": 1, "path": "/git"}), "web_ui.service"),
     ("duplicate bus service", _with(bus=["forgejo", "forgejo"]), "duplicate"),
+    ("duplicate core secret", _with(core_secrets=["api_token", "api_token"]), "duplicate"),
+    ("bad core secret name", _with(core_secrets=["Api Token"]), "core_secrets"),
     ("duplicate variant", _with(variants=[{"id": "cpu"}, {"id": "cpu"}]), "duplicate"),
 ]
 

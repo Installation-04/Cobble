@@ -158,6 +158,9 @@ class Manifest(_Strict):
     bus: list[ServiceName] = Field(default_factory=list)
     settings: list[Setting] = Field(default_factory=list)
     secrets: list[Key] = Field(default_factory=list)
+    # Secrets (declared above or produced by a hook) that the core may read to talk to the module,
+    # for example the API token of a Git server. Nothing else leaves the vault.
+    core_secrets: list[Key] = Field(default_factory=list)
     healthcheck: Healthcheck | None = None
     hooks: Hooks = Field(default_factory=Hooks)
     backup: Backup = Field(default_factory=Backup)
@@ -194,6 +197,7 @@ class Manifest(_Strict):
         _unique(self.exclusive, "exclusive")
         _unique([s.key for s in self.settings], "settings")
         _unique(self.secrets, "secrets")
+        _unique(self.core_secrets, "core_secrets")
         _unique([v.id for v in self.variants], "variants")
         _unique(self.images, "images")
         _unique(self.backup.volumes, "backup.volumes")
