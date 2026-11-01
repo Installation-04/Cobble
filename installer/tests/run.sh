@@ -211,6 +211,8 @@ t_doctor() {
   { [ "$rc" -eq 0 ] && [[ "$out" == *"OK"* && "$out" != *"FAIL"* ]]; } || fail="$fail healthy(rc=$rc: $out)"
   out="$(STUB_BAD_CONTAINER=worker run_cli doctor 2>&1)" && rc=0 || rc=$?
   { [ "$rc" -eq 1 ] && [[ "$out" == *"FAIL"*"worker"* && "$out" == *"->"* ]]; } || fail="$fail bad-container(rc=$rc)"
+  out="$(STUB_BAD_CONTAINER=caddy-init run_cli doctor 2>&1)" && rc=0 || rc=$?
+  { [ "$rc" -eq 1 ] && [[ "$out" == *"FAIL"*"caddy-init"* ]]; } || fail="$fail failed-oneshot(rc=$rc)"
   out="$(COBBLE_DOCTOR_FAKE_DOWN=1 run_cli doctor 2>&1)" && rc=0 || rc=$?
   { [ "$rc" -eq 1 ] && [[ "$out" == *"FAIL"*"http"* ]]; } || fail="$fail fake-down(rc=$rc)"
   chmod 644 "$S/opt/.env"

@@ -175,15 +175,17 @@ doctor_docker() {
 }
 
 doctor_containers() {
-  local out line bad=0 total=0 svc state health
-  if ! out="$("${COMPOSE[@]}" ps -a --format '{{.Service}}|{{.State}}|{{.Health}}' 2>/dev/null)" || [ -z "$out" ]; then
+  local out line bad=0 total=0 svc state health code
+  if ! out="$("${COMPOSE[@]}" ps -a --format '{{.Service}}|{{.State}}|{{.Health}}|{{.ExitCode}}' 2>/dev/null)" || [ -z "$out" ]; then
     report FAIL containers "$(msg doc_no_containers)" fix_start
     return
   fi
   while IFS= read -r line; do
     [ -n "$line" ] || continue
+    IFS='|' read -r svc state health code <<<"$line"
+    # A one-shot job (for example caddy-init) that finished successfully is not a failure.
+    if [ "$state" = exited ] && [ "${code:-}" = 0 ]; then continue; fi
     total=$((total + 1))
-    IFS='|' read -r svc state health <<<"$line"
     if [ "$state" != running ] || { [ -n "$health" ] && [ "$health" != healthy ]; }; then
       bad=$((bad + 1))
       report FAIL "$svc" "$(msg doc_container_bad "$state" "${health:--}")" fix_container
