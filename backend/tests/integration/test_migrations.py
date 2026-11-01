@@ -354,3 +354,117 @@ def test_migration_0007_milestones_and_task_kind(database_url: str) -> None:
         engine.dispose()
     command.upgrade(config, "head")
     assert "milestones" in tables(database_url)
+
+
+STEP_V02_TABLES = {"modules", "module_secrets", "module_links", "module_events", "platform_state"}
+
+
+def test_migration_0008_modules_up_and_down(database_url: str) -> None:
+    config = alembic_config(database_url)
+    command.downgrade(config, "base")
+    command.upgrade(config, "0007")
+    assert not STEP_V02_TABLES & tables(database_url)
+    command.upgrade(config, "0008")
+    assert tables(database_url) >= STEP_V02_TABLES
+    engine = create_engine(database_url)
+    try:
+        with engine.begin() as conn:
+            # the single platform row exists from the start, with safe defaults
+            row = conn.execute(
+                text("SELECT id, setup_completed, modules_generation FROM platform_state")
+            ).one()
+            assert tuple(row) == (1, False, 0)
+            conn.execute(text("INSERT INTO modules (id, version) VALUES ('forgejo', '15.0.11')"))
+            conn.execute(text("INSERT INTO modules (id, version) VALUES ('woodpecker', '3.20.1')"))
+            module = conn.execute(
+                text("SELECT explicit, state, settings FROM modules WHERE id = 'forgejo'")
+            ).one()
+            assert module[0] is False
+            assert module[1] == "installing"
+            conn.execute(
+                text(
+                    "INSERT INTO module_secrets (module_id, key, ciphertext, nonce) "
+                    "VALUES ('forgejo', 'api_token', :c, :n)"
+                ),
+                {"c": b"\x01\x02", "n": b"\x00" * 12},
+            )
+            conn.execute(
+                text(
+                    "INSERT INTO module_links (id, consumer, provider, capability) VALUES "
+                    "('00000000-0000-0000-0000-0000000000e1', 'woodpecker', 'forgejo', 'git')"
+                )
+            )
+            conn.execute(
+                text(
+                    "INSERT INTO module_events (id, module_id, kind, code) VALUES "
+                    "('00000000-0000-0000-0000-0000000000f1', 'forgejo', 'install', 'installed')"
+                )
+            )
+        with pytest.raises(IntegrityError), engine.begin() as conn:  # the platform row is unique
+            conn.execute(text("INSERT INTO platform_state (id) VALUES (2)"))
+        with pytest.raises(IntegrityError), engine.begin() as conn:  # one link per triple
+            conn.execute(
+                text(
+                    "INSERT INTO module_links (id, consumer, provider, capability) VALUES "
+                    "('00000000-0000-0000-0000-0000000000e2', 'woodpecker', 'forgejo', 'git')"
+                )
+            )
+        with pytest.raises(IntegrityError), engine.begin() as conn:  # a link needs real modules
+            conn.execute(
+                text(
+                    "INSERT INTO module_links (id, consumer, provider, capability) VALUES "
+                    "('00000000-0000-0000-0000-0000000000e3', 'ghost', 'forgejo', 'git')"
+                )
+            )
+        with engine.begin() as conn:
+            conn.execute(text("DELETE FROM modules WHERE id = 'forgejo'"))
+            # secrets and links go with the module, the history stays
+            assert conn.execute(text("SELECT count(*) FROM module_secrets")).scalar_one() == 0
+            assert conn.execute(text("SELECT count(*) FROM module_links")).scalar_one() == 0
+            assert conn.execute(text("SELECT count(*) FROM module_events")).scalar_one() == 1
+            conn.execute(text("DELETE FROM modules"))
+            conn.execute(text("DELETE FROM module_events"))
+
+        command.downgrade(config, "0007")
+        assert not STEP_V02_TABLES & tables(database_url)
+    finally:
+        engine.dispose()
+    command.upgrade(config, "head")
+    assert tables(database_url) >= STEP_V02_TABLES
+
+
+def test_the_models_match_the_migrations(migrated_database: str) -> None:
+    """No drift: what `Base.metadata` declares is what the migrations created (module tables)."""
+    from alembic.autogenerate import compare_metadata
+    from alembic.migration import MigrationContext
+
+    from cobble.db.base import Base
+
+    engine = create_engine(migrated_database)
+    try:
+        with engine.connect() as conn:
+            context = MigrationContext.configure(conn, opts={"compare_type": True})
+            diff = compare_metadata(context, Base.metadata)
+    finally:
+        engine.dispose()
+    mine = [d for d in diff if STEP_V02_TABLES & _tables_of(d)]
+    assert mine == []
+
+
+def _tables_of(diff_entry: object) -> set[str]:
+    """The table names an autogenerate diff entry talks about."""
+    names: set[str] = set()
+    entries = diff_entry if isinstance(diff_entry, list) else [diff_entry]
+    for entry in entries:
+        if isinstance(entry, tuple):
+            for part in entry:
+                table = getattr(part, "table", None)
+                if table is not None:
+                    names.add(str(table.name))
+                elif isinstance(part, str):
+                    names.add(part)
+                else:
+                    name = getattr(part, "name", None)
+                    if isinstance(name, str):
+                        names.add(name)
+    return names
