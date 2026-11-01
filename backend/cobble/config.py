@@ -36,6 +36,17 @@ class Settings(BaseSettings):
     # Internal HTTP API of the agent-service (the only component that touches Docker).
     agent_service_url: str = "http://agent-service:8090"
     agent_service_token: str = ""
+    # Internal HTTP API of the module-manager (the only component with the vault key and Docker).
+    module_manager_url: str = "http://module-manager:8095"
+    module_manager_token: str = ""
+    # Module-manager only: where its master key lives (created at first start), the catalogue
+    # directory (mounted at the same absolute path as on the host, see core/compose.yml) and the
+    # machine's facts (0 / "auto": detect; the installer writes what it found).
+    module_master_key_file: str = "/var/lib/cobble-keys/master.key"
+    module_catalog_dir: str = "/opt/cobble/catalog"
+    module_ram_mb: int = 0
+    module_gpu: Literal["auto", "none", "nvidia", "amd"] = "auto"
+    module_health_timeout_s: float = 120.0
     # Base URL agents use to reach the internal LLM endpoint (seen from the agent network).
     internal_api_url: str = "http://api:8000"
     # --- scheduler (ADR 0006) ---

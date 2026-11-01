@@ -22,6 +22,27 @@ def render() -> str:
     )
 
 
+def module_settings(path: Path) -> dict[str, str]:
+    """Settings of the module-manager (compose profile `modules`), for the keys still missing."""
+    lines = path.read_text(encoding="utf-8").splitlines()
+    present = {line.split("=", 1)[0] for line in lines if "=" in line}
+    wanted = {"MODULE_MANAGER_TOKEN": secrets.token_hex(32)}
+    socket = Path("/var/run/docker.sock")
+    if socket.exists():
+        wanted["DOCKER_GID"] = str(socket.stat().st_gid)
+    wanted["COBBLE_CATALOG_DIR"] = str(DEFAULT_PATH.parent.parent / "catalog")
+    return {key: value for key, value in wanted.items() if key not in present}
+
+
+def ensure_module_settings(path: Path) -> list[str]:
+    """Append the module-manager settings that are missing; never changes an existing value."""
+    missing = module_settings(path)
+    if missing:
+        with path.open("a", encoding="utf-8") as handle:
+            handle.writelines(f"{key}={value}\n" for key, value in missing.items())
+    return sorted(missing)
+
+
 def ensure_env(path: Path) -> bool:
     """Return True if the file was created."""
     if path.exists():
@@ -35,7 +56,10 @@ def ensure_env(path: Path) -> bool:
 def main(argv: list[str]) -> int:
     path = Path(argv[1]) if len(argv) > 1 else DEFAULT_PATH
     created = ensure_env(path)
+    added = ensure_module_settings(path)
     print(f"{path}: {'created' if created else 'kept'}")
+    if added and not created:
+        print(f"{path}: added {', '.join(added)}")
     return 0
 
 

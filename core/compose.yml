@@ -19,6 +19,8 @@ x-app-env: &app-env
   # Development and CI only: "fake" replaces Forgejo/Woodpecker/Docker services by in-memory fakes.
   COBBLE_PACK_MODE: ${COBBLE_PACK_MODE:-}
   COBBLE_FAKE_STEP_S: ${COBBLE_FAKE_STEP_S:-0.3}
+  # The API calls the module-manager with this token (empty until the modules profile is used).
+  COBBLE_MODULE_MANAGER_TOKEN: ${MODULE_MANAGER_TOKEN:-}
 
 services:
   postgres:
@@ -90,6 +92,7 @@ services:
   api:
     build:
       context: ../backend
+      target: backend
       additional_contexts:
         sdk: ../sdk
     # Pack settings (Forgejo/Woodpecker endpoints and tokens), written by packs/v01/hooks.
@@ -120,6 +123,7 @@ services:
   worker:
     build:
       context: ../backend
+      target: backend
       additional_contexts:
         sdk: ../sdk
     # Pack settings (Forgejo/Woodpecker endpoints and tokens), written by packs/v01/hooks.
@@ -139,6 +143,41 @@ services:
       api: {condition: service_healthy}
     # The project template the scheduler copies into each new repository.
     volumes: [../templates/fastapi-react:/templates/fastapi-react:ro]
+    mem_limit: 512m
+    networks: [core]
+
+  # The module-manager: the only container that gets the vault master key and the Docker socket
+  # (rule 5). Off by default; start it with `docker compose --profile modules up -d module-manager`.
+  # The catalogue is mounted at the same absolute path as on the host: the Docker daemon resolves
+  # the bind mounts of the modules on the host, so both sides must agree on the path.
+  module-manager:
+    profiles: [modules]
+    build:
+      context: ../backend
+      target: module-manager
+      additional_contexts:
+        sdk: ../sdk
+    <<: *hardening
+    read_only: true
+    tmpfs: [/tmp]
+    group_add: ["${DOCKER_GID:-999}"]
+    environment:
+      <<: *app-env
+      COBBLE_MODULE_CATALOG_DIR: ${COBBLE_CATALOG_DIR:-/opt/cobble/catalog}
+      COBBLE_MODULE_RAM_MB: ${COBBLE_MODULE_RAM_MB:-0}
+      COBBLE_MODULE_GPU: ${COBBLE_MODULE_GPU:-auto}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - cobble-module-keys:/var/lib/cobble-keys
+      - ${COBBLE_CATALOG_DIR:-/opt/cobble/catalog}:${COBBLE_CATALOG_DIR:-/opt/cobble/catalog}:ro
+    depends_on:
+      # The API applies the database migrations when it starts: wait until it is healthy.
+      api: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://localhost:8095/healthz')"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
     mem_limit: 512m
     networks: [core]
 
@@ -184,3 +223,4 @@ volumes:
   cobble-postgres-data:
   cobble-redis-data:
   cobble-caddy-data:
+  cobble-module-keys:  # the vault master key: only the module-manager mounts it

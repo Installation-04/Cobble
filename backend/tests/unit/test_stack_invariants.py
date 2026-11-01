@@ -65,3 +65,46 @@ def test_no_secret_value_is_committed_in_compose() -> None:
     for line in text.splitlines():
         if re.search(r"(PASSWORD|KEY)\s*[:=]", line):
             assert "${" in line or "REDISCLI" in line or "--requirepass" in line, line
+
+
+# --- the module-manager (rule 5: the only container with the Docker socket and the vault key) ---
+
+
+def _mounts(service: dict[str, object]) -> list[str]:
+    return [str(v) for v in service.get("volumes", [])]  # type: ignore[attr-defined]
+
+
+def test_only_the_module_manager_gets_the_docker_socket_and_the_vault_key() -> None:
+    with_socket = {n for n, s in SERVICES.items() if any("docker.sock" in m for m in _mounts(s))}
+    with_key = {
+        n for n, s in SERVICES.items() if any("cobble-module-keys" in m for m in _mounts(s))
+    }
+    assert with_socket == {"module-manager"}
+    assert with_key == {"module-manager"}
+    for name in ("api", "worker"):
+        assert "COBBLE_MODULE_MASTER_KEY_FILE" not in SERVICES[name].get("environment", {})  # type: ignore[operator]
+
+
+def test_the_module_manager_is_off_by_default_and_has_its_own_image_target() -> None:
+    service = SERVICES["module-manager"]
+    assert service["profiles"] == ["modules"]
+    assert service["build"]["target"] == "module-manager"  # type: ignore[index]
+    assert service["read_only"] is True
+    assert "ports" not in service
+    assert all(SERVICES[n].get("profiles") is None for n in SERVICES if n != "module-manager")
+
+
+def test_the_default_backend_image_target_stays_the_plain_backend() -> None:
+    text = (ROOT / "backend" / "Dockerfile").read_text("utf-8")
+    stages = re.findall(r"^FROM\s+\S+\s+AS\s+(\S+)", text, re.M | re.I)
+    assert stages[-1] == "backend"  # a build without --target gets the API/worker image
+    assert "docker-cli" in stages
+    for name in ("api", "worker"):
+        assert SERVICES[name]["build"]["target"] == "backend"  # type: ignore[index]
+    docker_cli = re.search(r"^FROM\s+(\S+)\s+AS\s+docker-cli", text, re.M)
+    assert docker_cli is not None
+    assert "@sha256:" in docker_cli.group(1)
+    # the Docker CLI is copied into the module-manager stage only
+    manager_stage = text.split("AS module-manager", 1)[1].split("AS backend", 1)[0]
+    assert "COPY --from=docker-cli" in manager_stage
+    assert "docker-cli" not in text.split("AS backend", 1)[1]

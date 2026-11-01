@@ -88,6 +88,30 @@ class ComposeRunner:
         if result.returncode != 0:
             raise RunnerError("up_failed")
 
+    def render(
+        self,
+        module_dir: str,
+        compose_file: str,
+        env: Mapping[str, str],
+        variant: str | None = None,
+    ) -> dict[str, Any]:
+        """`docker compose config --format json` of a module (variables resolved with `env`)."""
+        args = ["compose", "--project-directory", module_dir, "-f", f"{module_dir}/{compose_file}"]
+        if variant:
+            args += ["--profile", variant]
+        result = self._run(
+            [*args, "config", "--format", "json"], env={**env, "COBBLE_VARIANT": variant or ""}
+        )
+        if result.returncode != 0:
+            raise RunnerError("render_failed")
+        try:
+            rendered = json.loads(result.stdout)
+        except json.JSONDecodeError:
+            raise RunnerError("render_failed") from None
+        if not isinstance(rendered, dict):
+            raise RunnerError("render_failed")
+        return rendered
+
     def down(self, project: str, *, volumes: bool) -> None:
         args = ["compose", "-p", project, "down", "--remove-orphans"]
         if volumes:

@@ -25,6 +25,7 @@ from cobble_sdk import (
     NoCompatibleVariant,
     Plan,
     Step,
+    UnknownModule,
     choose_variant,
     desired_links,
     plan_install,
@@ -45,6 +46,7 @@ from .vault import SecretValue, VaultError
 log = logging.getLogger(__name__)
 
 SessionFactory = Callable[[], Session]
+EventSink = Callable[[dict[str, Any]], None]
 
 
 class ModuleOperationFailed(Exception):
@@ -100,6 +102,7 @@ class ModuleManager:
         *,
         health_timeout_s: float = 120.0,
         bus_network: str = "cobble_core",
+        on_event: EventSink | None = None,
     ) -> None:
         self._sessions = sessions
         self._catalog = catalog
@@ -108,6 +111,7 @@ class ModuleManager:
         self._hardware = hardware
         self._health_timeout_s = health_timeout_s
         self._bus_network = bus_network
+        self._on_event = on_event
         self._lock = threading.Lock()  # one operation at a time
 
     # --- reading the state ---------------------------------------------------------------------
@@ -126,6 +130,37 @@ class ModuleManager:
                 for provided in manifests[row.id].provides:
                     choices.setdefault(provided.capability, row.id)
         return explicit, choices
+
+    # --- read-only views for the service --------------------------------------------------------
+
+    @property
+    def hardware(self) -> Hardware:
+        return self._hardware
+
+    def catalog(self) -> Mapping[str, Manifest]:
+        return self._manifests()
+
+    def states(self) -> dict[str, dict[str, Any]]:
+        """Installed modules: state, whether the user asked for them, variant, last error code."""
+        with self._sessions() as session:
+            return {
+                row.id: {
+                    "state": row.state,
+                    "explicit": row.explicit,
+                    "variant": row.variant,
+                    "version": row.version,
+                    "error": row.last_error,
+                }
+                for row in session.scalars(select(Module))
+            }
+
+    def secret_status(self, module_id: str) -> dict[str, bool]:
+        """Which declared secrets are set. Values never leave the vault."""
+        manifest = self._manifests().get(module_id)
+        if manifest is None:
+            raise UnknownModule(module_id)
+        with self._sessions() as session:
+            return self._store.status(session, module_id, manifest.secrets)
 
     def plan_install(
         self,
@@ -242,6 +277,19 @@ class ModuleManager:
                 )
             )
             session.commit()
+        if self._on_event is not None:
+            try:  # progress must never break an operation
+                self._on_event(
+                    {
+                        "module": module_id,
+                        "kind": kind,
+                        "step": step,
+                        "ok": ok,
+                        "code": code,
+                    }
+                )
+            except Exception:
+                log.warning("module event sink failed", exc_info=True)
 
     def _step(self, module_id: str, kind: str, name: str, action: Callable[[], None]) -> None:
         try:
