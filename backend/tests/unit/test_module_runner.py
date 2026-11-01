@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import stat
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -80,12 +81,15 @@ def test_a_missing_docker_binary_is_reported_as_unavailable(tmp_path: Path) -> N
     [
         ([{"State": "running", "Health": "healthy"}, {"State": "running", "Health": ""}], True),
         ([{"State": "running", "Health": "starting"}], False),
-        ([{"State": "exited", "Health": ""}], False),
+        ([{"State": "exited", "Health": ""}], False),  # no exit code: not a finished job
+        ([{"State": "exited", "ExitCode": 1}], False),  # a crashed service
+        ([{"State": "exited", "ExitCode": 0}, {"State": "running", "Health": "healthy"}], True),
+        ([{"State": "exited", "ExitCode": 0}], True),  # an init job that completed
         ([], False),
     ],
 )
 def test_wait_healthy_reads_compose_ps(
-    docker: Path, stub_dir: Path, rows: list[dict[str, str]], healthy: bool
+    docker: Path, stub_dir: Path, rows: list[dict[str, Any]], healthy: bool
 ) -> None:
     (stub_dir / "stdout").write_text("\n".join(json.dumps(r) for r in rows))
     assert ComposeRunner(str(docker)).wait_healthy("cobble-x", 1.0) is healthy

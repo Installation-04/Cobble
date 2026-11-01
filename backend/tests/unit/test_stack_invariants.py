@@ -139,3 +139,5 @@ def test_the_caddy_admin_socket_is_shared_with_the_module_manager_only() -> None
     assert "admin unix//run/caddy/admin.sock" in caddyfile
     assert re.search(r"^\s*admin\s+(off|:|localhost|\d)", caddyfile, re.M) is None  # no TCP admin
     assert "import /etc/caddy/routes/*.caddy" in caddyfile
+    # a module wins over the v0.1 pack route of the same path
+    assert caddyfile.index("/etc/caddy/routes/") < caddyfile.index("/etc/caddy/pack/")

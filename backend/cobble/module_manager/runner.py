@@ -133,10 +133,14 @@ class ComposeRunner:
         if result.returncode != 0:
             return False
         rows = [json.loads(line) for line in result.stdout.splitlines() if line.strip()]
-        return bool(rows) and all(
-            row.get("State") == "running" and row.get("Health", "") in ("", "healthy")
-            for row in rows
-        )
+
+        # A one-shot job (an init container) that finished successfully is done, not unhealthy.
+        def ready(row: dict[str, Any]) -> bool:
+            if row.get("State") == "exited" and row.get("ExitCode", 1) == 0:
+                return True
+            return row.get("State") == "running" and row.get("Health", "") in ("", "healthy")
+
+        return bool(rows) and all(ready(row) for row in rows)
 
     def run_hook(self, script: str, env: Mapping[str, str]) -> HookResult:
         try:

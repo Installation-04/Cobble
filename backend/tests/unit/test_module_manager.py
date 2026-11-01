@@ -44,6 +44,7 @@ FORGEJO = manifest(
     exclusive=["git"],
     secrets=["admin_password", "api_token"],
     core_secrets=["api_token"],
+    link_secrets=["admin_password"],
     web_ui={"service": "forgejo", "port": 3000, "path": "/git"},
     hooks={
         "post_install": "hooks/post.sh",
@@ -59,7 +60,12 @@ WOODPECKER = manifest(
     requires=["git"],
     secrets=["agent_secret"],
     web_ui={"service": "server", "port": 8000, "path": "/ci"},
-    hooks={"on_link": {"git": "hooks/link-git.sh"}, "on_unlink": {"git": "hooks/unlink-git.sh"}},
+    hooks={
+        "pre_up": "hooks/pre-up.sh",
+        "pre_uninstall": "hooks/pre-uninstall.sh",
+        "on_link": {"git": "hooks/link-git.sh"},
+        "on_unlink": {"git": "hooks/unlink-git.sh"},
+    },
 )
 OLLAMA = manifest(
     "ollama",
@@ -73,6 +79,8 @@ SCRIPTS = {
     "register": f"{ROOT}/forgejo/hooks/register.sh",
     "oauth": f"{ROOT}/forgejo/hooks/oauth.sh",
     "unoauth": f"{ROOT}/forgejo/hooks/unoauth.sh",
+    "pre-up": f"{ROOT}/woodpecker/hooks/pre-up.sh",
+    "pre-uninstall": f"{ROOT}/woodpecker/hooks/pre-uninstall.sh",
     "link-git": f"{ROOT}/woodpecker/hooks/link-git.sh",
     "unlink-git": f"{ROOT}/woodpecker/hooks/unlink-git.sh",
 }
@@ -148,6 +156,7 @@ def test_install_one_module() -> None:
         "record",
         "hardware",
         "secrets",
+        "pre_up",
         "render",
         "up",
         "post_install",
@@ -327,6 +336,7 @@ FAULTS: list[tuple[str, Callable[[Rig], None], str, str, str]] = [
     ("render", _bad_compose, "woodpecker", "render", "compose_rejected"),
     ("up", _fail_runner("up", "cobble-woodpecker"), "woodpecker", "up", "up_failed"),
     ("health", _fail_runner("health", "cobble-woodpecker"), "woodpecker", "health", "unhealthy"),
+    ("pre_up of the consumer", _hook("pre-up"), "woodpecker", "pre_up", "hook_failed"),
     ("link, provider side", _hook("oauth"), "forgejo", "on_link", "hook_failed"),
     ("link, consumer side", _hook("link-git"), "woodpecker", "on_link", "hook_failed"),
     ("first module: up", _fail_runner("up", "cobble-forgejo"), "forgejo", "up", "up_failed"),
@@ -513,3 +523,40 @@ def test_modules_receive_the_platform_facts_in_compose_and_hooks() -> None:
     envs = [env for _, env in rig.runner.hook_envs]
     assert envs and all(env["COBBLE_PUBLIC_URL"] == "http://box" for env in envs)
     assert all(env["COBBLE_MODULE_ID"] == "forgejo" for env in envs)
+
+
+def test_a_hook_before_start_sees_the_provider_it_requires_and_what_it_shares() -> None:
+    rig = Rig()
+    rig.runner.hook_secrets[SCRIPTS["pre-up"]] = {"forgejo_client": "client-1"}
+    rig.manager.install(["woodpecker"])
+    pre_up = [env for script, env in rig.runner.hook_envs if script == SCRIPTS["pre-up"]]
+    assert len(pre_up) == 1
+    env = pre_up[0]
+    assert env["COBBLE_PEER_GIT_MODULE"] == "forgejo"
+    assert env["COBBLE_PEER_GIT_HOST"] == "cobble-forgejo-forgejo"
+    assert env["COBBLE_PEER_GIT_PORT"] == "3000"
+    with rig.sessions() as session:
+        shared = rig.store.get(session, "forgejo", "admin_password")
+    assert shared is not None and env["COBBLE_PEER_GIT_SECRET_ADMIN_PASSWORD"] == shared.reveal()
+    # only what the provider lists in link_secrets is shared: its api_token (core) is not
+    assert not any(key.endswith("SECRET_API_TOKEN") for key in env)
+    # what the hook printed belongs to the consumer and is in the environment of its compose file
+    with rig.sessions() as session:
+        stored = rig.store.get(session, "woodpecker", "forgejo_client")
+    assert stored is not None and stored.reveal() == "client-1"
+
+
+def test_the_consumer_is_prepared_after_its_provider_is_up() -> None:
+    rig = Rig()
+    rig.manager.install(["woodpecker"])
+    order = [(op, name) for op, name in rig.runner.calls if op in ("up", "hook")]
+    assert order.index(("up", "cobble-forgejo")) < order.index(("hook", SCRIPTS["pre-up"]))
+    assert order.index(("hook", SCRIPTS["pre-up"])) < order.index(("up", "cobble-woodpecker"))
+
+
+def test_the_cleanup_hook_of_a_consumer_still_sees_its_provider() -> None:
+    rig = Rig()
+    rig.manager.install(["forgejo", "woodpecker"])
+    rig.manager.uninstall(["woodpecker"])
+    cleanup = [env for s, env in rig.runner.hook_envs if s == SCRIPTS["pre-uninstall"]]
+    assert cleanup and cleanup[0]["COBBLE_PEER_GIT_HOST"] == "cobble-forgejo-forgejo"

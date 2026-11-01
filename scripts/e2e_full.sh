@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Full-chain end-to-end run of the to-do reference project (manual harness, `make e2e-full`).
 #
-# Brings up core + pack (Forgejo, Woodpecker) + agents + previews with freshly generated secrets,
+# Brings up core + modules (Forgejo, Woodpecker, installed through the module-manager) + agents +
+# previews (still the v0.1 pack until their conversion) with freshly generated secrets,
 # activates the admin through the API, creates a project, replays the scripted interview, spec
 # and plan (cassettes of the fake LLM), approves the plan, starts the build and follows it until
 # the project phase is `done`: tasks tests-first with the fake-LLM agent cassettes
@@ -78,7 +79,9 @@ if [ -n "${E2E_BUILD_CA:-}" ]; then
   }
 fi
 
-core() { docker compose -p cobble --env-file "$CORE_ENV" -f "$ROOT/core/compose.yml" "${CA_CORE[@]}" "$@"; }
+core() { docker compose -p cobble --env-file "$CORE_ENV" -f "$ROOT/core/compose.yml" "${CA_CORE[@]}" --profile modules "$@"; }
+# mm ACTION [MODULE...]: runs the module-manager client inside its container (it holds the token)
+mm() { core exec -T module-manager python - "$@" <"$ROOT/scripts/module_client.py"; }
 
 # --- preflight ---------------------------------------------------------------------------------
 for tool in docker curl python3; do
@@ -91,6 +94,9 @@ fi
 if [ "$FORCE" -ne 1 ] && { [ -e "$PACK/.env" ] || [ -e "$PACK/.env.pack" ]; }; then
   die "$PACK already holds generated secrets (a pack is installed): use --force to replace them"
 fi
+if [ -n "$(docker ps -aq --filter 'label=cobble.managed=true')" ]; then
+  die "module containers are running (another stack?): remove them first, this run wipes the platform's state"
+fi
 
 # --- teardown ----------------------------------------------------------------------------------
 teardown() {
@@ -99,15 +105,16 @@ teardown() {
   if [ "$KEEP" -eq 1 ]; then
     log "stack kept. Open $BASE (admin $EMAIL). Remove it with:"
     log "  docker compose -p cobble --env-file $CORE_ENV -f core/compose.yml down -v"
-    log "  packs/v01/hooks/uninstall.sh --purge   # and the agents/preview projects"
+    log "  (first uninstall the modules: scripts/module_client.py uninstall woodpecker forgejo)"
+    log "  and the agents/preview projects of packs/v01"
     exit "$rc"
   fi
   log "tearing down"
   docker compose -p cobble-pack-preview -f "$PACK/compose.preview.yml" down -v >/dev/null 2>&1 || true
   docker compose -p cobble-pack-agents -f "$PACK/compose.agents.yml" down -v >/dev/null 2>&1 || true
-  "$PACK/hooks/uninstall.sh" --purge >/dev/null 2>&1 || true
+  mm uninstall woodpecker forgejo >/dev/null 2>&1 || true
   core down -v >/dev/null 2>&1 || true
-  rm -f "$PACK/.env.agents" "$PACK/.env.agents.core" "$PACK/.env.preview" "$PACK/.env.preview.core" \
+  rm -f "$PACK/.env.pack" "$PACK/.env" "$PACK/.env.agents" "$PACK/.env.agents.core" "$PACK/.env.preview" "$PACK/.env.preview.core" \
     "$PACK/caddy/demo.caddy"
   rm -rf "$WORK"
   exit "$rc"
@@ -153,9 +160,14 @@ sed -i "s/^COBBLE_HTTP_PORT=.*/COBBLE_HTTP_PORT=$PORT/;s/^COBBLE_LANG=.*/COBBLE_
   echo "COBBLE_PUBLIC_URL=$BASE"
   echo "COBBLE_ENV=development"
 } >>"$CORE_ENV"
+if [ -n "${E2E_BUILD_CA:-}" ]; then # a CA made visible to pipeline steps (TLS-inspecting proxy)
+  ca=/etc/ssl/certs/ca-certificates.crt
+  extra="{\"COBBLE_STEP_VOLUMES\": \"$E2E_BUILD_CA:$ca:ro\", \"COBBLE_PIPELINE_ENV\": \"SSL_CERT_FILE:$ca,REQUESTS_CA_BUNDLE:$ca,NODE_EXTRA_CA_CERTS:$ca,PIP_CERT:$ca,UV_SYSTEM_CERTS:1\"}"
+  echo "COBBLE_MODULE_EXTRA_ENV='$extra'" >>"$CORE_ENV"
+fi
 
 if [ -n "${E2E_BUILD_CA:-}" ]; then
-  ca_override "$WORK/ca-core.yml" fake-llm api worker ui
+  ca_override "$WORK/ca-core.yml" fake-llm api worker ui module-manager
   ca_override "$WORK/ca-agents.yml" agent-proxy agent-service agent-runner-image
   ca_override "$WORK/ca-preview.yml" preview-service
   CA_CORE=(-f "$WORK/ca-core.yml") CA_AGENTS=(-f "$WORK/ca-agents.yml") CA_PREVIEW=(-f "$WORK/ca-preview.yml")
@@ -164,8 +176,26 @@ fi
 log "starting the core (project cobble)"
 core up --build -d --wait
 
-log "installing the pack (Forgejo, Woodpecker)"
-COBBLE_PACK_PUBLIC_URL="$BASE" COBBLE_PACK_STEP_CA="${E2E_BUILD_CA:-}" "$PACK/hooks/install.sh"
+log "installing the modules Woodpecker and Forgejo through the module-manager"
+mm install woodpecker >"$WORK/install.log" 2>&1 || { cat "$WORK/install.log" >&2; die "module installation failed"; }
+tail -n 1 "$WORK/install.log" | cut -c1-200
+
+# The agent and preview services are still the v0.1 pack: give their generators the endpoints
+# and tokens of the installed modules in the file they expect (removed with the run).
+log "handing the module endpoints to the v0.1 agent and preview services"
+mm connections | python3 -c '
+import json, os, sys
+conn = json.load(sys.stdin)["connections"]
+git, ci = conn["forgejo"], conn["woodpecker"]
+out = sys.argv[1]
+fd = os.open(out, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+with os.fdopen(fd, "w") as handle:
+    handle.write("COBBLE_PACK_FORGEJO_URL=%s\n" % git["url"])
+    handle.write("COBBLE_PACK_FORGEJO_TOKEN=%s\n" % git["secrets"]["api_token"])
+    handle.write("COBBLE_PACK_FORGEJO_OWNER=cobble-bot\n")
+    handle.write("COBBLE_PACK_WOODPECKER_URL=%s/ci\n" % ci["url"])
+    handle.write("COBBLE_PACK_WOODPECKER_TOKEN=%s\n" % ci["secrets"]["api_token"])
+' "$PACK/.env.pack"
 
 log "building and starting agent-service, the egress proxy and the runner image"
 docker compose -f "$PACK/compose.agents.yml" "${CA_AGENTS[@]}" --profile build build

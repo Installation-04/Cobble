@@ -387,7 +387,9 @@ class ModuleManager:
     def _run_hook(
         self, module_id: str, script: str, extra: Mapping[str, str] | None = None
     ) -> None:
-        env = {**self._secret_env(module_id), **(extra or {})}
+        manifest = self._manifests().get(module_id)
+        peers = self._required_peers(manifest) if manifest is not None else {}
+        env = {**self._secret_env(module_id), **peers, **(extra or {})}
         result: HookResult = self._runner.run_hook(
             f"{self._catalog.module_dir(module_id)}/{script}", env
         )
@@ -422,6 +424,11 @@ class ModuleManager:
                 for key in manifest.secrets:
                     self._store.generate(session, module_id, key)
                 session.commit()
+
+        def pre_up() -> None:
+            if not manifest.hooks.pre_up:
+                return
+            self._run_hook(module_id, manifest.hooks.pre_up)
 
         def render() -> None:
             raw = self._catalog.compose(module_id, variant_id[0], self._secret_env(module_id))
@@ -464,6 +471,7 @@ class ModuleManager:
             ("record", record),
             ("hardware", hardware),
             ("secrets", secrets),
+            ("pre_up", pre_up),
             ("render", render),
             ("up", up),
             ("post_install", post_install),
@@ -509,6 +517,41 @@ class ModuleManager:
                 )
                 session.commit()
 
+    def _required_peers(self, manifest: Manifest) -> dict[str, str]:
+        """`COBBLE_PEER_<CAPABILITY>_*` for the running module that provides each capability the
+        module requires (the first by id when there are several)."""
+        manifests = self._manifests()
+        with self._sessions() as session:
+            running = set(session.scalars(select(Module.id).where(Module.state == "running")))
+        env: dict[str, str] = {}
+        for capability in manifest.requires:
+            providers = sorted(
+                m
+                for m in running
+                if m in manifests and any(p.capability == capability for p in manifests[m].provides)
+            )
+            if providers:
+                prefix = f"COBBLE_PEER_{capability.upper().replace('-', '_')}_"
+                env.update(self._peer_env(providers[0], prefix))
+        return env
+
+    def _peer_env(self, peer_id: str, prefix: str) -> dict[str, str]:
+        """How a hook reaches a peer: its address and the secrets it shares with linked modules
+        (`link_secrets`), and nothing else."""
+        manifest = self._manifests().get(peer_id)
+        if manifest is None:
+            return {}
+        env = {f"{prefix}MODULE": peer_id}
+        if manifest.web_ui is not None:
+            env[f"{prefix}HOST"] = f"cobble-{peer_id}-{manifest.web_ui.service}"
+            env[f"{prefix}PORT"] = str(manifest.web_ui.port)
+        with self._sessions() as session:
+            for key in manifest.link_secrets:
+                value = self._store.get(session, peer_id, key)
+                if value is not None:
+                    env[f"{prefix}SECRET_{key.upper()}"] = value.reveal()
+        return env
+
     def _link_hooks(
         self, consumer: str, provider: str, capability: str, which: str, *, strict: bool = True
     ) -> None:
@@ -526,10 +569,7 @@ class ModuleManager:
                 "COBBLE_LINK_PEER": peer,
                 "COBBLE_LINK_CAPABILITY": capability,
             }
-            peer_ui = manifests[peer].web_ui
-            if peer_ui is not None:
-                extra["COBBLE_PEER_HOST"] = f"cobble-{peer}-{peer_ui.service}"
-                extra["COBBLE_PEER_PORT"] = str(peer_ui.port)
+            extra.update(self._peer_env(peer, "COBBLE_PEER_"))
             try:
                 self._run_hook(module_id, script, extra)
             except RunnerError as exc:

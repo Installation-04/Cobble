@@ -22,6 +22,9 @@ healthcheck:
 # post-install hook and is the only secret the core may read.
 secrets: [secret_key, admin_password]
 core_secrets: [api_token]
+# Shared with the hooks of modules that require `git` (for example the CI signs in as the
+# service account); never with the core.
+link_secrets: [admin_password]
 hooks:
   post_install: hooks/post-install.sh
 backup:

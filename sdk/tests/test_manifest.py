@@ -78,6 +78,7 @@ def test_provides_shorthand_and_defaults() -> None:
     assert parsed.compose == "compose.yml"
     assert parsed.host_access == []
     assert parsed.core_secrets == []
+    assert parsed.link_secrets == [] and parsed.hooks.pre_up is None
     assert parsed.offline is False
 
 
@@ -131,6 +132,12 @@ INVALID: list[tuple[str, dict[str, Any], str]] = [
     ("negative ram", _with(hardware={"min_ram_mb": -1}), "min_ram_mb"),
     ("web_ui without a service", _with(web_ui={"port": 1, "path": "/git"}), "web_ui.service"),
     ("duplicate bus service", _with(bus=["forgejo", "forgejo"]), "duplicate"),
+    (
+        "duplicate link secret",
+        _with(link_secrets=["admin_password", "admin_password"]),
+        "duplicate",
+    ),
+    ("hostile pre_up path", _with(hooks={"pre_up": "../x.sh"}), "relative path"),
     ("duplicate core secret", _with(core_secrets=["api_token", "api_token"]), "duplicate"),
     ("bad core secret name", _with(core_secrets=["Api Token"]), "core_secrets"),
     ("duplicate variant", _with(variants=[{"id": "cpu"}, {"id": "cpu"}]), "duplicate"),

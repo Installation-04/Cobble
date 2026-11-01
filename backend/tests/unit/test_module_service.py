@@ -509,11 +509,32 @@ def test_the_service_refuses_to_start_without_a_token(
 
 
 def test_the_public_url_becomes_platform_variables_for_modules() -> None:
-    from cobble.module_manager.__main__ import public_env
+    from cobble.module_manager.__main__ import docker_gid, public_env
 
     assert public_env("http://192.168.1.20:8080/") == {
         "COBBLE_PUBLIC_URL": "http://192.168.1.20:8080",
         "COBBLE_PUBLIC_HOST": "192.168.1.20",
+        "COBBLE_PUBLIC_PORT": "8080",
+        "COBBLE_GATEWAY_ALIAS": "cobble-gateway",  # an address: pipelines reach it directly
     }
-    assert public_env("https://cobble.example.org")["COBBLE_PUBLIC_HOST"] == "cobble.example.org"
+    named = public_env("https://cobble.example.org")
+    assert named["COBBLE_PUBLIC_HOST"] == "cobble.example.org"
+    assert named["COBBLE_PUBLIC_PORT"] == "443"
+    assert (
+        named["COBBLE_GATEWAY_ALIAS"] == "cobble.example.org"
+    )  # a name: the gateway answers to it
+    assert public_env("http://nas.local")["COBBLE_PUBLIC_PORT"] == "80"
+    assert public_env("http://localhost:8080")["COBBLE_GATEWAY_ALIAS"] == "cobble-gateway"
     assert public_env("")["COBBLE_PUBLIC_URL"] == "http://localhost"
+    assert docker_gid("/definitely/not/there") == "0"
+    assert docker_gid("/") == str(__import__("os").stat("/").st_gid)
+
+
+def test_extra_platform_variables_are_a_json_object_of_cobble_variables() -> None:
+    from cobble.module_manager.__main__ import extra_env
+
+    assert extra_env("") == {} and extra_env("  ") == {}
+    assert extra_env('{"COBBLE_SKIP_STEPS": "trivy"}') == {"COBBLE_SKIP_STEPS": "trivy"}
+    for bad in ('["x"]', '{"PATH": "/evil"}', '{"COBBLE_X": 1}', "not json"):
+        with pytest.raises(ValueError):
+            extra_env(bad)

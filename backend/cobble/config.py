@@ -52,6 +52,10 @@ class Settings(BaseSettings):
     # How users reach the platform, e.g. http://192.168.1.20 : modules build their public links
     # from it (COBBLE_PUBLIC_URL / COBBLE_PUBLIC_HOST in their compose files and hooks).
     module_public_url: str = "http://localhost"
+    # Extra variables every module compose file and hook may use (for example a CA bundle for
+    # pipeline steps behind a TLS-inspecting proxy). Operator-chosen, never secrets.
+    # JSON object, e.g. {"COBBLE_SKIP_STEPS": "trivy"}. Empty: none.
+    module_extra_env: str = ""
     module_routes_dir: str = ""
     module_caddyfile: str = "/etc/caddy-main/Caddyfile"
     module_caddy_admin_socket: str = "/run/caddy/admin.sock"

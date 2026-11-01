@@ -113,6 +113,18 @@
           "default": null,
           "title": "Pre Uninstall"
         },
+        "pre_up": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pre Up"
+        },
         "register_core": {
           "anyOf": [
             {
@@ -394,6 +406,14 @@
       "minLength": 1,
       "title": "License",
       "type": "string"
+    },
+    "link_secrets": {
+      "items": {
+        "pattern": "^[a-z][a-z0-9_]{0,39}$",
+        "type": "string"
+      },
+      "title": "Link Secrets",
+      "type": "array"
     },
     "name": {
       "maxLength": 60,

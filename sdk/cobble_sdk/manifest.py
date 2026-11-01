@@ -121,6 +121,10 @@ def _safe_relative_path(value: str) -> str:
 class Hooks(_Strict):
     """Shell hooks, relative to the module directory. All must be idempotent."""
 
+    # Runs before the module starts, once the modules it requires are running (it can prepare
+    # what the module needs from them, for example an OAuth application); the secrets it
+    # prints become the module's own and are available when the compose file is rendered.
+    pre_up: str | None = None
     post_install: str | None = None
     register_core: str | None = None
     pre_uninstall: str | None = None
@@ -129,7 +133,7 @@ class Hooks(_Strict):
 
     @model_validator(mode="after")
     def _paths(self) -> Hooks:
-        for value in (self.post_install, self.register_core, self.pre_uninstall):
+        for value in (self.pre_up, self.post_install, self.register_core, self.pre_uninstall):
             if value is not None:
                 _safe_relative_path(value)
         for value in (*self.on_link.values(), *self.on_unlink.values()):
@@ -164,6 +168,10 @@ class Manifest(_Strict):
     # Secrets (declared above or produced by a hook) that the core may read to talk to the module,
     # for example the API token of a Git server. Nothing else leaves the vault.
     core_secrets: list[Key] = Field(default_factory=list)
+    # Secrets the hooks of a module that requires this one may read, as COBBLE_PEER_* variables
+    # (for example the service account of a Git server, so that a CI module can sign in). They
+    # never reach the core, the API or the browser.
+    link_secrets: list[Key] = Field(default_factory=list)
     healthcheck: Healthcheck | None = None
     hooks: Hooks = Field(default_factory=Hooks)
     backup: Backup = Field(default_factory=Backup)
@@ -201,6 +209,7 @@ class Manifest(_Strict):
         _unique([s.key for s in self.settings], "settings")
         _unique(self.secrets, "secrets")
         _unique(self.core_secrets, "core_secrets")
+        _unique(self.link_secrets, "link_secrets")
         _unique([v.id for v in self.variants], "variants")
         _unique(self.images, "images")
         _unique(self.backup.volumes, "backup.volumes")
