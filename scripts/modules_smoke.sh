@@ -5,7 +5,8 @@
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 module="${1:-forgejo}"
-COMPOSE=(docker compose -f core/compose.yml ${COMPOSE_FLAGS:-} --profile modules)
+read -r -a EXTRA_FLAGS <<<"${COMPOSE_FLAGS:-}"
+COMPOSE=(docker compose -f core/compose.yml "${EXTRA_FLAGS[@]}" --profile modules)
 port="$(sed -n 's/^COBBLE_HTTP_PORT=//p' core/.env)"
 base="http://localhost:${port:-80}"
 mm() { "${COMPOSE[@]}" exec -T module-manager python - "$@" <scripts/module_client.py; }

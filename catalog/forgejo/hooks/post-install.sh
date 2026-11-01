@@ -2,6 +2,7 @@
 # Creates Forgejo's service account and its API token. Idempotent: an existing account is kept,
 # and a stored token that still works is left alone. The token is handed back to the platform
 # as `::secret::api_token=...` (the only line of output that is read).
+# shellcheck disable=SC2016  # single quotes: the text runs inside the container
 set -euo pipefail
 
 CONTAINER="cobble-${COBBLE_MODULE_ID}-forgejo"

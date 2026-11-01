@@ -257,15 +257,18 @@ doctor_unit() {
 }
 
 doctor_modules() {
-  local token catalog gid socket_gid
+  local token catalog gid socket_gid count=0
   token="$(env_get MODULE_MANAGER_TOKEN "$DIR/.env")"
   catalog="$(env_get COBBLE_CATALOG_DIR "$DIR/.env")"
+  if [ -d "$catalog" ]; then
+    count="$(find "$catalog" -mindepth 2 -maxdepth 2 -name manifest.yaml | wc -l | tr -d ' ')"
+  fi
   if [ -z "$token" ]; then
     report FAIL modules "$(msg doc_modules_notoken)" fix_modules
-  elif [ ! -d "$catalog" ] || ! ls "$catalog"/*/manifest.yaml >/dev/null 2>&1; then
+  elif [ "$count" -eq 0 ]; then
     report FAIL modules "$(msg doc_modules_nocatalog "${catalog:--}")" fix_modules
   else
-    report OK modules "$(msg doc_modules_ok "$(ls "$catalog"/*/manifest.yaml | wc -l | tr -d ' ')")"
+    report OK modules "$(msg doc_modules_ok "$count")"
   fi
   # The module-manager is given the Docker socket's group at install time: a Docker that was
   # reinstalled with another group would lock it out of the socket.
