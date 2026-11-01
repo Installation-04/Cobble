@@ -60,6 +60,16 @@ dev:
 	$(COMPOSE) up --build -d --wait
 	@echo "Cobble is up: http://localhost:$(HTTP_PORT)  (first run: make activation-link)"
 
+# The same stack plus the module-manager (compose profile `modules`).
+dev-modules:
+	python3 scripts/dev_env.py
+	$(COMPOSE) --profile modules up --build -d --wait
+	@echo "module-manager is up; try: make smoke-modules"
+
+# Installs the Forgejo module through the real module-manager, checks it and removes it.
+smoke-modules:
+	scripts/modules_smoke.sh
+
 dev-down:
 	$(COMPOSE) down
 

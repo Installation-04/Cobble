@@ -504,3 +504,12 @@ def test_provider_choices_survive_between_operations() -> None:
     other = copy.copy(rig)
     assert other.manager.plan_uninstall(["woodpecker"]).steps[-1].module == "gitea"
     assert rig.manager.install(["woodpecker"]).steps == ()  # no new question
+
+
+def test_modules_receive_the_platform_facts_in_compose_and_hooks() -> None:
+    rig = Rig()
+    rig.manager._platform_env = {"COBBLE_PUBLIC_URL": "http://box", "COBBLE_PUBLIC_HOST": "box"}
+    rig.manager.install(["forgejo"])
+    envs = [env for _, env in rig.runner.hook_envs]
+    assert envs and all(env["COBBLE_PUBLIC_URL"] == "http://box" for env in envs)
+    assert all(env["COBBLE_MODULE_ID"] == "forgejo" for env in envs)

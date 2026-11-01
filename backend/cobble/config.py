@@ -49,6 +49,9 @@ class Settings(BaseSettings):
     module_health_timeout_s: float = 120.0
     # The reverse proxy: where the module routes are written, the main Caddyfile to reload with
     # them, and Caddy's admin socket. An empty routes dir means "no proxy to configure".
+    # How users reach the platform, e.g. http://192.168.1.20 : modules build their public links
+    # from it (COBBLE_PUBLIC_URL / COBBLE_PUBLIC_HOST in their compose files and hooks).
+    module_public_url: str = "http://localhost"
     module_routes_dir: str = ""
     module_caddyfile: str = "/etc/caddy-main/Caddyfile"
     module_caddy_admin_socket: str = "/run/caddy/admin.sock"

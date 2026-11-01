@@ -167,6 +167,7 @@ services:
       COBBLE_MODULE_RAM_MB: ${COBBLE_MODULE_RAM_MB:-0}
       COBBLE_MODULE_GPU: ${COBBLE_MODULE_GPU:-auto}
       COBBLE_MODULE_ROUTES_DIR: /var/lib/cobble-routes
+      COBBLE_MODULE_PUBLIC_URL: ${COBBLE_PUBLIC_URL:-http://localhost}
     volumes:
       # The routes it publishes for Caddy, the main Caddyfile it reloads them with, and the
       # admin socket (a private volume shared with Caddy only).

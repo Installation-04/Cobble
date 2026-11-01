@@ -129,3 +129,23 @@ def test_parse_hook_output_ignores_malformed_lines() -> None:
         ["::secret::=novalue", "::secret::onlykey", "::secret::k=", "plain", "::secret::ok=1v"]
     )
     assert parse_hook_output(text) == {"ok": "1v"}
+
+
+def test_a_hook_does_not_inherit_the_managers_own_secrets(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("COBBLE_DATABASE_URL", "postgresql://user:db-password@db/x")
+    monkeypatch.setenv("COBBLE_MODULE_MANAGER_TOKEN", "manager-token")
+    monkeypatch.setenv("COBBLE_REDIS_URL", "redis://:redis-password@r/0")
+    script = tmp_path / "hook.sh"
+    script.write_text("env | sort\n")
+    result = ComposeRunner().run_hook(str(script), {"COBBLE_MODULE_ID": "demo"})
+    assert result.returncode == 0
+    # the hook's own stdout is not exposed; check through a file it writes
+    out = tmp_path / "env.txt"
+    script.write_text(f"env | sort > {out}\n")
+    ComposeRunner().run_hook(str(script), {"COBBLE_MODULE_ID": "demo", "COBBLE_PUBLIC_URL": "u"})
+    seen = out.read_text()
+    assert "COBBLE_MODULE_ID=demo" in seen and "COBBLE_PUBLIC_URL=u" in seen
+    for secret in ("db-password", "manager-token", "redis-password"):
+        assert secret not in seen

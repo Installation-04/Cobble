@@ -1,0 +1,41 @@
+# Forgejo for Cobble. No published port: Caddy serves it under /git/. The platform rewrites this
+# file (names, network, limits) before it runs; see docs/decisions/0008-module-manager.md.
+services:
+  forgejo:
+    image: codeberg.org/forgejo/forgejo:15.0.11-rootless@sha256:3cd6bc2b74c87cbde0a0fd527c9665cb416f5a0540dee54fe5afb3fa2df9f40c
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    restart: unless-stopped
+    environment:
+      FORGEJO__security__INSTALL_LOCK: "true"
+      FORGEJO__security__SECRET_KEY: ${COBBLE_SECRET_SECRET_KEY:?}
+      FORGEJO__server__DOMAIN: ${COBBLE_PUBLIC_HOST:-localhost}
+      FORGEJO__server__ROOT_URL: ${COBBLE_PUBLIC_URL:-http://localhost}/git/
+      FORGEJO__server__HTTP_PORT: "3000"
+      FORGEJO__server__DISABLE_SSH: "true"
+      FORGEJO__server__OFFLINE_MODE: "true"
+      FORGEJO__database__DB_TYPE: sqlite3
+      FORGEJO__service__DISABLE_REGISTRATION: "true"
+      FORGEJO__service__REQUIRE_SIGNIN_VIEW: "true"
+      FORGEJO__service__DEFAULT_ALLOW_CREATE_ORGANIZATION: "false"
+      FORGEJO__repository__DEFAULT_PRIVATE: private
+      FORGEJO__repository__DEFAULT_BRANCH: main
+      FORGEJO__actions__ENABLED: "false"
+      FORGEJO__mailer__ENABLED: "false"
+      # The CI module reaches Forgejo from the platform network (a private address).
+      FORGEJO__webhook__ALLOWED_HOST_LIST: private
+      FORGEJO__webhook__SKIP_TLS_VERIFY: "false"
+      FORGEJO__log__LEVEL: Info
+      FORGEJO__other__SHOW_FOOTER_VERSION: "false"
+    volumes:
+      - forgejo_data:/var/lib/gitea
+      - forgejo_conf:/etc/gitea
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:3000/api/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 40
+
+volumes:
+  forgejo_data:
+  forgejo_conf:

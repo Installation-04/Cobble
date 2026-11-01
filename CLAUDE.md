@@ -42,6 +42,8 @@ make dev          # lance le noyau en local avec le faux fournisseur LLM (aucune
 make dev-down     # arrête le noyau; make dev-logs suit les journaux
 make activation-link  # lien à usage unique pour créer le compte admin
 make smoke        # une requête de chat via LiteLLM + la ligne de coût enregistrée
+make dev-modules  # le noyau + le module-manager (profil compose `modules`)
+make smoke-modules  # installe le module Forgejo via le vrai module-manager, vérifie, désinstalle
 make test-integration  # Postgres/Redis/LiteLLM réels (pile + core/compose.test.yml)
 make cassettes    # réenregistre des cassettes contre un vrai fournisseur (coûte des tokens)
 make test         # tests unitaires backend + frontend

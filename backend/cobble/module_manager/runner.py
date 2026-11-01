@@ -45,6 +45,15 @@ class Runner(Protocol):
     def run_hook(self, script: str, env: Mapping[str, str]) -> HookResult: ...
 
 
+# What a hook may inherit from the module-manager. Nothing else: the manager's own settings hold
+# the database and Redis passwords, its API token and more, none of which a hook needs.
+HOOK_ENV_ALLOWLIST = ("PATH", "HOME", "LANG", "LC_ALL", "TZ", "DOCKER_CONFIG", "DOCKER_HOST")
+
+
+def _hook_base_env() -> dict[str, str]:
+    return {key: os.environ[key] for key in HOOK_ENV_ALLOWLIST if key in os.environ}
+
+
 def parse_hook_output(stdout: str) -> dict[str, str]:
     """Only `::secret::KEY=VALUE` lines are kept; everything else is dropped."""
     secrets: dict[str, str] = {}
@@ -133,7 +142,7 @@ class ComposeRunner:
         try:
             result = subprocess.run(  # noqa: S603 - the script path comes from the catalogue
                 ["bash", script],  # noqa: S607
-                env={**os.environ, **env},
+                env={**_hook_base_env(), **env},
                 capture_output=True,
                 text=True,
                 timeout=self._hook_timeout_s,

@@ -106,6 +106,7 @@ class ModuleManager:
         bus_network: str = "cobble_core",
         on_event: EventSink | None = None,
         edge: Edge | None = None,
+        platform_env: Mapping[str, str] | None = None,
     ) -> None:
         self._sessions = sessions
         self._catalog = catalog
@@ -115,6 +116,9 @@ class ModuleManager:
         self._health_timeout_s = health_timeout_s
         self._bus_network = bus_network
         self._on_event = on_event
+        # Facts about the platform every module may use (public URL...): compose variables and
+        # hook environment. Never secrets.
+        self._platform_env = dict(platform_env or {})
         self._edge: Edge = edge if edge is not None else NullEdge()
         self._lock = threading.Lock()  # one operation at a time
 
@@ -372,7 +376,7 @@ class ModuleManager:
         state.modules_generation += 1
 
     def _secret_env(self, module_id: str) -> dict[str, str]:
-        env = {"COBBLE_MODULE_ID": module_id}
+        env = {**self._platform_env, "COBBLE_MODULE_ID": module_id}
         with self._sessions() as session:
             for key in self._store.keys(session, module_id):
                 value = self._store.get(session, module_id, key)

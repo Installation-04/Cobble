@@ -30,6 +30,13 @@ log = logging.getLogger("cobble.module_manager")
 PORT = 8095
 
 
+def public_env(public_url: str) -> dict[str, str]:
+    """`COBBLE_PUBLIC_URL` (no trailing slash) and its host name, for modules."""
+    url = public_url.strip().rstrip("/") or "http://localhost"
+    host = url.split("://", 1)[-1].split("/", 1)[0].split(":", 1)[0]
+    return {"COBBLE_PUBLIC_URL": url, "COBBLE_PUBLIC_HOST": host}
+
+
 def build_app(settings: Settings, redis: Redis) -> tuple[FastAPI, ModuleManager]:
     key_file = Path(settings.module_master_key_file)
     if not key_file.exists():
@@ -63,6 +70,7 @@ def build_app(settings: Settings, redis: Redis) -> tuple[FastAPI, ModuleManager]
         health_timeout_s=settings.module_health_timeout_s,
         on_event=controller.on_step,
         edge=edge,
+        platform_env=public_env(settings.module_public_url),
     )
     controller.bind(manager)
     return create_app(controller, settings.module_manager_token, catalog), manager

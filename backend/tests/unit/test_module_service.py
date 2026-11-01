@@ -506,3 +506,14 @@ def test_the_service_refuses_to_start_without_a_token(
     )
     assert main() == 78
     assert not (tmp_path / "keys").exists()  # nothing was created
+
+
+def test_the_public_url_becomes_platform_variables_for_modules() -> None:
+    from cobble.module_manager.__main__ import public_env
+
+    assert public_env("http://192.168.1.20:8080/") == {
+        "COBBLE_PUBLIC_URL": "http://192.168.1.20:8080",
+        "COBBLE_PUBLIC_HOST": "192.168.1.20",
+    }
+    assert public_env("https://cobble.example.org")["COBBLE_PUBLIC_HOST"] == "cobble.example.org"
+    assert public_env("")["COBBLE_PUBLIC_URL"] == "http://localhost"
