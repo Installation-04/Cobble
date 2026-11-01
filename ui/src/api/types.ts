@@ -313,3 +313,40 @@ export interface ModulePacks {
   problems: Record<string, string[]>;
   recommended: string | null;
 }
+
+// --- Model connections ----------------------------------------------------------------------------
+
+export type ModelProvider = "openai" | "anthropic" | "openrouter" | "custom";
+
+/** A connected model service. The API key is never part of it: it is only ever sent. */
+export interface ModelConnection {
+  name: string;
+  provider: ModelProvider;
+  model: string;
+  base_url: string | null;
+  default: boolean;
+}
+
+export interface ModelListing {
+  models: ModelConnection[];
+  /** The connection used by default, or null when the configured one applies. */
+  default: string | null;
+  /** What answers when no connection is the default (the built-in demo model in development). */
+  configured_default: string;
+}
+
+export interface ModelRequest {
+  provider: ModelProvider;
+  model: string;
+  api_key: string;
+  base_url?: string | null;
+  make_default?: boolean;
+}
+
+export type ProbeCode =
+  "ok" | "auth_failed" | "model_not_found" | "rate_limited" | "unreachable" | "failed";
+
+export interface ModelProbe {
+  ok: boolean;
+  code: ProbeCode;
+}

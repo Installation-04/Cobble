@@ -4,6 +4,9 @@ import type {
   Folder,
   GlobalCostRow,
   Milestone,
+  ModelListing,
+  ModelProbe,
+  ModelRequest,
   ModuleCatalog,
   ModuleOperation,
   ModuleOperationRequest,
@@ -107,4 +110,13 @@ export const modulesApi = {
   operation: (id: string) => api.get<ModuleOperation>(`/modules/operations/${id}`),
   /** Which secrets of a module are set (never their values). */
   secrets: (id: string) => api.get<Record<string, boolean>>(`/modules/${id}/secrets`),
+};
+
+export const modelsApi = {
+  list: () => api.get<ModelListing>("/models"),
+  /** Connects (or updates) a model service: the gateway restarts, so this takes about 20 s. */
+  put: (name: string, body: ModelRequest) => api.put<ModelListing>(`/models/${name}`, body),
+  remove: (name: string) => api.delete<ModelListing>(`/models/${name}`),
+  makeDefault: (name: string) => api.post<ModelListing>(`/models/${name}/default`),
+  test: (name: string) => api.post<ModelProbe>(`/models/${name}/test`),
 };
