@@ -39,7 +39,7 @@ new_sandbox() {
   export COBBLE_OS_RELEASE="$S/os-release" COBBLE_BIN_DIR="$S/bin" COBBLE_UNIT_DIR="$S/unit"
   export COBBLE_LOG_FILE="$S/install.log" COBBLE_PRIMARY_IP=10.0.0.5 COBBLE_DIR="$S/opt"
   export COBBLE_LANG=en
-  unset COBBLE_ARCH COBBLE_DOCTOR_FAKE_DOWN STUB_BAD_CONTAINER STUB_UNIT_DOWN STUB_NO_LISTEN STUB_NO_ADMIN_LINK
+  unset COBBLE_ARCH COBBLE_DOCTOR_FAKE_DOWN STUB_BAD_CONTAINER STUB_BAD_EXIT STUB_UNIT_DOWN STUB_NO_LISTEN STUB_NO_ADMIN_LINK
 }
 ORIG_PATH="$PATH"
 
@@ -211,6 +211,8 @@ t_doctor() {
   { [ "$rc" -eq 0 ] && [[ "$out" == *"OK"* && "$out" != *"FAIL"* ]]; } || fail="$fail healthy(rc=$rc: $out)"
   out="$(STUB_BAD_CONTAINER=worker run_cli doctor 2>&1)" && rc=0 || rc=$?
   { [ "$rc" -eq 1 ] && [[ "$out" == *"FAIL"*"worker"* && "$out" == *"->"* ]]; } || fail="$fail bad-container(rc=$rc)"
+  out="$(STUB_BAD_CONTAINER=worker STUB_BAD_EXIT=0 run_cli doctor 2>&1)" && rc=0 || rc=$?
+  { [ "$rc" -eq 1 ] && [[ "$out" == *"FAIL"*"worker"* ]]; } || fail="$fail stopped-cleanly(rc=$rc)"
   out="$(STUB_BAD_CONTAINER=caddy-init run_cli doctor 2>&1)" && rc=0 || rc=$?
   { [ "$rc" -eq 1 ] && [[ "$out" == *"FAIL"*"caddy-init"* ]]; } || fail="$fail failed-oneshot(rc=$rc)"
   out="$(COBBLE_DOCTOR_FAKE_DOWN=1 run_cli doctor 2>&1)" && rc=0 || rc=$?

@@ -10,7 +10,7 @@ case "$*" in
   *" ps -a --format"*)
     echo "caddy-init|exited||0"  # a one-shot that finished: not a failure
     for s in postgres redis litellm api worker ui caddy; do
-      if [ "${STUB_BAD_CONTAINER:-}" = "$s" ]; then echo "$s|exited||1"; else echo "$s|running|healthy|0"; fi
+      if [ "${STUB_BAD_CONTAINER:-}" = "$s" ]; then echo "$s|exited||${STUB_BAD_EXIT:-1}"; else echo "$s|running|healthy|0"; fi
     done
     if [ "${STUB_BAD_CONTAINER:-}" = "caddy-init" ]; then echo "caddy-init|exited||1"; fi
     ;;
