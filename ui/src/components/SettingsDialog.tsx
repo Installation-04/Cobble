@@ -3,6 +3,7 @@ import { useAuth } from "../auth/AuthProvider";
 import { isLang, LANGS } from "../i18n";
 import { isThemeMode, THEME_MODES } from "../theme/store";
 import { useTheme } from "../theme/useTheme";
+import { ModelConnections } from "../models/ModelConnections";
 import { UI_VERSION } from "../version";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Label } from "./ui/label";
@@ -16,13 +17,13 @@ export function SettingsDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const { t, i18n } = useTranslation(["settings", "common"]);
-  const { savePrefs } = useAuth();
+  const { t, i18n } = useTranslation(["settings", "common", "models"]);
+  const { savePrefs, user } = useAuth();
   const { mode, setMode } = useTheme();
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent data-testid="settings-dialog" className="min-h-80">
+      <DialogContent data-testid="settings-dialog" className="min-h-80 sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>{t("settings:title")}</DialogTitle>
           <DialogDescription>{t("settings:description")}</DialogDescription>
@@ -35,6 +36,11 @@ export function SettingsDialog({
             <TabsTrigger value="appearance" data-testid="settings-tab-appearance">
               {t("settings:tabs.appearance")}
             </TabsTrigger>
+            {user?.role === "admin" && (
+              <TabsTrigger value="models" data-testid="settings-tab-models">
+                {t("models:title")}
+              </TabsTrigger>
+            )}
             <TabsTrigger value="about" data-testid="settings-tab-about">
               {t("settings:tabs.about")}
             </TabsTrigger>
@@ -73,6 +79,11 @@ export function SettingsDialog({
               ))}
             </Select>
           </TabsContent>
+          {user?.role === "admin" && (
+            <TabsContent value="models">
+              <ModelConnections />
+            </TabsContent>
+          )}
           <TabsContent value="about" className="grid gap-2 text-sm">
             <p>
               <span className="text-muted-foreground">{t("settings:about.version")}</span>{" "}

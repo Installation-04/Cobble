@@ -16,6 +16,9 @@ export const NAMESPACES = [
   "agents",
   "demo",
   "costs",
+  "store",
+  "models",
+  "welcome",
 ] as const;
 
 const modules = import.meta.glob("../locales/*/*.json", {

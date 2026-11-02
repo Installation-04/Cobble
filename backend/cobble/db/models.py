@@ -10,9 +10,11 @@ from typing import Any
 from sqlalchemy import (
     JSON,
     Boolean,
+    CheckConstraint,
     DateTime,
     ForeignKey,
     Integer,
+    LargeBinary,
     Numeric,
     String,
     Text,
@@ -281,3 +283,136 @@ class Milestone(Base):
     revision: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     built_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     validated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class Module(Base):
+    """An installed (or installing) module of the store (ADR 0008)."""
+
+    __tablename__ = "modules"
+
+    id: Mapped[str] = mapped_column(String(40), primary_key=True)  # the manifest id
+    version: Mapped[str] = mapped_column(String(40), nullable=False)
+    variant: Mapped[str | None] = mapped_column(String(20))
+    # True when the user asked for it; False when it is only a dependency of another module.
+    explicit: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=false()
+    )
+    # installing | running | failed | removing
+    state: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="installing", server_default="installing"
+    )
+    settings: Mapped[dict[str, Any]] = mapped_column(
+        JSON, nullable=False, default=dict, server_default="{}"
+    )
+    # An error *code* (translated by the UI), never a message that could carry a secret.
+    last_error: Mapped[str | None] = mapped_column(String(100))
+    installed_at: Mapped[datetime] = _now_col()
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=_utcnow,
+        server_default=func.now(),
+        onupdate=_utcnow,
+        nullable=False,
+    )
+
+
+class ModuleSecret(Base):
+    """A secret of a module, encrypted by the module-manager's vault (AES-256-GCM)."""
+
+    __tablename__ = "module_secrets"
+
+    module_id: Mapped[str] = mapped_column(
+        String(40), ForeignKey("modules.id", ondelete="CASCADE"), primary_key=True
+    )
+    key: Mapped[str] = mapped_column(String(40), primary_key=True)
+    ciphertext: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    nonce: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    key_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+    created_at: Mapped[datetime] = _now_col()
+
+
+class LlmConnection(Base):
+    """A language-model service the administrator connected with an API key.
+
+    The key is encrypted by the module-manager's vault (bound to the connection's name), never
+    stored in clear and never returned by any API. `name` is what the gateway exposes and what
+    the default model refers to.
+    """
+
+    __tablename__ = "llm_connections"
+
+    name: Mapped[str] = mapped_column(String(40), primary_key=True)
+    # openai | anthropic | openrouter | custom (an OpenAI-compatible service at `base_url`)
+    provider: Mapped[str] = mapped_column(String(20), nullable=False)
+    model: Mapped[str] = mapped_column(String(100), nullable=False)
+    base_url: Mapped[str | None] = mapped_column(String(300))
+    ciphertext: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    nonce: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    key_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+    created_at: Mapped[datetime] = _now_col()
+
+
+class ModuleLink(Base):
+    """A consumer module linked to a provider module through a capability."""
+
+    __tablename__ = "module_links"
+    __table_args__ = (UniqueConstraint("consumer", "provider", "capability"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    consumer: Mapped[str] = mapped_column(
+        String(40), ForeignKey("modules.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    provider: Mapped[str] = mapped_column(
+        String(40), ForeignKey("modules.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    capability: Mapped[str] = mapped_column(String(40), nullable=False)
+    # pending | linked | failed
+    state: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="pending", server_default="pending"
+    )
+    created_at: Mapped[datetime] = _now_col()
+
+
+class ModuleEvent(Base):
+    """The history of what the module-manager did (kept after an uninstall)."""
+
+    __tablename__ = "module_events"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    # No foreign key: the history must outlive the module.
+    module_id: Mapped[str] = mapped_column(String(40), nullable=False, index=True)
+    at: Mapped[datetime] = _now_col()
+    # install | uninstall | link | unlink | step | rollback
+    kind: Mapped[str] = mapped_column(String(20), nullable=False)
+    step: Mapped[str | None] = mapped_column(String(30))
+    # ok | error
+    outcome: Mapped[str] = mapped_column(
+        String(10), nullable=False, default="ok", server_default="ok"
+    )
+    code: Mapped[str | None] = mapped_column(String(100))  # translated by the UI
+    params: Mapped[dict[str, Any]] = mapped_column(
+        JSON, nullable=False, default=dict, server_default="{}"
+    )
+
+
+class PlatformState(Base):
+    """A single row: whether the first-run setup is done and the modules generation counter.
+
+    `modules_generation` is bumped on every change of the installed modules; the worker compares
+    it with the one it built its providers from and rebuilds them when it moved.
+    """
+
+    __tablename__ = "platform_state"
+    __table_args__ = (CheckConstraint("id = 1", name="ck_platform_state_single_row"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
+    setup_completed: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=false()
+    )
+    setup_completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    modules_generation: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+    # The model used when a role has none of its own; None means the configured one (`fake` in
+    # development). Set when a model connection is made the default.
+    default_model: Mapped[str | None] = mapped_column(String(40))

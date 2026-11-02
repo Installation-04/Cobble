@@ -33,8 +33,10 @@ from cobble.orchestrator.service import PlannerService
 from cobble.router.budget import BudgetService
 from cobble.router.costs import CostRouter
 from cobble.router.gateway import LiteLLMGateway
+from cobble.router.policy import ModelPolicy
 from cobble.scheduler import Scheduler
-from cobble.scheduler.factory import build_scheduler
+from cobble.scheduler.factory import build_scheduler, make_scheduler_supervisor
+from cobble.scheduler.supervisor import SchedulerSupervisor, SchedulerUnavailable
 
 GROUP = "workers"
 BLOCK_MS = 1000
@@ -95,7 +97,10 @@ def build_planner(settings: Settings, redis: Redis) -> PlannerService:
     sessions = make_session_factory(make_engine(settings.database_url))
     gateway = LiteLLMGateway(settings.litellm_url, settings.litellm_key, sessions, redis)
     router = CostRouter(
-        gateway, BudgetService(sessions, redis), settings.role_models, settings.default_model
+        gateway,
+        BudgetService(sessions, redis),
+        settings.role_models,
+        ModelPolicy(sessions, settings).default,
     )
     return PlannerService(sessions, router, redis, settings)
 
@@ -110,8 +115,17 @@ def ensure_jobs_group(client: Redis) -> None:
 
 
 def make_job_handler(
-    planner: PlannerService, scheduler: Scheduler | None = None, events: Redis | None = None
+    planner: PlannerService,
+    scheduler: Scheduler | SchedulerSupervisor | None = None,
+    events: Redis | None = None,
 ) -> JobHandler:
+    def unavailable(kind: str, project_id: uuid.UUID) -> None:
+        log.warning("%s job dropped: the scheduler is not configured", kind)
+        if events is not None:
+            publish_project(
+                events, project_id, "job.failed", {"kind": kind, "code": "scheduler_unavailable"}
+            )
+
     def handler(fields: dict[Any, Any]) -> None:
         try:
             job = json.loads(fields[b"job"])
@@ -122,30 +136,20 @@ def make_job_handler(
             return
         log.info("job %s for project %s", kind, project_id)
         if kind == "start":
-            if scheduler is not None:
+            try:
+                if scheduler is None:
+                    raise SchedulerUnavailable
                 scheduler.run_start_job(project_id)
-            else:
-                log.warning("start job dropped: the scheduler is not configured")
-                if events is not None:
-                    publish_project(
-                        events,
-                        project_id,
-                        "job.failed",
-                        {"kind": "start", "code": "scheduler_unavailable"},
-                    )
+            except SchedulerUnavailable:
+                unavailable("start", project_id)
             return
         if kind == "revert":
-            if scheduler is not None:
+            try:
+                if scheduler is None:
+                    raise SchedulerUnavailable
                 scheduler.run_revert_job(project_id, str(job.get("ref", "")))
-            else:
-                log.warning("revert job dropped: the scheduler is not configured")
-                if events is not None:
-                    publish_project(
-                        events,
-                        project_id,
-                        "job.failed",
-                        {"kind": "revert", "code": "scheduler_unavailable"},
-                    )
+            except SchedulerUnavailable:
+                unavailable("revert", project_id)
             return
         planner.run_job(
             kind, project_id, feedback=job.get("feedback"), message_id=job.get("message_id")
@@ -228,9 +232,10 @@ def main() -> None:
     signal.signal(signal.SIGINT, _stop)
     settings = get_settings()
     client = Redis.from_url(settings.redis_url)
-    scheduler = build_scheduler(
-        settings, make_session_factory(make_engine(settings.database_url)), client
-    )
+    sessions = make_session_factory(make_engine(settings.database_url))
+    scheduler: Scheduler | SchedulerSupervisor | None = make_scheduler_supervisor(
+        settings, sessions, client
+    ) or build_scheduler(settings, sessions, client)
     handler = make_job_handler(build_planner(settings, client), scheduler, client)
     threads = [threading.Thread(target=run_jobs, args=(client, stop, handler), name="jobs")]
     if scheduler is not None:

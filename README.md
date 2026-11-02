@@ -94,7 +94,7 @@ Plain HTTP only (no automatic HTTPS), amd64 only, no GPU/Ollama in the pack (hos
 
 ## Documentation
 
-[Wiki and guides (`docs/wiki`)](docs/wiki/Home.md) · [Installation](docs/en/install.md) · [Development](docs/en/dev.md) · [Pack](docs/en/pack.md) · [Agents](docs/en/agents.md) · [Demos](docs/en/demo.md) · [Architecture decisions](docs/decisions/) · [Full plan (French)](PLAN.md) · [Release notes](docs/releases/v0.1.md)
+[Wiki and guides (`docs/wiki`)](docs/wiki/Home.md) · [Installation](docs/en/install.md) · [Development](docs/en/dev.md) · [Modules](docs/en/modules.md) · [Agents](docs/en/agents.md) · [Demos](docs/en/demo.md) · [Architecture decisions](docs/decisions/) · [Full plan (French)](PLAN.md) · [Release notes](docs/releases/v0.1.md)
 
 ## Contributing, security, license
 

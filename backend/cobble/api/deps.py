@@ -41,8 +41,16 @@ def current_user(request: Request, db: Annotated[Session, Depends(get_db)]) -> U
     return user
 
 
+def admin_user(user: Annotated[User, Depends(current_user)]) -> User:
+    """Modules are global and the most privileged action of the product: administrators only."""
+    if user.role != "admin":
+        raise ApiError(403, "forbidden")
+    return user
+
+
 Db = Annotated[Session, Depends(get_db)]
 CurrentUser = Annotated[User, Depends(current_user)]
+AdminUser = Annotated[User, Depends(admin_user)]
 AppSettings = Annotated[Settings, Depends(get_settings_dep)]
 RedisDep = Annotated[Any, Depends(get_redis)]
 

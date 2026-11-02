@@ -1,0 +1,31 @@
+# Preview (capability `preview`): builds the generated app at a milestone tag, runs it as a
+# confined container and serves it under /demo/<project>/<milestone>/. Converted from the v0.1
+# pack. It holds the Docker socket (declared below) to build and start the demo containers; it
+# never runs generated code itself.
+id: preview
+name: Demo previews
+version: 0.1.0
+category: agents
+description:
+  en: Builds each milestone of your app and serves it as a demo you can try.
+  fr: Construit chaque jalon de votre application et le sert comme démo à essayer.
+license: AGPL-3.0-or-later
+provides: [preview]
+requires: [git]
+images:
+  - ghcr.io/installation-04/cobble-preview-service@sha256:8f786623a6b97393316fa65f138d9b32c987ab74a5802a9a195d8dbd2d0733a0
+compose: compose.yml
+host_access: [docker_socket]
+web_ui:
+  service: preview-service
+  port: 8091
+  path: /demo
+  strip_prefix: false   # the service reads /demo/<project>/<milestone>/... itself
+healthcheck:
+  http: /healthz
+# service_token is generated; the Git address and token come from the pre_up hook.
+secrets: [service_token]
+core_secrets: [service_token]
+hooks:
+  pre_up: hooks/pre-up.sh
+  pre_uninstall: hooks/pre-uninstall.sh

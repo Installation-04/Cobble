@@ -2,7 +2,7 @@
 merged, a red one is refused, at both levels (our code and the git server's protection).
 
 Skipped unless COBBLE_PACK_FLOW=1 and the COBBLE_PACK_* variables point at a running pack
-(see packs/v01/hooks/test-flow.sh, which brings one up and sets everything).
+(install the forgejo and woodpecker modules and export their address and token as COBBLE_PACK_*).
 """
 
 from __future__ import annotations

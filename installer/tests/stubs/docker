@@ -8,9 +8,15 @@ echo "$*" >>"${STUB_LOG:-/dev/null}"
 case "$*" in
   *" ps -q caddy") exit 0 ;;
   *" ps -a --format"*)
+    echo "volume-init|exited||0"  # a one-shot that finished: not a failure
     for s in postgres redis litellm api worker ui caddy; do
-      if [ "${STUB_BAD_CONTAINER:-}" = "$s" ]; then echo "$s|exited|"; else echo "$s|running|healthy"; fi
+      if [ "${STUB_BAD_CONTAINER:-}" = "$s" ]; then echo "$s|exited||${STUB_BAD_EXIT:-1}"; else echo "$s|running|healthy|0"; fi
     done
+    if [ "${STUB_BAD_CONTAINER:-}" = "volume-init" ]; then echo "volume-init|exited||1"; fi
+    ;;
+  *"cobble.cli modules"* | *"cobble.cli models"*)
+    echo "modules stub: $*"
+    exit "${STUB_MODULES_RC:-0}"
     ;;
   *"cobble.cli activation-link")
     if [ -n "${STUB_NO_ADMIN_LINK:-}" ]; then exit 1; fi

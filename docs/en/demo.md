@@ -40,28 +40,28 @@ Without a preview service (no `COBBLE_PREVIEW_SERVICE_TOKEN`) the demo flow is o
 | `scheduler/demo.py` | milestone rules: validate, comment, revert, project completion |
 | `capabilities/preview.py` | `PreviewProvider` (`deploy`, `status`, `remove`) |
 | `providers/preview_service.py` | HTTP client of the preview service |
-| `packs/v01/preview-service/` | builds the tag, runs it, proxies `/demo/...`, stops idle demos |
-| `packs/v01/compose.preview.yml` | the service, its internal network `cobble_previews` |
-| `packs/v01/preview-service/demo.caddy` | Caddy route to copy into `packs/v01/caddy/` |
+| `services/preview-service/` | builds the tag, runs it, proxies `/demo/...`, stops idle demos |
+| `catalog/preview/` | the module: the service, its internal network `cobble-preview-previews`, its `/demo` route |
 | `templates/fastapi-react/Dockerfile` | image of the generated app |
 
-### Settings
+### Install and settings
 
-Core (`api`, `worker`): `COBBLE_PREVIEW_SERVICE_URL` (default `http://preview-service:8091`) and
-`COBBLE_PREVIEW_SERVICE_TOKEN`. Preview service: `COBBLE_PREVIEW_SERVICE_TOKEN`,
-`COBBLE_PACK_FORGEJO_URL|TOKEN|OWNER` (same values as agent-service), `COBBLE_PREVIEW_NETWORK`
-(`cobble_previews`), `COBBLE_PREVIEW_MEMORY_MB` (512), `COBBLE_PREVIEW_CPUS` (1),
+```
+cobble modules install preview      # the Git server it needs is added with it
+```
+
+The module takes the Git server's address and token from the module that provides `git`, generates
+its service token and publishes `/demo/*` on the reverse proxy itself (the module's route, ahead of
+the API's own): nothing to copy or configure. The core finds it through the module-manager. Without
+the module installed, `/demo/*` goes to the API, which only answers it in the fake pack mode, and
+the project is `done` once every task is merged.
+
+Service settings (environment of the module's compose file): `COBBLE_PREVIEW_SERVICE_TOKEN`,
+`COBBLE_PACK_FORGEJO_URL|TOKEN|OWNER`, `COBBLE_PREVIEW_NETWORK` (the platform names it
+`cobble-preview-previews`), `COBBLE_PREVIEW_MEMORY_MB` (512), `COBBLE_PREVIEW_CPUS` (1),
 `COBBLE_PREVIEW_PIDS` (256), `COBBLE_PREVIEW_IDLE_TTL_S` (1800), `COBBLE_PREVIEW_MAX_RUNNING` (6),
 `COBBLE_PREVIEW_BUILD_ARGS` (JSON object of Docker build arguments, for example proxy settings),
-`COBBLE_PREVIEW_SANDBOX` (1). `preview-service/gen-env.sh` writes `.env.preview` and
-`.env.preview.core` (mode 600).
-
-### Caddy
-
-`/demo/*` must reach the preview service. The snippet is `packs/v01/preview-service/demo.caddy`:
-copy it to `packs/v01/caddy/demo.caddy` when the real service runs. Everything in that directory
-is imported by the core Caddy ahead of its own routes, so the copy takes precedence. Without the
-copy `/demo/*` goes to the API, which only answers it in the fake pack mode.
+`COBBLE_PREVIEW_SANDBOX` (1). Uninstalling the module removes the demo containers and images.
 
 ## Security of the previews
 

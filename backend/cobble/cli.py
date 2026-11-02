@@ -10,11 +10,13 @@ from redis import Redis
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session, sessionmaker
 
+from cobble import cli_models, cli_modules
 from cobble.auth.activation import ACTIVATION_LIFETIME, create_activation_token
 from cobble.config import Settings, get_settings
 from cobble.db import AuthSession, User, make_engine, make_session_factory
 from cobble.i18n import t
 from cobble.router.gateway import GatewayError, LiteLLMGateway
+from cobble.router.policy import ModelPolicy
 
 
 def _session_factory(settings: Settings) -> sessionmaker[Session]:
@@ -75,15 +77,21 @@ def main(argv: Sequence[str] | None = None) -> int:
     sub = parser.add_subparsers(dest="command", required=True)
     chat = sub.add_parser("chat")
     chat.add_argument("message")
-    chat.add_argument("--model", default=settings.default_model)
+    chat.add_argument("--model", default=None, help="a model name (default: the platform default)")
     sub.add_parser("activation-link")
     sub.add_parser("reset-admin")
+    cli_modules.add_parser(sub)
+    cli_models.add_parser(sub)
     args = parser.parse_args(argv)
 
     if args.command == "activation-link":
         return _activation_link(settings)
     if args.command == "reset-admin":
         return _reset_admin(settings)
+    if args.command == "modules":
+        return cli_modules.run(args, settings)
+    if args.command == "models":
+        return cli_models.run(args, settings)
 
     gateway = LiteLLMGateway(
         settings.litellm_url,
@@ -92,7 +100,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         events=Redis.from_url(settings.redis_url),
     )
     try:
-        result = gateway.chat(args.model, [{"role": "user", "content": args.message}])
+        model = args.model or ModelPolicy(_session_factory(settings), settings).default()
+        result = gateway.chat(model, [{"role": "user", "content": args.message}])
     except GatewayError as exc:
         print(t("cli.chat.failed", settings.lang, status=exc.status), file=sys.stderr)
         return 1

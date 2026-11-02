@@ -10,12 +10,13 @@ scripts/e2e_full.sh --keep --timeout 5400 --lang fr
 ```
 
 Options: `--keep` (laisse la pile active), `--timeout SECONDES` (durée de construction, 3600 par défaut),
-`--lang en|fr`, `--comment` (après `done`, commente la dernière démo et suit la tâche `C-001`), `--force`
-(remplace les secrets du pack déjà présents dans `packs/v01`). `E2E_PORT` fixe le port hôte (18080). `E2E_HOST` est l'adresse que les conteneurs de CI utilisent
+`--lang en|fr`, `--comment` (après `done`, commente la dernière démo et suit la tâche `C-001`). `E2E_PORT` fixe le port hôte (18080). `E2E_HOST` est l'adresse que les conteneurs de CI utilisent
 pour joindre la pile (par défaut: la première adresse de cette machine; `localhost` ne marcherait pas
 depuis un conteneur). `E2E_BUILD_CA` est un paquet de CA pour les machines derrière un proxy qui
-inspecte TLS: il est passé à chaque construction d'image et monté dans les conteneurs d'étapes de CI
-(non défini par défaut).
+inspecte TLS: il est passé aux constructions d'images du noyau et monté dans les conteneurs d'étapes de CI
+(non défini par défaut). Les images d'agents et d'aperçus sont téléchargées depuis `ghcr.io` (publiées par
+le workflow « Module images », épinglées dans `catalog/`): les paquets doivent être publics, ou
+`docker login ghcr.io` fait au préalable.
 
 ## Déroulement
 
@@ -67,7 +68,7 @@ sortie, 0,116 $): le commentaire sur la dernière démo a créé `C-001`, qui a 
 à la première tentative, puis la démo du jalon a été validée de nouveau.
 
 Les premiers essais ont trouvé et fait corriger sept défauts, invisibles aux tests unitaires et
-navigateur: les scripts `gen-env.sh` qui échouaient au premier lancement, `git` absent de l'image du
+navigateur: les scripts `gen-env.sh` (remplacés depuis par les modules) qui échouaient au premier lancement, `git` absent de l'image du
 backend, l'accès aux registres des agents (l'image du runner embarque désormais un cache uv et un
 magasin pnpm préchauffés), l'environnement uv d'Aider qui fuyait dans les tests du projet, les tests
 frontend lancés avant `pnpm install`, une fusion refusée un instant par Forgejo juste après une autre

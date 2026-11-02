@@ -1,7 +1,7 @@
 # Agents de code: runner, agent-service et proxy de sortie
 
 Les agents écrivent le code des projets générés. Ils tournent dans des conteneurs isolés démarrés par
-**agent-service**, un service du pack (`packs/v01/agent-service/`). Le noyau ne lui parle que par la
+**agent-service**, le service du module `aider` (`catalog/aider`, sources dans `services/agent-service/`). Le noyau ne lui parle que par la
 capacité `AgentRunner` (HTTP, [ADR 0006](../decisions/0006-agent-runner-and-scheduler.md)); il ignore
 quel outil tourne dedans (v0.1: Aider).
 
@@ -17,9 +17,9 @@ quel outil tourne dedans (v0.1: Aider).
 | Pièce | Où | Rôle |
 |---|---|---|
 | Image runner | `runners/aider/` | Python 3.12, Aider 0.86.2 (verrouillé avec empreintes dans `uv.lock`), git, uv, Node 22 + pnpm 10.28 (corepack). Utilisateur uid 10001. |
-| agent-service | `packs/v01/agent-service/` | Application FastAPI: crée le worktree, démarre et surveille le conteneur, pousse le résultat. |
-| agent-proxy | `packs/v01/agent-proxy/` | tinyproxy (GPL-2.0 ou ultérieure, non modifié, conteneur séparé) en refus par défaut. |
-| Compose | `packs/v01/compose.agents.yml` | projet `cobble-pack-agents`; aucun port publié. |
+| agent-service | `services/agent-service/` | Application FastAPI: crée le worktree, démarre et surveille le conteneur, pousse le résultat. |
+| agent-proxy | `services/agent-proxy/` | tinyproxy (GPL-2.0 ou ultérieure, non modifié, conteneur séparé) en refus par défaut. |
+| Module | `catalog/aider/` | projet compose `cobble-aider`; aucun port publié. Images construites par la CI et épinglées par empreinte. |
 
 ## Ce que fait une exécution
 
@@ -118,30 +118,29 @@ défaut, et les tunnels CONNECT sont limités au port 443. `api` doit correspond
 ## Installation
 
 ```
-packs/v01/hooks/install.sh                 # d'abord Forgejo / Woodpecker (écrit .env.pack)
-docker compose -f packs/v01/compose.agents.yml --profile build build   # proxy, service, runner
-packs/v01/agent-service/gen-env.sh         # écrit .env.agents et .env.agents.core (mode 600)
-docker compose -f packs/v01/compose.agents.yml up -d
+cobble modules install aider        # le serveur Git dont il a besoin est ajouté avec lui
 ```
 
-Derrière un proxy qui inspecte TLS, ajouter un secret de build `ca` (les trois Dockerfile acceptent un
-secret facultatif `ca`).
+Le module prend l'adresse et le jeton d'API du serveur Git auprès du module qui fournit `git` (un
+crochet `pre_up`; le jeton n'atteint jamais le noyau), génère son propre jeton de service, télécharge
+les trois images (agent-service, proxy et l'image du runner, environ 2 Go) puis démarre. Le noyau le
+trouve par le gestionnaire de modules (`GET /v1/connections`): rien à configurer à la main. Les images
+sont publiées par le workflow « Module images » (`.github/workflows/images.yml`) vers
+`ghcr.io/<propriétaire>/cobble-*` et épinglées dans `catalog/aider` avec `scripts/pin_images.py`.
 
-agent-service lit (générés par `gen-env.sh`, jamais en clair dans le dépôt): `COBBLE_AGENT_SERVICE_TOKEN`,
-`COBBLE_INTERNAL_API_URL` (par défaut `http://api:8000/internal/llm/v1`), `COBBLE_PACK_FORGEJO_URL`,
-`COBBLE_PACK_FORGEJO_TOKEN`, `COBBLE_PACK_FORGEJO_OWNER` (nom d'utilisateur git), et facultativement
-`COBBLE_AGENT_GIT_REWRITE`. Fixés par compose: `COBBLE_AGENT_DATA_VOLUME` (ou
-`COBBLE_AGENT_DATA_HOST_DIR`), `COBBLE_AGENT_NETWORK`, `COBBLE_AGENT_RUNNER_IMAGE`,
-`COBBLE_AGENT_PROXY_URL`. Facultatifs: `COBBLE_LOOP_THRESHOLD`, `COBBLE_AGENT_MAX_RUNS` (8),
+agent-service est configuré par le fichier compose du module: `COBBLE_AGENT_SERVICE_TOKEN`,
+`COBBLE_INTERNAL_API_URL`, `COBBLE_PACK_FORGEJO_URL|TOKEN|OWNER`, `COBBLE_AGENT_DATA_VOLUME`,
+`COBBLE_AGENT_NETWORK`, `COBBLE_AGENT_RUNNER_IMAGE`, `COBBLE_AGENT_PROXY_URL` (le volume et le réseau
+sont ceux que la plateforme nomme `cobble-aider-agents-data` et `cobble-aider-agents`). Facultatifs:
+`COBBLE_AGENT_GIT_REWRITE`, `COBBLE_LOOP_THRESHOLD`, `COBBLE_AGENT_MAX_RUNS` (8),
 `COBBLE_AGENT_RETENTION_HOURS` (24), `COBBLE_AGENT_MAX_CPU` / `_MEMORY_MB` / `_PIDS` / `_SECONDS`
 (plafonds). `COBBLE_AGENT_CMD` est un crochet de test: il remplace Aider dans le runner par une commande
 shell; ne jamais le définir en production.
 
-Le noyau lit `.env.agents.core` (`COBBLE_AGENT_SERVICE_URL=http://agent-service:8090`,
-`COBBLE_AGENT_SERVICE_TOKEN`). Après un redémarrage, agent-service reprend la surveillance des
-conteneurs en cours (retrouvés par étiquette), termine ceux qui ont fini, marque `failed`
-(`container_lost`) ceux dont le conteneur a disparu et supprime les conteneurs étiquetés qu'il ne
-connaît pas.
+Après un redémarrage, agent-service reprend la surveillance des conteneurs en cours (retrouvés par
+étiquette), termine ceux qui ont fini, marque `failed` (`container_lost`) ceux dont le conteneur a
+disparu et supprime les conteneurs étiquetés qu'il ne connaît pas. Désinstaller le module arrête les
+conteneurs d'agents qu'il a démarrés.
 
 ## Dépendances
 
@@ -153,9 +152,9 @@ comme programme séparé.
 ## Tests
 
 ```
-cd packs/v01/agent-service
+cd services/agent-service
 uv sync && uv run pytest -q && uv run ruff check . && uv run ruff format --check . && uv run mypy
-cd backend && uv run pytest tests/unit/test_agent_invariants.py   # vérifications statiques des images et de compose
+cd backend && uv run pytest tests/unit/test_service_images.py   # vérifications statiques des images et de compose
 ```
 
 Les tests unitaires utilisent un faux moteur Docker et de vrais dépôts git dans un dossier temporaire:

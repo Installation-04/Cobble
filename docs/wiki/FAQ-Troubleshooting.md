@@ -14,7 +14,7 @@
 
 **The installer refuses my machine.** Only Ubuntu 24.04/26.04 and Debian 12/13 on amd64 are supported; `--skip-checks` only relaxes the resource checks.
 
-**Can I use local models (Ollama)?** Not in the v0.1 pack (hosted model APIs only). It is planned for the next version (modules).
+**Can I use local models (Ollama)?** Yes, from v0.2: install the `ollama` module (or a starter pack that includes it) from the Store; hosted model APIs are connected in Settings → Models.
 
 **Where is the data?** In the Docker volumes `cobble-*` (Postgres, Redis, Caddy) and in `/opt/cobble/.env` (secrets, mode 0600).
 
@@ -34,6 +34,6 @@
 
 **L'installateur refuse ma machine.** Seuls Ubuntu 24.04/26.04 et Debian 12/13 en amd64 sont pris en charge; `--skip-checks` assouplit seulement les contrôles de ressources.
 
-**Puis-je utiliser des modèles locaux (Ollama) ?** Pas dans le pack de la v0.1 (API de modèles seulement). C'est prévu dans la version suivante (modules).
+**Puis-je utiliser des modèles locaux (Ollama) ?** Oui, à partir de la v0.2 : installez le module `ollama` (ou un pack de départ qui l'inclut) depuis le Magasin ; les API de modèles hébergées se connectent dans Réglages → Modèles.
 
 **Où sont les données ?** Volumes Docker `cobble-*` (Postgres, Redis, Caddy) et `/opt/cobble/.env` (secrets, mode 0600).

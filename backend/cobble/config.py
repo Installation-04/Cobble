@@ -33,9 +33,32 @@ class Settings(BaseSettings):
     cookie_secure: bool = False
     # Secret used to sign the per-run tokens that agents present to the internal LLM endpoint.
     run_token_secret: str = ""
-    # Internal HTTP API of the agent-service (the only component that touches Docker).
-    agent_service_url: str = "http://agent-service:8090"
-    agent_service_token: str = ""
+    # Internal HTTP API of the module-manager (the only component with the vault key and Docker).
+    module_manager_url: str = "http://module-manager:8095"
+    module_manager_token: str = ""
+    # Module-manager only: where its master key lives (created at first start), the catalogue
+    # directory (mounted at the same absolute path as on the host, see core/compose.yml) and the
+    # machine's facts (0 / "auto": detect; the installer writes what it found).
+    module_master_key_file: str = "/var/lib/cobble-keys/master.key"
+    module_catalog_dir: str = "/opt/cobble/catalog"
+    module_ram_mb: int = 0
+    module_gpu: Literal["auto", "none", "nvidia", "amd"] = "auto"
+    module_health_timeout_s: float = 120.0
+    # The reverse proxy: where the module routes are written, the main Caddyfile to reload with
+    # them, and Caddy's admin socket. An empty routes dir means "no proxy to configure".
+    # How users reach the platform, e.g. http://192.168.1.20 : modules build their public links
+    # from it (COBBLE_PUBLIC_URL / COBBLE_PUBLIC_HOST in their compose files and hooks).
+    module_public_url: str = "http://localhost"
+    # Extra variables every module compose file and hook may use (for example a CA bundle for
+    # pipeline steps behind a TLS-inspecting proxy). Operator-chosen, never secrets.
+    # JSON object, e.g. {"COBBLE_SKIP_STEPS": "trivy"}. Empty: none.
+    module_extra_env: str = ""
+    # Where the module-manager writes the list of models of the installed backends (the file the
+    # language-model gateway includes). Empty: no gateway to configure.
+    module_litellm_dir: str = ""
+    module_routes_dir: str = ""
+    module_caddyfile: str = "/etc/caddy-main/Caddyfile"
+    module_caddy_admin_socket: str = "/run/caddy/admin.sock"
     # Base URL agents use to reach the internal LLM endpoint (seen from the agent network).
     internal_api_url: str = "http://api:8000"
     # --- scheduler (ADR 0006) ---
@@ -59,10 +82,7 @@ class Settings(BaseSettings):
     agent_memory_mb: int = 2048
     agent_pids: int = 256
     # --- demo (ADR 0007) ---
-    # Internal HTTP API of the preview-service (the component that builds and runs the demos).
-    preview_service_url: str = "http://preview-service:8091"
-    preview_service_token: str = ""
-    # `real`: the fixed pack (git server, CI, agent-service, preview-service). `fake`:
+    # `real`: the installed modules (Git, CI, agents, previews). `fake`:
     # in-memory fakes that play the whole loop in seconds, for development and browser tests.
     # Refused when `env` is `production`.
     pack_mode: Literal["real", "fake"] = "real"

@@ -1,0 +1,12 @@
+# No model server on this machine: the language models come from a service you pay for.
+id: api-only
+name:
+  en: API only
+  fr: API seulement
+description:
+  en: Git server, CI, coding agents and demo previews, with language models from a service you pay for through an API key. Light on this machine; your prompts go to that service.
+  fr: Serveur Git, CI, agents de code et aperçus de démo, avec des modèles de langage fournis par un service payant via une clé d'API. Léger pour cette machine; vos requêtes sont envoyées à ce service.
+modules: [forgejo, woodpecker, aider, preview]
+hardware:
+  min_ram_mb: 4096
+priority: 10

@@ -16,8 +16,7 @@ from cobble.capabilities.agent import (
     AgentUnavailable,
 )
 from cobble.capabilities.llm import Role
-from cobble.config import Settings
-from cobble.providers.agent_service import HttpAgentRunner, build_pack_services
+from cobble.providers.agent_service import HttpAgentRunner
 
 TOKEN = "agent-service-secret"
 TASK = AgentTask(
@@ -193,35 +192,3 @@ def test_run_blocks_until_the_service_reports_a_result() -> None:
     assert result.outcome is AgentOutcome.DONE
     assert result.iterations == 3
     assert answers == []
-
-
-def test_from_settings_uses_url_and_token() -> None:
-    seen: list[httpx.Request] = []
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        seen.append(request)
-        return httpx.Response(202, json={"run_id": "r"})
-
-    client = HttpAgentRunner.from_settings(
-        Settings(agent_service_url="http://svc:9/", agent_service_token="tok")
-    )
-    client._client = httpx.Client(  # swap the transport, keep the configured headers/base URL
-        base_url=client._client.base_url,
-        headers=client._client.headers,
-        transport=httpx.MockTransport(handler),
-    )
-    assert client.start(TASK) == "r"
-    assert str(seen[0].url) == "http://svc:9/v1/runs"
-    assert seen[0].headers["authorization"] == "Bearer tok"
-
-
-def test_pack_services_are_not_built_without_tokens(monkeypatch: pytest.MonkeyPatch) -> None:
-    for name in ("COBBLE_PACK_FORGEJO_TOKEN", "COBBLE_PACK_WOODPECKER_TOKEN"):
-        monkeypatch.delenv(name, raising=False)
-    assert build_pack_services(Settings(agent_service_token="t")) is None
-    monkeypatch.setenv("COBBLE_PACK_FORGEJO_TOKEN", "a")
-    monkeypatch.setenv("COBBLE_PACK_WOODPECKER_TOKEN", "b")
-    assert build_pack_services(Settings(agent_service_token="")) is None
-    services = build_pack_services(Settings(agent_service_token="t"))
-    assert services is not None
-    assert isinstance(services.agents, HttpAgentRunner)

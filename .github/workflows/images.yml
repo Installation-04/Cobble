@@ -1,0 +1,92 @@
+name: Module images
+
+# Builds the images of the official modules that are not third-party (agent-service, agent-proxy,
+# preview-service and the Aider runner), pushes them to GHCR and prints their digests, which are
+# then pinned in the module manifests with `scripts/pin_images.py`. Run it by hand
+# (workflow_dispatch) to publish a candidate, or by pushing a v* tag for a release.
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+  # A change to what these images are built from publishes a new candidate on the pull request
+  # (tagged with the commit); nothing uses it until its digest is pinned in a manifest. Only
+  # pull requests from this repository can push: a fork's run has a read-only token and fails.
+  pull_request:
+    paths:
+      - services/**
+      - runners/aider/**
+      - templates/fastapi-react/**
+      - .github/workflows/images.yml
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: agent-service
+            context: services/agent-service
+          - name: agent-proxy
+            context: services/agent-proxy
+          - name: preview-service
+            context: services/preview-service
+          - name: aider-runner
+            context: runners/aider
+            # Pre-warms the runner's uv cache and pnpm store from the project template.
+            build-contexts: template=templates/fastapi-react
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: owner
+        run: echo "name=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT" # registry names are lower case
+      - id: build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: ${{ matrix.context }}
+          build-contexts: ${{ matrix.build-contexts }}
+          push: true
+          provenance: false # a plain image manifest: its digest is the one `docker pull` resolves
+          tags: ghcr.io/${{ steps.owner.outputs.name }}/cobble-${{ matrix.name }}:${{ github.sha }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+      - name: Digest
+        run: |
+          image="ghcr.io/${REPO_OWNER}/cobble-${NAME}@${DIGEST}"
+          echo "$image" | tee -a "$GITHUB_STEP_SUMMARY"
+          mkdir -p digests && echo "$image" > "digests/${NAME}.txt"
+        env:
+          REPO_OWNER: ${{ steps.owner.outputs.name }}
+          NAME: ${{ matrix.name }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: digest-${{ matrix.name }}
+          path: digests/${{ matrix.name }}.txt
+
+  # One short log with every reference, ready for `scripts/pin_images.py`.
+  digests:
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: digest-*
+          merge-multiple: true
+          path: digests
+      - run: |
+          echo "PIN-THESE:"
+          cat digests/*.txt | tee -a "$GITHUB_STEP_SUMMARY"

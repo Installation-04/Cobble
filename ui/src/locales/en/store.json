@@ -1,0 +1,110 @@
+{
+  "title": "Store",
+  "description": "Install the software Cobble builds on: the Git server, the CI, the model server…",
+  "search": "Search modules",
+  "searchPlaceholder": "Search…",
+  "categoryLabel": "Category",
+  "allCategories": "All categories",
+  "category": {
+    "git": "Git",
+    "ci": "CI",
+    "llm": "Language models"
+  },
+  "state": {
+    "none": "Not installed",
+    "running": "Installed",
+    "installing": "Installing…",
+    "removing": "Removing…",
+    "failed": "Failed"
+  },
+  "fit": {
+    "ok": "Fits this machine",
+    "okVariant": "Fits this machine (flavour: {{variant}})",
+    "no": "Does not fit this machine",
+    "ram": "needs {{needed}} MB of memory, this machine has {{have}} MB",
+    "gpu": "needs {{needed}}, this machine has {{have}}"
+  },
+  "gpu": {
+    "none": "no GPU",
+    "nvidia": "an NVIDIA GPU",
+    "amd": "an AMD GPU",
+    "any": "a GPU",
+    "optional": "a GPU"
+  },
+  "emptyCatalog": "The catalogue is empty.",
+  "noMatch": "No module matches your search.",
+  "listLabel": "Modules",
+  "forbidden": "Only an administrator can use the Store.",
+  "banner": "Working on {{module}}… open to follow it",
+  "bannerFailed": "The operation on {{module}} failed: open to see why",
+  "sheet": {
+    "version": "Version",
+    "license": "License",
+    "category": "Category",
+    "provides": "Provides",
+    "requires": "Needs",
+    "hostAccess": "Special access",
+    "dockerSocket": "Starts containers on this machine (Docker)",
+    "open": "Open",
+    "newTab": "(opens in a new tab)",
+    "secrets": "Secrets",
+    "secretSet": "set",
+    "secretUnset": "not set",
+    "lastError": "Last error: {{reason}}"
+  },
+  "flow": {
+    "label": "Installation steps",
+    "planning": "Checking what is needed…",
+    "choose": "Several modules can provide “{{capability}}”. Which one do you want?",
+    "continue": "Continue",
+    "cascade": "Removing this also removes the modules that depend on it: {{modules}}.",
+    "cascadeConfirm": "Remove them too",
+    "preview": "This will:",
+    "action": {
+      "install": "Install",
+      "uninstall": "Remove"
+    },
+    "autoAdded": "Also installed because they are needed:",
+    "autoRemoved": "Also removed because nothing needs them any more:",
+    "replaced": "Replaces:",
+    "go": {
+      "install": "Install",
+      "uninstall": "Uninstall"
+    },
+    "running": "Working… this can take several minutes (images and models are downloaded).",
+    "undoing": "undoing",
+    "done": "Done.",
+    "nothing": "Nothing to do: the modules are already in the requested state.",
+    "failedAt": "Failed at “{{module}}”, step “{{step}}”: {{reason}}",
+    "rolledBack": "Rolled back: {{modules}}. Nothing was left half installed.",
+    "partial": "Some removals had already been done before the failure.",
+    "dismiss": "OK"
+  },
+  "step": {
+    "names": {
+      "record": "Recording the module",
+      "hardware": "Checking the machine",
+      "secrets": "Generating secrets",
+      "pre_up": "Preparing",
+      "render": "Reading the module description",
+      "up": "Starting the containers",
+      "post_install": "Setting up",
+      "register_core": "Registering with Cobble",
+      "health": "Waiting until it is healthy",
+      "route": "Publishing its web address",
+      "gateway": "Giving its models to the gateway",
+      "link": "Connecting to other modules",
+      "down": "Stopping the containers",
+      "pre_uninstall": "Cleaning up"
+    }
+  },
+  "packs": {
+    "title": "Starter packs",
+    "description": "A ready-made set of modules to get going quickly. You can change it later, module by module.",
+    "recommended": "Recommended for this machine",
+    "installed": "Installed",
+    "progress": "{{count}} of {{total}} modules installed",
+    "modules": "Modules",
+    "install": "Install this pack"
+  }
+}

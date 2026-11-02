@@ -4,7 +4,7 @@ import type { Lang } from "../i18n";
 export interface User {
   id: string;
   email: string;
-  role: "admin";
+  role: "admin" | "user";
   lang: Lang;
   theme: ThemeMode;
 }
@@ -184,4 +184,175 @@ export interface GlobalCostRow {
   spent_usd: string;
   budget_usd: string | null;
   status: "active" | "paused";
+}
+
+// --- Modules (the Store) -------------------------------------------------------------------------
+
+export type ModuleState = "installing" | "running" | "removing" | "failed";
+
+/** Why a module does not fit this machine: `ram` (MB) or `gpu` (kind). */
+export interface ModuleProblem {
+  code: "ram" | "gpu";
+  needed: string;
+  have: string;
+}
+
+export interface ModuleHardware {
+  ok: boolean;
+  variant: string | null;
+  problems: ModuleProblem[];
+}
+
+export interface ModuleInstalled {
+  state: ModuleState;
+  explicit: boolean;
+  variant: string | null;
+  version: string;
+  error: string | null;
+}
+
+export interface ModuleEntry {
+  id: string;
+  name: string;
+  version: string;
+  category: string;
+  description: { fr: string; en: string };
+  license: string;
+  provides: string[];
+  requires: string[];
+  exclusive: string[];
+  variants: string[];
+  web_ui: {
+    service: string;
+    port: number;
+    path: string;
+    strip_prefix: boolean;
+    public?: boolean;
+  } | null;
+  secrets: string[];
+  host_access: string[];
+  offline: boolean;
+  hardware: ModuleHardware;
+  installed: ModuleInstalled | null;
+}
+
+export interface ModuleCatalog {
+  modules: ModuleEntry[];
+  hardware: { ram_mb: number; gpu: string };
+}
+
+export type ModuleAction = "install" | "uninstall";
+
+export interface ModuleOperationRequest {
+  action: ModuleAction;
+  modules: string[];
+  choices?: Record<string, string>;
+  replace?: boolean;
+  confirm_cascade?: boolean;
+}
+
+export interface ModuleLink {
+  consumer: string;
+  provider: string;
+  capability: string;
+}
+
+export interface ModulePlan {
+  steps: { action: ModuleAction; module: string }[];
+  explicit: string[];
+  installed: string[];
+  auto_added: string[];
+  cascade: string[];
+  replaced: string[];
+  auto_removed: string[];
+  links_added: ModuleLink[];
+  links_removed: ModuleLink[];
+}
+
+export interface ModuleOperationError {
+  module: string | null;
+  step: string | null;
+  code: string;
+  rolled_back?: string[];
+  partial?: boolean;
+}
+
+export interface ModuleOperation {
+  id: string;
+  action: ModuleAction;
+  modules: string[];
+  state: "running" | "done" | "failed";
+  plan: ModulePlan | null;
+  error: ModuleOperationError | null;
+}
+
+/** `module.step` of the modules stream: one step of an install or removal. */
+export interface ModuleStepEvent {
+  operation_id: string | null;
+  module: string;
+  kind: string;
+  step: string | null;
+  ok: boolean;
+  code: string | null;
+}
+
+/** A starter pack: a ready-made set of modules, with its fit for this machine. */
+export interface ModulePack {
+  id: string;
+  name: { fr: string; en: string };
+  description: { fr: string; en: string };
+  modules: string[];
+  hardware: { min_ram_mb: number; gpu: string };
+  priority: number;
+  fit: {
+    ok: boolean;
+    /** `module` is null when the pack itself asks for it. */
+    problems: { module: string | null; code: "ram" | "gpu"; needed: string; have: string }[];
+  };
+  recommended: boolean;
+  installed: boolean;
+  installed_modules: string[];
+}
+
+export interface ModulePacks {
+  packs: ModulePack[];
+  problems: Record<string, string[]>;
+  recommended: string | null;
+}
+
+// --- Model connections ----------------------------------------------------------------------------
+
+export type ModelProvider = "openai" | "anthropic" | "openrouter" | "custom";
+
+/** A connected model service. The API key is never part of it: it is only ever sent. */
+export interface ModelConnection {
+  name: string;
+  provider: ModelProvider;
+  model: string;
+  base_url: string | null;
+  default: boolean;
+}
+
+export interface ModelListing {
+  models: ModelConnection[];
+  /** The connection used by default, or null when the configured one applies. */
+  default: string | null;
+  /** What answers when no connection is the default (the built-in demo model in development). */
+  configured_default: string;
+}
+
+export interface ModelRequest {
+  provider: ModelProvider;
+  model: string;
+  api_key: string;
+  base_url?: string | null;
+  make_default?: boolean;
+}
+
+export type ProbeCode =
+  "ok" | "auth_failed" | "model_not_found" | "rate_limited" | "unreachable" | "failed";
+
+export interface ModelProbe {
+  ok: boolean;
+  code: ProbeCode;
 }

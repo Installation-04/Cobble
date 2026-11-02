@@ -45,6 +45,27 @@ def project_stream(project_id: uuid.UUID | str) -> str:
     return f"cobble:project:{project_id}:events"
 
 
+# --- module-manager progress (global, one stream for the Store) -----------------------------
+
+MODULE_STREAM = "cobble:modules:events"
+MODULE_STREAM_LENGTH = 2_000
+
+
+def publish_module(client: Redis, event_type: str, payload: dict[str, Any]) -> str | None:
+    """Append a module event to the global module stream. Never raises."""
+    try:
+        entry_id = client.xadd(
+            MODULE_STREAM,
+            {"type": event_type, "payload": json.dumps(payload, default=str)},
+            maxlen=MODULE_STREAM_LENGTH,
+            approximate=True,
+        )
+    except RedisError:
+        log.warning("could not publish module event %s", event_type, exc_info=True)
+        return None
+    return _entry_id(entry_id)
+
+
 def _entry_id(raw: Any) -> str:
     return raw.decode() if isinstance(raw, bytes) else str(raw)
 

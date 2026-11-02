@@ -1,0 +1,46 @@
+# Ollama: runs language models on this machine (capability `llm-backend`). The platform adds the
+# models below to the language-model gateway; the post-install hook fetches them.
+id: ollama
+name: Ollama
+version: 0.40.13
+category: llm
+description:
+  en: Runs language models on your own machine. Nothing leaves it, and there is no per-token cost.
+  fr: Fait tourner des modèles de langage sur votre propre machine. Rien n'en sort, et il n'y a aucun coût par jeton.
+license: MIT
+provides: [llm-backend]
+images:
+  - ollama/ollama:0.40.13@sha256:b2f0122c476bc9fe7ce679d8bb4bd555351e25e2554eefb156f61cb0a89cf429
+  - ollama/ollama:0.40.13-rocm@sha256:9933c98078d794a290f010af7f93746a1f4b0bde11aceb650ef088d386bb2664
+compose: compose.yml
+hardware:
+  min_ram_mb: 4096
+llm:
+  service: ollama
+  port: 11434
+  models:
+    - name: coder-small
+      model: ollama_chat/qwen2.5-coder:1.5b
+      pull: qwen2.5-coder:1.5b
+# The best flavour for the machine is chosen automatically (a GPU one when a GPU is found).
+variants:
+  - id: nvidia
+    gpu: nvidia
+    min_ram_mb: 8192
+    compose: compose.nvidia.yml
+    models: &gpu_models
+      - name: coder
+        model: ollama_chat/qwen2.5-coder:7b
+        pull: qwen2.5-coder:7b
+  - id: amd
+    gpu: amd
+    min_ram_mb: 8192
+    compose: compose.amd.yml
+    models: *gpu_models
+  - id: cpu
+    gpu: none
+    min_ram_mb: 4096
+hooks:
+  post_install: hooks/post-install.sh
+backup:
+  volumes: [ollama_models]

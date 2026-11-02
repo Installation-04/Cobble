@@ -20,7 +20,6 @@ from cobble.capabilities.preview import (
     PreviewStatus,
     PreviewUnavailable,
 )
-from cobble.config import Settings
 
 
 def preview_id(project_id: uuid.UUID, milestone: str) -> str:
@@ -42,10 +41,6 @@ class HttpPreviewProvider:
             timeout=timeout_s,
             transport=transport,
         )
-
-    @classmethod
-    def from_settings(cls, settings: Settings) -> HttpPreviewProvider:
-        return cls(settings.preview_service_url, settings.preview_service_token)
 
     def close(self) -> None:
         self._client.close()

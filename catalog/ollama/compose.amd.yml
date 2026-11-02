@@ -1,0 +1,26 @@
+# Ollama on an AMD GPU (ROCm build; needs /dev/kfd and /dev/dri on the host).
+services:
+  ollama:
+    image: ollama/ollama:0.40.13-rocm@sha256:9933c98078d794a290f010af7f93746a1f4b0bde11aceb650ef088d386bb2664
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    restart: unless-stopped
+    environment:
+      OLLAMA_HOST: 0.0.0.0:11434
+      OLLAMA_KEEP_ALIVE: 10m
+    devices:
+      - /dev/kfd:/dev/kfd
+      - /dev/dri:/dev/dri
+    volumes:
+      - ollama_models:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+    mem_limit: 16g
+    cpus: 4
+    pids_limit: 512
+
+volumes:
+  ollama_models:
