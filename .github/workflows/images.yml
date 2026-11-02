@@ -9,8 +9,10 @@ on:
   workflow_dispatch:
   push:
     tags: ["v*"]
-    # A change to what these images are built from publishes a new candidate (tagged with the
-    # commit); nothing uses it until its digest is pinned in a manifest.
+  # A change to what these images are built from publishes a new candidate on the pull request
+  # (tagged with the commit); nothing uses it until its digest is pinned in a manifest. Only
+  # pull requests from this repository can push: a fork's run has a read-only token and fails.
+  pull_request:
     paths:
       - services/**
       - runners/aider/**
