@@ -64,7 +64,19 @@ def test_the_catalogue_is_rewritten_in_place_and_unknown_names_are_reported(
     capsys.readouterr()
 
 
-def test_the_workflow_files_can_be_read_from_a_directory(tmp_path: Path) -> None:
-    (tmp_path / "x").mkdir()
-    (tmp_path / "x" / "agent-service.txt").write_text(ref("agent-service", NEW) + "\n")
-    assert pin_images.main(["--from-dir", str(tmp_path)]) == 1  # nothing in catalog/ uses it yet
+def test_the_workflow_files_can_be_read_from_a_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    catalog = tmp_path / "catalog"
+    (catalog / "aider").mkdir(parents=True)
+    manifest = catalog / "aider" / "manifest.yaml"
+    manifest.write_text(f"images:\n  - {ref('agent-service', OLD)}\n")
+    monkeypatch.setattr(pin_images, "CATALOG", catalog)  # never the real catalogue
+    digests = tmp_path / "digests"
+    digests.mkdir()
+    (digests / "agent-service.txt").write_text(ref("agent-service", NEW) + "\n")
+    assert pin_images.main(["--from-dir", str(digests)]) == 0
+    assert NEW in manifest.read_text()
+    # a name that nothing uses is reported as an error
+    (digests / "ghost.txt").write_text(ref("ghost", NEW) + "\n")
+    assert pin_images.main(["--from-dir", str(digests)]) == 1

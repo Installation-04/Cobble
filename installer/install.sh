@@ -526,8 +526,6 @@ print_summary() {
     printf '\n%s\n' "$(msg done_admin_exists)"
   fi
   printf '\n%s\n' "$(msg done_next)"
-  # A v0.1 pack installed by hand is not touched; say how modules take its place.
-  if [ -f "$DIR/src/packs/v01/.env.pack" ]; then printf '\n%s\n' "$(msg done_v01_pack)"; fi
 }
 
 main() {

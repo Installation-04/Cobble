@@ -65,7 +65,6 @@ M_done_url_host='Or by host name:   %s'
 M_done_activation='One-use link to create the admin account (valid 24 h):'
 M_done_admin_exists='No activation link: the admin account already exists (or the API is not ready). To get a new link run: cobble reset-admin'
 M_done_next='Useful commands: cobble status | cobble doctor | cobble logs | cobble modules | cobble help'
-M_done_v01_pack='A v0.1 pack (Git server and CI installed by hand) was found. It keeps running, but modules replace it: remove the pack (packs/v01/hooks/uninstall.sh), then run: cobble modules install woodpecker'
 
 M_cli_not_installed='Cobble does not seem to be installed in %s (set COBBLE_DIR if you used --dir).'
 M_cli_unknown='Unknown command: %s (see: cobble help)'

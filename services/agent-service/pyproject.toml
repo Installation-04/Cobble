@@ -1,7 +1,7 @@
 [project]
 name = "cobble-agent-service"
 version = "0.1.0"
-description = "Cobble v0.1 pack service: runs coding agents in sandboxed Docker containers."
+description = "Cobble agent-service (module aider): runs coding agents in sandboxed Docker containers."
 requires-python = ">=3.12"
 license = "AGPL-3.0-only"
 dependencies = [

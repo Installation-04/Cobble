@@ -99,16 +99,6 @@ services:
       target: backend
       additional_contexts:
         sdk: ../sdk
-    # Pack settings (Forgejo/Woodpecker endpoints and tokens), written by packs/v01/hooks.
-    env_file:
-      - path: ../packs/v01/.env.pack
-        required: false
-      # Agent-service URL/token and preview-service URL/token (logs, stop, previews from the API).
-      - path: ../packs/v01/.env.agents.core
-        required: false
-      # Preview-service URL and token, written by services/preview-service/gen-env.sh.
-      - path: ../packs/v01/.env.preview.core
-        required: false
     <<: *hardening
     command: ["sh", "-c", "alembic upgrade head && exec uvicorn cobble.api.app:create_app --factory --host 0.0.0.0 --port 8000"]
     environment: *app-env
@@ -130,16 +120,6 @@ services:
       target: backend
       additional_contexts:
         sdk: ../sdk
-    # Pack settings (Forgejo/Woodpecker endpoints and tokens), written by packs/v01/hooks.
-    env_file:
-      - path: ../packs/v01/.env.pack
-        required: false
-      # Agent-service URL and token, written by services/agent-service/gen-env.sh.
-      - path: ../packs/v01/.env.agents.core
-        required: false
-      # Preview-service URL and token, written by services/preview-service/gen-env.sh.
-      - path: ../packs/v01/.env.preview.core
-        required: false
     <<: *hardening
     command: ["python", "-m", "cobble.worker"]
     environment: *app-env
@@ -235,7 +215,6 @@ services:
     ports: ["${COBBLE_HTTP_PORT:-80}:80"]
     volumes:
       - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
-      - ../packs/v01/caddy:/etc/caddy/pack:ro
       - cobble-caddy-routes:/etc/caddy/routes:ro  # written by the module-manager
       - cobble-caddy-run:/run/caddy  # admin socket, shared with the module-manager only
       - cobble-caddy-data:/data

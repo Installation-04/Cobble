@@ -2,7 +2,7 @@
 
 `make e2e` drives the browser on in-memory fakes. This manual harness runs the **real chain** on
 the to-do reference project, with no model and no API key: Forgejo, Woodpecker, agent-service
-with the Aider runner, and preview-service, all answered by the fake LLM replaying cassettes.
+with the Aider runner, and preview-service, all installed through the module-manager and answered by the fake LLM replaying cassettes.
 
 ```bash
 make e2e-full                        # scripts/e2e_full.sh; add ARGS, e.g. --keep --comment
@@ -10,11 +10,12 @@ scripts/e2e_full.sh --keep --timeout 5400 --lang fr
 ```
 
 Options: `--keep` (leave the stack up), `--timeout SECONDS` (building time, default 3600), `--lang en|fr`,
-`--comment` (after `done`, comment on the last demo and follow the new `C-001` task), `--force`
-(replace pack secrets already present in `packs/v01`). `E2E_PORT` sets the host port (18080). `E2E_HOST` is the address CI containers use to reach the
+`--comment` (after `done`, comment on the last demo and follow the new `C-001` task). `E2E_PORT` sets the host port (18080). `E2E_HOST` is the address CI containers use to reach the
 stack (default: the first address of this host; `localhost` would not work from inside a container).
-`E2E_BUILD_CA` is a CA bundle for hosts behind a TLS-inspecting proxy: it is passed to every image
-build and mounted in the CI step containers (unset by default).
+`E2E_BUILD_CA` is a CA bundle for hosts behind a TLS-inspecting proxy: it is passed to the core image
+builds and mounted in the CI step containers (unset by default). The agent and preview images are pulled
+from `ghcr.io` (published by the "Module images" workflow, pinned in `catalog/`): the packages must be
+public, or `docker login ghcr.io` done beforehand.
 
 ## What it does
 
@@ -64,7 +65,7 @@ $0.116): commenting on the last demo created `C-001`, which went through tests, 
 first attempt, and the milestone demo was validated again.
 
 The first runs found and fixed seven defects, all invisible to the unit and browser tests: the
-`gen-env.sh` scripts failing on a first run, `git` missing in the backend image, the agent's
+`gen-env.sh` scripts (since replaced by modules) failing on a first run, `git` missing in the backend image, the agent's
 registry access (the runner image now ships a pre-warmed uv cache and pnpm store), Aider's uv
 environment leaking into the project's test runs, frontend tests run before `pnpm install`, a
 merge refused by Forgejo for a moment right after another merge, and a silently empty pnpm store.

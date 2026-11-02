@@ -5,6 +5,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ## [Unreleased]
 
+### Changed
+- **Breaking**: the v0.1 pack (`packs/v01`, installed by hand) is retired. The agent runner and the milestone previews are now the catalogue modules `aider` (agent-service, egress proxy, Aider runner image) and `preview`, installed with `cobble modules install` (or any starter pack) and found by the core through the module-manager; the `.env.pack`, `.env.agents.core` and `.env.preview.core` files, `gen-env.sh` and the `COBBLE_AGENT_SERVICE_*` / `COBBLE_PREVIEW_SERVICE_*` settings are gone. A v0.1 pack installed by hand must be removed manually (docs/en/modules.md); nothing is migrated. Service sources moved to `services/`.
+- Images that are not third-party are built by CI (`.github/workflows/images.yml`), pushed to GHCR and pinned by digest in the manifests (`scripts/pin_images.py`). Forgejo shares its API token with the hooks of modules that require `git` (`link_secrets`). New manifest field `web_ui.public: false` (reachable by the core, no route on the proxy).
+
 ### Added
 - v0.2 acceptance matrix (`test_catalog_matrix.py`): the official catalogue installs and uninstalls in every order without conflict, with the real module-manager and a fake Docker; release notes and validation report in `docs/releases/v0.2.md` (not published).
 - `cobble-sdk init|lint|test` (SDK CLI): scaffold a module, check its manifest, files, hooks, placeholder digests and the platform compose rules, and try installing and removing it on sample machines. `make lint` now lints the official catalogue with it.

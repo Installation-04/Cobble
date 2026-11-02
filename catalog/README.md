@@ -4,9 +4,10 @@ One directory per module: `catalog/<id>/manifest.yaml` (validated by `cobble_sdk
 file and its hooks. The module-manager reads this directory; it is mounted read-only, at the same
 absolute path as on the host (see `core/compose.yml`).
 
-The official modules arrive with the v0.2 conversion of the v0.1 pack
-(`docs/decisions/0008-module-manager.md`); so far: `forgejo` (capability `git`). Do not put
-anything here that is not a module or a starter pack.
+The official modules (`docs/en/modules.md`): `forgejo` (`git`), `woodpecker` (`ci`), `ollama`
+(`llm-backend`), `aider` (`agent-runner`) and `preview` (`preview`). Do not put anything here that
+is not a module or a starter pack. The images of `aider` and `preview` are built by CI
+(`.github/workflows/images.yml`) and pinned here with `scripts/pin_images.py`.
 
 `packs/<id>.yaml` are the **starter packs**: named sets of modules proposed at first launch, with
 the hardware they ask for and a priority (the fitting pack with the highest priority is the one

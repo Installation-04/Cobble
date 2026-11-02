@@ -203,23 +203,6 @@ t_module_manager_is_part_of_every_start() {
     ok module_manager_start || ko module_manager_start "$(cat "$S/unit/cobble.service")"
 }
 
-t_v01_pack_notice() {
-  new_sandbox v01
-  local out
-  out="$(install_sh --dir "$S/opt" --gpu none 2>&1)"
-  [[ "$out" != *"v0.1 pack"* ]] || {
-    ko v01_notice "notice shown without a pack"
-    return
-  }
-  mkdir -p "$S/src/packs/v01"
-  : >"$S/src/packs/v01/.env.pack"
-  out="$(install_sh --dir "$S/opt" --gpu none 2>&1)"
-  [[ "$out" == *"v0.1 pack"* && "$out" == *"cobble modules install woodpecker"* ]] && [ -f "$S/opt/src/packs/v01/.env.pack" ] ||
-    { ko v01_notice "$out"; return; }
-  out="$(install_sh --dir "$S/opt" --lang fr --gpu none 2>&1)"
-  [[ "$out" == *"pack v0.1"* ]] && ok v01_notice || ko v01_notice_fr "$out"
-}
-
 t_existing_env_kept() {
   new_sandbox keepenv
   mkdir -p "$S/opt"

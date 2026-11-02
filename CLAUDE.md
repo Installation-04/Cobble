@@ -23,7 +23,8 @@ backend/migrations/    # Alembic
 backend/tests/         # unit/, integration/
 ui/                    # React; ui/src/locales/{fr,en}/*.json
 core/compose.yml       # noyau: postgres, redis, litellm, caddy, api, worker, ui
-packs/v01/             # pack fixe v0.1: forgejo, woodpecker, ollama, hooks de branchement
+catalog/               # modules officiels (forgejo, woodpecker, ollama, aider, preview) et packs de départ
+services/              # sources des images publiées par la CI: agent-service, agent-proxy, preview-service
 runners/aider/         # image du runner d'agents
 providers/fake-llm/    # faux fournisseur LLM + cassettes enregistrées
 templates/fastapi-react/   # gabarit de projet généré (licence Apache-2.0)

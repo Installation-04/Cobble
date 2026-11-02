@@ -120,10 +120,11 @@ Docker volume `cobble-module-keys`. `cobble uninstall --keep-data` keeps that vo
 key and the modules' secrets are deleted together. If the key is lost while the modules remain, their
 stored secrets cannot be read any more: remove and reinstall the modules.
 
-If you installed the **v0.1 pack by hand** (`packs/v01/hooks/install.sh`), it keeps running but is
-not managed by `cobble modules`. The installer says so; remove the pack
-(`packs/v01/hooks/uninstall.sh`) and install the modules instead. Nothing is converted or deleted
-for you.
+The agents and the demo previews are modules too (`cobble modules install --pack local-cpu` installs
+the whole set). If you installed the **v0.1 pack by hand**, it is no longer supported or detected:
+remove its containers and volumes yourself (compose projects `cobble-pack`, `cobble-pack-agents`,
+`cobble-pack-preview`) and install the modules instead; nothing is converted or deleted for you
+(see [the official modules](modules.md)).
 
 If you installed with `--dir`, set `COBBLE_DIR` only when the CLI cannot find the install
 (the installer already records the directory in the CLI).

@@ -57,7 +57,7 @@ services:
     pids_limit: 256
 
   # The ONLY catalogue container that mounts the Docker socket (declared in the manifest as
-  # host_access). Accepted by CLAUDE.md rule 5 as a documented exception; see docs/en/pack.md for
+  # host_access). Accepted by CLAUDE.md rule 5 as a documented exception; see docs/en/modules.md for
   # the risk and mitigations (no published port, no capabilities, pipeline steps limited and
   # never privileged, repositories never marked "trusted").
   agent:

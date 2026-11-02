@@ -43,7 +43,7 @@ class PackSettings(BaseSettings):
 
 
 def load_settings(env_file: Path | None = None) -> PackSettings:
-    """Settings from the environment, optionally completed by a `.env.pack` file."""
+    """Settings from the environment, optionally completed by an env file."""
     if env_file is not None and env_file.exists():
         return PackSettings(_env_file=env_file)  # type: ignore[call-arg]
     return PackSettings()

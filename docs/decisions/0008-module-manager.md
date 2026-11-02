@@ -19,7 +19,7 @@ The graph resolver and the rules engine are **pure functions**, tested by proper
 Recommended: a `catalog/` folder of this repository to begin with (a manifest per module plus a lock file listing the version combinations tested together in CI); a separate repository and third-party catalogues come in v0.4.
 
 ## From the v0.1 pack
-`packs/v01/` is converted module by module (forgejo, woodpecker, ollama cpu/nvidia/amd, aider runner, agent-service, preview-service). Their hooks (`register-core`, `unlink`, `uninstall`) already follow the lifecycle above. `scripts/e2e_full.sh` must stay green after each conversion. The fake pack stays as the reference implementation of the capabilities for browser CI.
+`packs/v01/` was converted module by module (forgejo, woodpecker, ollama cpu/nvidia/amd, then `aider` = agent-service + egress proxy + runner image, and `preview`) and removed. `scripts/e2e_full.sh` installs the four modules through the module-manager. The fake pack stays as the reference implementation of the capabilities for browser CI.
 
 ## Open points
 1. Upgrade path from a v0.1 install: automatic migration or reinstall (no public install exists yet).
@@ -36,4 +36,5 @@ Recommended: a `catalog/` folder of this repository to begin with (a manifest pe
 - **Routes.** `web_ui` becomes a Caddy route built from validated fields only; routes are written validate-then-rename and loaded through Caddy's admin API on a unix socket in a volume shared with the module-manager only; a refused route rolls the install back.
 - **Language-model gateway.** Backends declare `llm` (address and models, with per-flavour overrides); the manager writes the list to a file LiteLLM includes and restarts it (the supported way in the pinned version), restoring the previous list if it does not come back. The hardware flavour (CPU, NVIDIA, AMD) is chosen from the machine; a flavour may bring its own compose file. GPU flavours are verified by the compose rules and unit tests only, not on real hardware.
 - **Failure model.** Any failure rolls the whole plan back; crashes are recovered at start-up; a removal never fails because the proxy or the gateway cannot be updated.
-- **Still open.** Image distribution for modules that build their images locally (the agent and preview services are still the v0.1 pack until the owner decides between building on the host and CI-published digests); `keep-data` on uninstall; settings and secrets from the UI; a CA bundle option for module containers behind a TLS-inspecting proxy.
+- **Image distribution (decided).** Images that are not third-party (agent-service, egress proxy, preview-service, the Aider runner) are built by CI (`.github/workflows/images.yml`), pushed to GHCR and pinned by digest in the manifests (`scripts/pin_images.py`), like every other module; there is no build on the host. The packages must be public (or a registry login done) for a plain install.
+- **Still open.** `keep-data` on uninstall; settings and secrets from the UI; a CA bundle option for module containers behind a TLS-inspecting proxy.

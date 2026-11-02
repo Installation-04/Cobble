@@ -1,7 +1,7 @@
 [project]
 name = "cobble-preview-service"
 version = "0.1.0"
-description = "Cobble v0.1 pack service: builds, runs and proxies the milestone demos."
+description = "Cobble preview-service (module preview): builds, runs and proxies the milestone demos."
 requires-python = ">=3.12"
 license = "AGPL-3.0-only"
 dependencies = [
