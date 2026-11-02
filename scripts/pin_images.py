@@ -5,7 +5,8 @@
     scripts/pin_images.py --from-dir digests/        # the files the workflow uploads
 
 Every reference to `ghcr.io/<owner>/cobble-<name>[:tag]@sha256:<64 hex>` under `catalog/`
-(manifests, compose files, hooks) is replaced by the new one for the same <name>. Nothing else is touched.
+(manifests, compose files, hooks) is replaced by the new one for the same <name>. Nothing else
+is touched.
 Exit code 1 when a given name appears nowhere (a typo, or a module that does not use it yet).
 """
 
