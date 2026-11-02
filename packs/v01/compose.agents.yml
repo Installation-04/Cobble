@@ -17,7 +17,7 @@ services:
   # AGENT_PROXY_ALLOW: comma separated host names (default below). The "api" entry is the host of
   # COBBLE_INTERNAL_API_URL; keep both in sync if you rename the API service.
   agent-proxy:
-    build: ./agent-proxy
+    build: ../../services/agent-proxy
     image: cobble-agent-proxy:0.1
     <<: *hardening
     read_only: true
@@ -37,7 +37,7 @@ services:
   # The ONE container of the agent side that mounts the Docker socket (CLAUDE.md rule 5).
   # It starts the agent containers; it never runs agent-written code itself.
   agent-service:
-    build: ./agent-service
+    build: ../../services/agent-service
     image: cobble-agent-service:0.1
     <<: *hardening
     user: "10001:10001"

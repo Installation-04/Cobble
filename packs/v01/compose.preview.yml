@@ -18,7 +18,7 @@ services:
   # confined container and reverse-proxies /demo/<project>/<milestone>/. It holds the Docker
   # socket (CLAUDE.md rule 5); it never runs generated code itself.
   preview-service:
-    build: ./preview-service
+    build: ../../services/preview-service
     image: cobble-preview-service:0.1
     <<: *hardening
     user: "10001:10001"

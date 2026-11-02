@@ -10,22 +10,23 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[3]
 PACK = ROOT / "packs" / "v01"
+SERVICE_DIRS = ROOT / "services"
 COMPOSE_FILE = PACK / "compose.agents.yml"
 COMPOSE = yaml.safe_load(COMPOSE_FILE.read_text("utf-8"))
 SERVICES: dict[str, dict[str, object]] = COMPOSE["services"]
 DOCKERFILES = [
     ROOT / "runners" / "aider" / "Dockerfile",
-    PACK / "agent-service" / "Dockerfile",
-    PACK / "agent-proxy" / "Dockerfile",
+    SERVICE_DIRS / "agent-service" / "Dockerfile",
+    SERVICE_DIRS / "agent-proxy" / "Dockerfile",
 ]
 SECRET_FILES = [
     COMPOSE_FILE,
     *DOCKERFILES,
     ROOT / "runners" / "aider" / "entrypoint",
     ROOT / "runners" / "aider" / "test-wrapper",
-    PACK / "agent-proxy" / "entrypoint.sh",
-    PACK / "agent-proxy" / "tinyproxy.conf.tmpl",
-    PACK / "agent-service" / "gen-env.sh",
+    SERVICE_DIRS / "agent-proxy" / "entrypoint.sh",
+    SERVICE_DIRS / "agent-proxy" / "tinyproxy.conf.tmpl",
+    SERVICE_DIRS / "agent-service" / "gen-env.sh",
 ]
 
 
@@ -76,7 +77,7 @@ def test_only_agent_service_mounts_the_docker_socket() -> None:
     for path in [
         ROOT / "runners" / "aider" / "entrypoint",
         ROOT / "runners" / "aider" / "test-wrapper",
-        PACK / "agent-proxy" / "entrypoint.sh",
+        SERVICE_DIRS / "agent-proxy" / "entrypoint.sh",
     ]:
         assert "docker.sock" not in path.read_text("utf-8")
 
@@ -114,7 +115,7 @@ def test_proxy_default_allow_list_is_minimal() -> None:
         "files.pythonhosted.org",
         "registry.npmjs.org",
     }
-    conf = (PACK / "agent-proxy" / "tinyproxy.conf.tmpl").read_text("utf-8")
+    conf = (SERVICE_DIRS / "agent-proxy" / "tinyproxy.conf.tmpl").read_text("utf-8")
     assert re.search(r"^FilterDefaultDeny\s+Yes", conf, re.M)
     assert re.search(r"^ConnectPort\s+443\s*$", conf, re.M)
 
@@ -136,7 +137,7 @@ def test_no_secret_value_is_committed(path: Path) -> None:
 
 
 def test_agent_env_files_are_private_and_ignored_by_git() -> None:
-    script = (PACK / "agent-service" / "gen-env.sh").read_text("utf-8")
+    script = (SERVICE_DIRS / "agent-service" / "gen-env.sh").read_text("utf-8")
     assert "umask 077" in script and "chmod 600" in script
     ignore = (PACK / ".gitignore").read_text("utf-8")
     assert ".env.*" in ignore
@@ -159,7 +160,7 @@ def test_gen_env_works_on_a_first_run(service: str, tmp_path: Path) -> None:
         "COBBLE_PREVIEW_CORE_ENV": str(tmp_path / "preview.core.env"),
     }
     result = subprocess.run(  # noqa: S603
-        ["bash", str(PACK / service / "gen-env.sh")],  # noqa: S607
+        ["bash", str(SERVICE_DIRS / service / "gen-env.sh")],  # noqa: S607
         env=env,
         capture_output=True,
         text=True,

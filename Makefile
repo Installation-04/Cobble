@@ -8,8 +8,8 @@ help:
 install:
 	cd backend && uv sync --locked
 	cd providers/fake-llm && uv sync --locked
-	cd packs/v01/agent-service && uv sync --locked
-	cd packs/v01/preview-service && uv sync --locked
+	cd services/agent-service && uv sync --locked
+	cd services/preview-service && uv sync --locked
 	cd sdk && uv sync --locked
 	cd ui && pnpm install --frozen-lockfile
 
@@ -24,8 +24,8 @@ lint-backend:
 	$(RUFF) format --config pyproject.toml --check $(PY_DIRS)
 	cd backend && uv run --quiet mypy
 	cd providers/fake-llm && uv run --quiet mypy
-	cd packs/v01/agent-service && uv run --quiet ruff check . && uv run --quiet ruff format --check . && uv run --quiet mypy
-	cd packs/v01/preview-service && uv run --quiet ruff check . && uv run --quiet ruff format --check . && uv run --quiet mypy
+	cd services/agent-service && uv run --quiet ruff check . && uv run --quiet ruff format --check . && uv run --quiet mypy
+	cd services/preview-service && uv run --quiet ruff check . && uv run --quiet ruff format --check . && uv run --quiet mypy
 	cd sdk && uv run --quiet ruff check . && uv run --quiet ruff format --check . && uv run --quiet mypy && uv run --quiet python -m cobble_sdk.schema --check && uv run --quiet python -m cobble_sdk lint ../catalog --no-compose
 
 lint-ui:
@@ -36,8 +36,8 @@ test: test-backend test-ui test-installer
 test-backend:
 	cd backend && uv run --quiet pytest -q
 	cd providers/fake-llm && uv run --quiet pytest -q
-	cd packs/v01/agent-service && uv run --quiet pytest -q
-	cd packs/v01/preview-service && uv run --quiet pytest -q
+	cd services/agent-service && uv run --quiet pytest -q
+	cd services/preview-service && uv run --quiet pytest -q
 	cd sdk && uv run --quiet pytest -q
 
 test-ui:

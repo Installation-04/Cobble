@@ -10,7 +10,8 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[3]
 PACK = ROOT / "packs" / "v01"
-SERVICE = PACK / "preview-service"
+SERVICE_DIRS = ROOT / "services"
+SERVICE = SERVICE_DIRS / "preview-service"
 COMPOSE_FILE = PACK / "compose.preview.yml"
 COMPOSE = yaml.safe_load(COMPOSE_FILE.read_text("utf-8"))
 SERVICES: dict[str, dict[str, object]] = COMPOSE["services"]
