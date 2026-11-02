@@ -222,7 +222,13 @@ export interface ModuleEntry {
   requires: string[];
   exclusive: string[];
   variants: string[];
-  web_ui: { service: string; port: number; path: string; strip_prefix: boolean } | null;
+  web_ui: {
+    service: string;
+    port: number;
+    path: string;
+    strip_prefix: boolean;
+    public?: boolean;
+  } | null;
   secrets: string[];
   host_access: string[];
   offline: boolean;

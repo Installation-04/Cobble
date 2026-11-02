@@ -9,6 +9,7 @@ the diff answers 503 and stopping a live run answers 503 (nothing changes).
 from __future__ import annotations
 
 import logging
+import time
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Query, Request, Response
@@ -26,23 +27,31 @@ from .schemas import TaskOut
 log = logging.getLogger(__name__)
 router = APIRouter()
 
-_UNSET = object()
+# How long the providers built from the running modules are reused. Short: installing or removing
+# a module should show in the API within moments, without asking the module-manager per request.
+_TTL_S = 15.0
 
 
-def _pack(request: Request) -> Any:
-    """The pack's collaborators, built on first use (never raises, `None` when absent)."""
+def _running(request: Request) -> Any:
+    """Git and agent providers of the running modules (`None` when there are none yet).
+
+    Never raises: an unreachable module-manager is the same as no module for the API."""
     state = request.app.state
-    cached = getattr(state, "pack_services", _UNSET)
-    if cached is _UNSET:
+    cached = getattr(state, "module_services", None)
+    now = time.monotonic()
+    if cached is not None and now - cached[0] < _TTL_S:
+        return cached[1]
+    settings = state.settings
+    built: Any = None
+    if settings.module_manager_token:
         try:
-            from cobble.providers.agent_service import build_pack_services
+            from cobble.providers.runtime import build_from_modules
 
-            cached = build_pack_services(state.settings)
+            built = build_from_modules(settings)
         except Exception:
-            log.warning("could not build the pack services for the API", exc_info=True)
-            cached = None
-        state.pack_services = cached
-    return cached
+            log.warning("could not read the running modules for the API", exc_info=True)
+    state.module_services = (now, built)
+    return built
 
 
 def agent_runner(request: Request) -> AgentRunner | None:
@@ -50,8 +59,8 @@ def agent_runner(request: Request) -> AgentRunner | None:
     if explicit is not None:
         runner: AgentRunner = explicit
         return runner
-    pack = _pack(request)
-    return pack.agents if pack is not None else None
+    built = _running(request)
+    return built.agents if built is not None else None
 
 
 def git_provider(request: Request) -> GitProvider | None:
@@ -59,8 +68,8 @@ def git_provider(request: Request) -> GitProvider | None:
     if explicit is not None:
         git: GitProvider = explicit
         return git
-    pack = _pack(request)
-    return pack.git if pack is not None else None
+    built = _running(request)
+    return built.git if built is not None else None
 
 
 def _task(db: Db, project: OwnedProject, ref: str) -> Task:

@@ -1,7 +1,8 @@
-"""Settings of the v0.1 pack, read from COBBLE_PACK_* variables.
+"""Defaults of the Git and CI adapters, read from COBBLE_PACK_* variables.
 
-`hooks/register-core.sh` writes them to `packs/v01/.env.pack` (outside git); mount or load that
-file in the api and worker services.
+The address and token of the Git and CI modules come from the module-manager (the registry
+overrides them); what is left here are the choices that do not depend on which module runs:
+default branch, merge style, required check, timeouts.
 """
 
 from __future__ import annotations
@@ -15,7 +16,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class PackSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="COBBLE_PACK_", extra="ignore")
 
-    # In-network URLs (the pack services are reachable on the shared `cobble_core` network).
+    # Overridden by the connection of the running Git and CI modules.
     forgejo_url: str = "http://forgejo:3000"
     forgejo_token: SecretStr = SecretStr("")
     # Account that owns the generated repositories. Empty: the token's own user.

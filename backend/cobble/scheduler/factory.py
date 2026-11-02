@@ -1,14 +1,14 @@
 """Builds the scheduler from the settings, or says why it cannot (never raises).
 
-The fixed pack's providers are imported lazily and defensively: a worker started without a
-configured pack still plans (interview, spec, plan) and only the build loop is disabled.
+With the fake pack the scheduler runs on in-memory fakes (browser tests, development). Otherwise
+it is built from the modules that are really running: the module-manager says which ones, and
+the provider registry maps them to adapters (ADR 0008). Without a Git, a CI and an agent module
+there is no scheduler yet: planning (interview, spec, plan) still works, building waits.
 """
 
 from __future__ import annotations
 
 import logging
-import os
-from pathlib import Path
 
 from redis import Redis
 from sqlalchemy.orm import Session, sessionmaker
@@ -22,8 +22,6 @@ from .supervisor import BuildResult, SchedulerSupervisor
 
 log = logging.getLogger(__name__)
 
-PACK_ENV_FILE = "COBBLE_PACK_ENV_FILE"
-
 
 def make_scheduler_supervisor(
     settings: Settings, sessions: sessionmaker[Session], redis: Redis | None
@@ -35,52 +33,47 @@ def make_scheduler_supervisor(
     if not settings.run_token_secret:
         log.warning("scheduler disabled: COBBLE_RUN_TOKEN_SECRET is not set")
         return None
-    from cobble.providers.module_manager import HttpModuleManager, ModuleManagerUnavailable
-    from cobble.providers.registry import Connection, default_registry
+    from cobble.providers.module_manager import ModuleManagerUnavailable
+    from cobble.providers.runtime import build_from_modules
 
-    client = HttpModuleManager.from_settings(settings)
-    registry = default_registry()
     supervisor: SchedulerSupervisor | None = None
     unreachable = False  # log the outage once, not at every retry
+    missing: set[str] = set()  # log what is missing once per change, not at every retry
 
     def build() -> BuildResult:
         nonlocal unreachable
         try:
-            raw = client.connections()
+            built = build_from_modules(settings)
         except ModuleManagerUnavailable:
             if not unreachable:
                 log.warning("module-manager unreachable, using what is already running")
                 unreachable = True
             if supervisor is not None and supervisor.current is not None:
                 return BuildResult(None, final=False, keep=True)
-            return BuildResult(build_scheduler(settings, sessions, redis), final=False)
+            return BuildResult(None, final=False)
         unreachable = False
-        connections = {mid: Connection.from_json(mid, data) for mid, data in raw.items()}
-        from cobble.providers.agent_service import build_runtime_services
-        from cobble.providers.settings import load_settings
-
-        env_file = os.environ.get(PACK_ENV_FILE)
-        built = registry.build(connections, load_settings(Path(env_file) if env_file else None))
-        if built is None:
-            # No git+ci module installed: the v0.1 pack (configured by files) still works.
-            return BuildResult(build_scheduler(settings, sessions, redis))
-        runtime = build_runtime_services(settings)
-        if runtime is None:
+        needed = {
+            "git and ci modules": built is not None,
+            "an agent-runner module": built is not None and built.agents is not None,
+        }
+        lacking = {name for name, present in needed.items() if not present}
+        if lacking != missing:
+            missing.clear()
+            missing.update(lacking)
+            if lacking:
+                log.warning("scheduler waiting for: %s", ", ".join(sorted(lacking)))
+        if built is None or built.agents is None:
             return BuildResult(None)
-        agents, preview = runtime
-
-        model_for = ModelPolicy(sessions, settings).model_for
-
         return BuildResult(
             Scheduler(
                 sessions,
                 built.git,
                 built.ci,
-                agents,
+                built.agents,
                 settings,
                 redis=redis,
-                model_for=model_for,
-                preview=preview,
+                model_for=ModelPolicy(sessions, settings).model_for,
+                preview=built.preview,
             )
         )
 
@@ -96,7 +89,7 @@ def make_scheduler_supervisor(
 def build_scheduler(
     settings: Settings, sessions: sessionmaker[Session], redis: Redis | None
 ) -> Scheduler | None:
-    """A scheduler wired to the pack, or None (and a log line) when it is not available."""
+    """The scheduler on fakes (fake pack mode), or None with a log line."""
     if settings.pack_mode == "fake":
         from .fakepack import FAKE_RUN_TOKEN_SECRET, build_fake_services
 
@@ -112,33 +105,5 @@ def build_scheduler(
             redis=redis,
             preview=fake.preview,
         )
-    if not settings.run_token_secret:
-        log.warning("scheduler disabled: COBBLE_RUN_TOKEN_SECRET is not set")
-        return None
-    try:
-        from cobble.providers.agent_service import build_pack_services
-
-        env_file = os.environ.get(PACK_ENV_FILE)
-        services = build_pack_services(settings, Path(env_file) if env_file else None)
-    except ImportError:
-        log.warning("scheduler disabled: the pack providers are not importable", exc_info=True)
-        return None
-    except Exception:
-        log.warning("scheduler disabled: the pack could not be configured", exc_info=True)
-        return None
-    if services is None:
-        log.warning("scheduler disabled: the pack is not configured")
-        return None
-
-    model_for = ModelPolicy(sessions, settings).model_for
-
-    return Scheduler(
-        sessions,
-        services.git,
-        services.ci,
-        services.agents,
-        settings,
-        redis=redis,
-        model_for=model_for,
-        preview=services.preview,
-    )
+    log.warning("scheduler disabled: no module-manager token (install the modules to build)")
+    return None

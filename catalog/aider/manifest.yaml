@@ -1,0 +1,37 @@
+# Aider agents (capability `agent-runner`): the service that starts a sandboxed coding agent for
+# a task, the allow-list proxy it is the only way out of, and the runner image. Converted from the
+# v0.1 pack. Like Woodpecker it holds the Docker socket (declared below): it starts the agent
+# containers, and never runs agent-written code itself.
+id: aider
+name: Aider agents
+version: 0.1.0
+category: agents
+description:
+  en: Coding agents that write the code of each task in an isolated container.
+  fr: Des agents de code qui écrivent chaque tâche dans un conteneur isolé.
+license: AGPL-3.0-or-later (Aider Apache-2.0, tinyproxy GPL-2.0-or-later)
+provides: [agent-runner]
+requires: [git]
+images:
+  - ghcr.io/installation-04/cobble-agent-service@sha256:47c89e1cd0b43f7936f538077963d35e6adac9caac137908a6862188c75c8cd7
+  - ghcr.io/installation-04/cobble-agent-proxy@sha256:372c64e0696db5ac0dbfd35e9c711be62b9bd3b5340889244c81bfb9866debad
+  # Not a compose service: agent-service starts it for every task, so the pre_up hook pulls it.
+  - ghcr.io/installation-04/cobble-aider-runner@sha256:5e1acab5b595b3ac31f73304d4ff219fb47e5f0045c16a7d92de1ea335743302
+compose: compose.yml
+host_access: [docker_socket]
+# The proxy reaches the platform API for the agents; agent-service reaches Git and the API.
+bus: [agent-proxy]
+web_ui:
+  service: agent-service
+  port: 8090
+  path: /agents
+  public: false   # only the core talks to it (bearer token); nothing is published on the proxy
+healthcheck:
+  http: /healthz
+# service_token is generated; the Git address and token come from the pre_up hook (they are
+# handed over by the Git module and never reach the core).
+secrets: [service_token]
+core_secrets: [service_token]
+hooks:
+  pre_up: hooks/pre-up.sh
+  pre_uninstall: hooks/pre-uninstall.sh

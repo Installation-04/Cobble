@@ -24,7 +24,8 @@ secrets: [secret_key, admin_password]
 core_secrets: [api_token]
 # Shared with the hooks of modules that require `git` (for example the CI signs in as the
 # service account); never with the core.
-link_secrets: [admin_password]
+# Also the API token, for modules that push and clone on the core's behalf (agents, previews).
+link_secrets: [admin_password, api_token]
 hooks:
   post_install: hooks/post-install.sh
 backup:

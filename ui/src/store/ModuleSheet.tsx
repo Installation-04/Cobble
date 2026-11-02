@@ -118,21 +118,24 @@ export function ModuleSheet({
               {module.host_access.length > 0 && (
                 <Row label={t("store:sheet.hostAccess")}>{t("store:sheet.dockerSocket")}</Row>
               )}
-              {state === "running" && module.web_ui && module.web_ui.path !== "/" && (
-                <Row label={t("store:sheet.open")}>
-                  <a
-                    href={`${module.web_ui.path.replace(/\/$/, "")}/`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1 font-medium text-primary underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-                    data-testid="module-open"
-                  >
-                    {module.web_ui.path}
-                    <ExternalLink className="h-3 w-3" aria-hidden="true" />
-                    <span className="sr-only">{t("store:sheet.newTab")}</span>
-                  </a>
-                </Row>
-              )}
+              {state === "running" &&
+                module.web_ui &&
+                module.web_ui.public !== false &&
+                module.web_ui.path !== "/" && (
+                  <Row label={t("store:sheet.open")}>
+                    <a
+                      href={`${module.web_ui.path.replace(/\/$/, "")}/`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 font-medium text-primary underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                      data-testid="module-open"
+                    >
+                      {module.web_ui.path}
+                      <ExternalLink className="h-3 w-3" aria-hidden="true" />
+                      <span className="sr-only">{t("store:sheet.newTab")}</span>
+                    </a>
+                  </Row>
+                )}
               <Secrets module={module} />
             </dl>
 

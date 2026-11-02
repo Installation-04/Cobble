@@ -392,6 +392,11 @@
           "title": "Port",
           "type": "integer"
         },
+        "public": {
+          "default": true,
+          "title": "Public",
+          "type": "boolean"
+        },
         "service": {
           "pattern": "^[a-z0-9][a-z0-9_.-]{0,62}$",
           "title": "Service",

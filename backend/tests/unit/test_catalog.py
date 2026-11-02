@@ -61,17 +61,22 @@ def test_the_compose_file_follows_the_platform_rules(directory: Path) -> None:
 def test_images_in_the_compose_file_are_the_declared_ones(directory: Path) -> None:
     manifest = load_manifest(directory / "manifest.yaml")
     used: set[str] = set()
+    text = ""
     for file in compose_files(manifest):
+        text += (directory / file).read_text("utf-8")
         raw = yaml.safe_load((directory / file).read_text("utf-8"))
         used |= {service["image"] for service in raw["services"].values() if "image" in service}
-    assert used == set(manifest.images)
+    assert used <= set(manifest.images)
+    # an image that is not a service (the agents' runner) must still be named in the compose file
+    # (where the service reads it) so that a single pin is the one a hook pulls
+    assert all(image in text for image in manifest.images)
 
 
 @pytest.mark.parametrize("directory", MODULES, ids=ids)
 def test_every_hook_exists_and_is_executable_bash(directory: Path) -> None:
     manifest = load_manifest(directory / "manifest.yaml")
     hooks = manifest.hooks
-    scripts = [hooks.post_install, hooks.register_core, hooks.pre_uninstall]
+    scripts = [hooks.pre_up, hooks.post_install, hooks.register_core, hooks.pre_uninstall]
     scripts += [*hooks.on_link.values(), *hooks.on_unlink.values()]
     for script in filter(None, scripts):
         path = directory / script
@@ -106,18 +111,72 @@ def test_woodpecker_needs_git_and_keeps_its_service_account_secret_out_of_the_co
     woodpecker = load_manifest(CATALOG / "woodpecker" / "manifest.yaml")
     assert woodpecker.requires == ["git"] and [p.capability for p in woodpecker.provides] == ["ci"]
     # the CI hooks may read the Git server's admin password; the core may not
-    assert forgejo.link_secrets == ["admin_password"]
-    assert "admin_password" not in forgejo.core_secrets
+    assert "admin_password" in forgejo.link_secrets and "admin_password" not in forgejo.core_secrets
     assert woodpecker.core_secrets == ["api_token"]
     assert woodpecker.host_access == ["docker_socket"]
     assert woodpecker.web_ui is not None and woodpecker.web_ui.strip_prefix is False
 
 
-def test_only_woodpecker_mounts_the_docker_socket() -> None:
+SOCKET_HOLDERS = {"woodpecker", "aider", "preview"}  # each declares it as host_access
+
+
+def test_only_the_declared_modules_mount_the_docker_socket() -> None:
     for directory in MODULES:
         manifest = load_manifest(directory / "manifest.yaml")
         text = (directory / manifest.compose).read_text("utf-8")
-        assert ("docker.sock" in text) == (manifest.id == "woodpecker"), manifest.id
+        holder = manifest.id in SOCKET_HOLDERS
+        assert ("docker.sock" in text) == holder, manifest.id
+        assert (manifest.host_access == ["docker_socket"]) == holder, manifest.id
+
+
+def test_agents_and_previews_get_git_from_the_peer_and_keep_their_own_token_private() -> None:
+    forgejo = load_manifest(CATALOG / "forgejo" / "manifest.yaml")
+    assert "api_token" in forgejo.link_secrets  # handed to the hooks of modules that require git
+    for module_id, capability, path in (
+        ("aider", "agent-runner", "/agents"),
+        ("preview", "preview", "/demo"),
+    ):
+        manifest = load_manifest(CATALOG / module_id / "manifest.yaml")
+        assert manifest.requires == ["git"] and [p.capability for p in manifest.provides] == [
+            capability
+        ]
+        assert manifest.secrets == ["service_token"] and manifest.core_secrets == ["service_token"]
+        assert manifest.web_ui is not None and manifest.web_ui.path == path
+        # the Git address and token are produced by the pre_up hook, never declared or exposed
+        assert manifest.hooks.pre_up == "hooks/pre-up.sh"
+        hook = (CATALOG / module_id / "hooks" / "pre-up.sh").read_text("utf-8")
+        assert "::secret::forgejo_token=" in hook and "::secret::forgejo_url=" in hook
+    # only the preview service has a page of its own; the agent service is for the core alone
+    assert load_manifest(CATALOG / "aider" / "manifest.yaml").web_ui.public is False  # type: ignore[union-attr]
+    assert load_manifest(CATALOG / "preview" / "manifest.yaml").web_ui.public is True  # type: ignore[union-attr]
+
+
+def test_the_runner_image_is_pinned_and_listed_so_that_the_hook_can_pull_it() -> None:
+    manifest = load_manifest(CATALOG / "aider" / "manifest.yaml")
+    compose = (CATALOG / "aider" / "compose.yml").read_text("utf-8")
+    runner = next(i for i in manifest.images if "cobble-aider-runner" in i)
+    assert f"COBBLE_AGENT_RUNNER_IMAGE: {runner}" in compose
+    assert "docker pull" in (CATALOG / "aider" / "hooks" / "pre-up.sh").read_text("utf-8")
+
+
+def test_the_networks_the_agent_and_preview_services_use_are_the_ones_the_platform_creates() -> (
+    None
+):
+    # The services get the names of the (renamed) network and volume through the environment.
+    aider = (CATALOG / "aider" / "compose.yml").read_text("utf-8")
+    assert "COBBLE_AGENT_NETWORK: cobble-aider-agents" in aider
+    assert "COBBLE_AGENT_DATA_VOLUME: cobble-aider-agents-data" in aider
+    preview = (CATALOG / "preview" / "compose.yml").read_text("utf-8")
+    assert "COBBLE_PREVIEW_NETWORK: cobble-preview-previews" in preview
+    for text in (aider, preview):
+        assert "internal: true" in text  # sandboxes have no route out of their network
+
+
+def test_published_images_have_a_real_digest() -> None:
+    for directory in MODULES:
+        manifest = load_manifest(directory / "manifest.yaml")
+        for image in manifest.images:
+            assert "@sha256:" + "0" * 64 not in image, f"{manifest.id}: {image} is not pinned yet"
 
 
 def test_ollama_serves_models_through_the_gateway_with_a_flavour_per_kind_of_hardware() -> None:

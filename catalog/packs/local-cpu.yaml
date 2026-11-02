@@ -4,9 +4,9 @@ name:
   en: Local CPU
   fr: CPU local
 description:
-  en: Git server, CI and a language-model server that runs small models on the processor. Slower than a graphics card, but private and free to run.
-  fr: Serveur Git, CI et serveur de modèles de langage qui fait tourner de petits modèles sur le processeur. Plus lent qu'une carte graphique, mais privé et sans coût d'utilisation.
-modules: [forgejo, woodpecker, ollama]
+  en: Git server, CI, coding agents, demo previews and a language-model server that runs small models on the processor. Slower than a graphics card, but private and free to run.
+  fr: Serveur Git, CI, agents de code, aperçus de démo et serveur de modèles de langage qui fait tourner de petits modèles sur le processeur. Plus lent qu'une carte graphique, mais privé et sans coût d'utilisation.
+modules: [forgejo, woodpecker, ollama, aider, preview]
 hardware:
   min_ram_mb: 8192
 priority: 20

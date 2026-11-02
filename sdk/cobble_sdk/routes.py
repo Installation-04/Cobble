@@ -25,9 +25,9 @@ def llm_endpoint(manifest: Manifest) -> str | None:
 
 
 def render_route(manifest: Manifest) -> str | None:
-    """A Caddy snippet exposing the module under its `web_ui.path`, or None without web_ui."""
+    """A Caddy snippet exposing the module under its `web_ui.path` (None unless it is public)."""
     target = upstream(manifest)
-    if manifest.web_ui is None or target is None:
+    if manifest.web_ui is None or target is None or not manifest.web_ui.public:
         return None
     path = manifest.web_ui.path.rstrip("/")
     if not path:  # the root belongs to the platform's own UI

@@ -51,3 +51,10 @@ def test_no_web_ui_or_root_path_means_no_route() -> None:
 def test_a_hostile_path_cannot_reach_the_proxy_configuration(path: str) -> None:
     with pytest.raises(ManifestError):
         make(web_ui={"service": "web", "port": 80, "path": path})
+
+
+def test_a_non_public_service_is_reachable_by_the_core_but_has_no_route() -> None:
+    manifest = make(web_ui={"service": "api", "port": 8090, "path": "/agents", "public": False})
+    assert render_route(manifest) is None
+    assert upstream(manifest) == "cobble-forgejo-api:8090"  # connections() still reports it
+    assert render_route(make()) is not None  # public by default

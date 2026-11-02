@@ -99,6 +99,9 @@ class WebUi(_Strict):
     # True: the proxy removes `path` before forwarding (the product lives at its root);
     # False: the product is configured for the prefix and expects to see it.
     strip_prefix: bool = True
+    # False: the service is reachable on the platform network only (the core talks to it); no
+    # route is published on the reverse proxy and the Store shows no link.
+    public: bool = True
 
     @field_validator("path")
     @classmethod

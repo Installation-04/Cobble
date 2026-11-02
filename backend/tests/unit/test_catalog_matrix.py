@@ -65,34 +65,41 @@ def check(r: Rig, explicit: set[str]) -> None:
 
 
 def test_the_catalogue_is_the_expected_one() -> None:
-    assert IDS == ["forgejo", "ollama", "woodpecker"]
+    assert IDS == ["aider", "forgejo", "ollama", "preview", "woodpecker"]
+
+
+def run_story(install: tuple[str, ...], removal: tuple[str, ...]) -> None:
+    r = rig()
+    explicit: set[str] = set()
+    for module in install:
+        r.manager.install([module])
+        explicit.add(module)
+        check(r, explicit)
+    for module in removal:
+        # Removing forgejo while woodpecker needs it takes woodpecker with it: that is the
+        # confirmed cascade, and what it removes is exactly what lost its provider.
+        if module not in resolve(MODULES, explicit).installed:
+            with pytest.raises(NotInstalled):  # already taken away by an earlier cascade
+                r.manager.uninstall([module], confirm_cascade=True)
+            continue
+        r.manager.uninstall([module], confirm_cascade=True)
+        explicit = set(plan_uninstall(MODULES, explicit, [module], confirm_cascade=True).explicit)
+        check(r, explicit)
+    assert r.counts() == {"modules": 0, "secrets": 0, "links": 0}
+    assert r.runner.running == {} and r.runner.volumes == set()
 
 
 @pytest.mark.parametrize("order", list(itertools.permutations(IDS)))
-def test_installing_one_by_one_in_any_order_then_removing_in_any_order(
+def test_installing_one_by_one_in_any_order_then_removing_in_the_same_reversed_or_rotated_order(
     order: tuple[str, ...],
 ) -> None:
-    for removal in itertools.permutations(IDS):
-        r = rig()
-        explicit: set[str] = set()
-        for module in order:
-            r.manager.install([module])
-            explicit.add(module)
-            check(r, explicit)
-        for module in removal:
-            # Removing forgejo while woodpecker needs it takes woodpecker with it: that is the
-            # confirmed cascade, and what it removes is exactly what lost its provider.
-            if module not in resolve(MODULES, explicit).installed:
-                with pytest.raises(NotInstalled):  # already taken away by an earlier cascade
-                    r.manager.uninstall([module], confirm_cascade=True)
-                continue
-            r.manager.uninstall([module], confirm_cascade=True)
-            explicit = set(
-                plan_uninstall(MODULES, explicit, [module], confirm_cascade=True).explicit
-            )
-            check(r, explicit)
-        assert r.counts() == {"modules": 0, "secrets": 0, "links": 0}
-        assert r.runner.running == {} and r.runner.volumes == set()
+    for removal in (order, order[::-1], order[2:] + order[:2]):
+        run_story(order, removal)
+
+
+@pytest.mark.parametrize("removal", list(itertools.permutations(IDS)))
+def test_removing_in_any_order_after_a_fixed_install(removal: tuple[str, ...]) -> None:
+    run_story(tuple(IDS), removal)
 
 
 def test_installing_everything_at_once_gives_the_same_state() -> None:

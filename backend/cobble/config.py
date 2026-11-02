@@ -33,9 +33,6 @@ class Settings(BaseSettings):
     cookie_secure: bool = False
     # Secret used to sign the per-run tokens that agents present to the internal LLM endpoint.
     run_token_secret: str = ""
-    # Internal HTTP API of the agent-service (the only component that touches Docker).
-    agent_service_url: str = "http://agent-service:8090"
-    agent_service_token: str = ""
     # Internal HTTP API of the module-manager (the only component with the vault key and Docker).
     module_manager_url: str = "http://module-manager:8095"
     module_manager_token: str = ""
@@ -85,10 +82,7 @@ class Settings(BaseSettings):
     agent_memory_mb: int = 2048
     agent_pids: int = 256
     # --- demo (ADR 0007) ---
-    # Internal HTTP API of the preview-service (the component that builds and runs the demos).
-    preview_service_url: str = "http://preview-service:8091"
-    preview_service_token: str = ""
-    # `real`: the fixed pack (git server, CI, agent-service, preview-service). `fake`:
+    # `real`: the installed modules (Git, CI, agents, previews). `fake`:
     # in-memory fakes that play the whole loop in seconds, for development and browser tests.
     # Refused when `env` is `production`.
     pack_mode: Literal["real", "fake"] = "real"

@@ -1,12 +1,9 @@
-"""AgentRunner backed by the pack's agent-service (ADR 0006).
+"""AgentRunner backed by the agent-service of the `aider` module (ADR 0006, ADR 0008).
 
 The agent-service is the only component that touches Docker. This module is its HTTP client:
 `start` -> POST /v1/runs, `poll` -> GET /v1/runs/{id}, `stop` -> POST /v1/runs/{id}/stop.
 An unreachable service or a 5xx answer is `AgentUnavailable` (the scheduler retries later and
 does not count it as a failed attempt); an unknown run is `AgentRunNotFound`.
-
-It also holds `build_pack_services`, the one place that builds the fixed pack's collaborators
-from the settings (this package is where product names are allowed).
 """
 
 from __future__ import annotations
@@ -14,8 +11,6 @@ from __future__ import annotations
 import logging
 import time
 from collections.abc import Callable
-from dataclasses import dataclass
-from pathlib import Path
 from typing import Any
 
 import httpx
@@ -29,10 +24,6 @@ from cobble.capabilities.agent import (
     AgentUnavailable,
     run_blocking,
 )
-from cobble.capabilities.ci import CIProvider
-from cobble.capabilities.git import GitProvider
-from cobble.capabilities.preview import PreviewProvider
-from cobble.config import Settings
 
 log = logging.getLogger(__name__)
 
@@ -62,10 +53,6 @@ class HttpAgentRunner:
             timeout=timeout_s,
             transport=transport,
         )
-
-    @classmethod
-    def from_settings(cls, settings: Settings) -> HttpAgentRunner:
-        return cls(settings.agent_service_url, settings.agent_service_token)
 
     def close(self) -> None:
         self._client.close()
@@ -172,51 +159,3 @@ class HttpAgentRunner:
 
     def run(self, task: AgentTask) -> AgentResult:
         return run_blocking(self, task, timeout_s=task.limits.max_seconds + 60.0, sleep=self._sleep)
-
-
-@dataclass(frozen=True)
-class PackServices:
-    git: GitProvider
-    ci: CIProvider
-    agents: HttpAgentRunner
-    # None: no preview service configured, the demo flow is off (the project is `done` when
-    # every task is merged).
-    preview: PreviewProvider | None = None
-
-
-def build_pack_services(settings: Settings, env_file: Path | None = None) -> PackServices | None:
-    """The fixed pack's git, CI and agent runner, or None when it is not configured.
-
-    The pack's own settings come from COBBLE_PACK_* (optionally completed by `env_file`).
-    """
-    from .forgejo import ForgejoGit
-    from .settings import load_settings
-    from .woodpecker import WoodpeckerCI
-
-    pack = load_settings(env_file)
-    if not pack.configured():
-        log.warning("the pack is not configured (COBBLE_PACK_* tokens are empty)")
-        return None
-    runtime = build_runtime_services(settings)
-    if runtime is None:
-        return None
-    agents, preview = runtime
-    ci = WoodpeckerCI(pack)
-    return PackServices(ForgejoGit(pack, ci=ci), ci, agents, preview)
-
-
-def build_runtime_services(
-    settings: Settings,
-) -> tuple[HttpAgentRunner, PreviewProvider | None] | None:
-    """The agent runner and the optional preview service, or None without an agent token."""
-    if not settings.agent_service_token:
-        log.warning("COBBLE_AGENT_SERVICE_TOKEN is empty")
-        return None
-    preview: PreviewProvider | None = None
-    if settings.preview_service_token:
-        from .preview_service import HttpPreviewProvider
-
-        preview = HttpPreviewProvider.from_settings(settings)
-    else:
-        log.warning("COBBLE_PREVIEW_SERVICE_TOKEN is empty: milestone demos are disabled")
-    return HttpAgentRunner.from_settings(settings), preview
