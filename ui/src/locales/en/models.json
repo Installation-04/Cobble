@@ -57,6 +57,35 @@
     "none": "No fallback",
     "effective": "Now used: {{chain}}",
     "save": "Save the routes",
-    "saved": "Saved. It applies to the next request."
+    "saved": "Saved. It applies to the next request.",
+    "local": "local"
+  },
+  "presets": {
+    "title": "Presets",
+    "description": "Fill all the jobs below in one click. A preset only arranges the models you choose here: it never picks one for you.",
+    "slot": {
+      "local": "Local model",
+      "cheap": "Inexpensive model",
+      "strong": "Strong model"
+    },
+    "slotHint": {
+      "local": "Served on this machine by an installed backend: free.",
+      "cheap": "For the volume work. Left empty, the strong model is used.",
+      "strong": "For planning, review and escalation."
+    },
+    "noModel": "None",
+    "name": {
+      "economical-local": "Economical, local",
+      "balanced": "Balanced"
+    },
+    "summary": {
+      "economical-local": "Code and tests on your machine; the strong model plans and takes over what the local one cannot do.",
+      "balanced": "An inexpensive model writes tests and code; the strong one plans and reviews."
+    },
+    "needs": "Needs a model for: {{slots}}.",
+    "apply": "Apply",
+    "cancel": "Cancel",
+    "confirm": "This replaces the routes of all the jobs.",
+    "applied": "Applied."
   }
 }

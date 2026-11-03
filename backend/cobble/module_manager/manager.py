@@ -378,21 +378,35 @@ class ModuleManager:
             with self._sessions() as own:
                 self._sync_llm(own)
             return
+        entries = [entry for _module, entry in self._backend_entries(session)]
+        if self._connections is not None:
+            entries += self._connections.entries(session)
+        self._llm.sync(entries)
+
+    def _backend_entries(self, session: Session) -> list[tuple[str, LlmEntry]]:
+        """(module id, gateway entry) for the models of the language-model backends that run."""
         manifests = self._manifests()
         rows = [
             (row.id, row.variant)
             for row in session.scalars(select(Module).where(Module.state == "running"))
         ]
-        entries: list[LlmEntry] = []
+        found: list[tuple[str, LlmEntry]] = []
         for module_id, variant in sorted(rows):
             manifest = manifests.get(module_id)
             endpoint = llm_endpoint(manifest) if manifest is not None else None
             if manifest is None or endpoint is None:
                 continue
-            entries += [LlmEntry(m.name, m.model, endpoint) for m in manifest.llm_models(variant)]
-        if self._connections is not None:
-            entries += self._connections.entries(session)
-        self._llm.sync(entries)
+            found += [
+                (module_id, LlmEntry(m.name, m.model, endpoint))
+                for m in manifest.llm_models(variant)
+            ]
+        return found
+
+    def local_models(self) -> list[tuple[str, str, str]]:
+        """(name, gateway model, module id) of the models served on this machine by the
+        backends that run: free to use, and the ones a route may name besides the connections."""
+        with self._sessions() as session:
+            return [(e.name, e.model, module) for module, e in self._backend_entries(session)]
 
     def _sync_llm_quietly(self) -> None:
         try:

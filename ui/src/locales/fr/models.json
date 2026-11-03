@@ -57,6 +57,35 @@
     "none": "Pas de repli",
     "effective": "Utilisé maintenant : {{chain}}",
     "save": "Enregistrer les routes",
-    "saved": "Enregistré. S'applique à la prochaine requête."
+    "saved": "Enregistré. S'applique à la prochaine requête.",
+    "local": "local"
+  },
+  "presets": {
+    "title": "Préréglages",
+    "description": "Remplit tous les travaux ci-dessous en un clic. Un préréglage ne fait qu'arranger les modèles que vous choisissez ici : il n'en choisit jamais un à votre place.",
+    "slot": {
+      "local": "Modèle local",
+      "cheap": "Modèle économique",
+      "strong": "Modèle fort"
+    },
+    "slotHint": {
+      "local": "Servi sur cette machine par un moteur installé : gratuit.",
+      "cheap": "Pour le travail en volume. Laissé vide, le modèle fort est utilisé.",
+      "strong": "Pour la planification, la révision et l'escalade."
+    },
+    "noModel": "Aucun",
+    "name": {
+      "economical-local": "Économique local",
+      "balanced": "Équilibré"
+    },
+    "summary": {
+      "economical-local": "Code et tests sur votre machine ; le modèle fort planifie et reprend ce que le local ne sait pas faire.",
+      "balanced": "Un modèle économique écrit les tests et le code ; le fort planifie et révise."
+    },
+    "needs": "Demande un modèle pour : {{slots}}.",
+    "apply": "Appliquer",
+    "cancel": "Annuler",
+    "confirm": "Cela remplace les routes de tous les travaux.",
+    "applied": "Appliqué."
   }
 }

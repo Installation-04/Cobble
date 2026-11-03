@@ -125,6 +125,16 @@
         "too_long": "At most {max} models per role.",
         "set": "{role} now tries: {chain}",
         "cleared": "{role} follows the default again."
+      },
+      "preset": {
+        "ready": "ready to apply",
+        "needs": "needs a model for: {slots} (options --local, --cheap, --strong)",
+        "unknown": "No preset called “{id}”. Presets: {ids}.",
+        "applied": "Preset “{id}” applied. Every role's route was replaced:",
+        "name": {
+          "economical-local": "Economical, local",
+          "balanced": "Balanced"
+        }
       }
     }
   }

@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field, SecretStr
 from cobble.db.models import PlatformState
 from cobble.router.gateway import LiteLLMGateway
 from cobble.router.policy import MAX_CHAIN, ROLES, ModelPolicy
+from cobble.router.presets import BY_ID, PRESETS, resolve
 
 from .deps import AdminUser, AppSettings, Db
 from .errors import ApiError
@@ -65,6 +66,22 @@ def get_routes(request: Request, _admin: AdminUser, settings: AppSettings) -> di
     return _routes_view(ModelPolicy(request.app.state.session_factory, settings))
 
 
+def _known_models(listing: dict[str, Any], settings: Any) -> set[str]:
+    """Names a route may use: the connections, the models served here, the built-in default."""
+    names = {m["name"] for m in listing["models"]}
+    names |= {m["name"] for m in listing.get("local", [])}
+    return names | {settings.default_model}
+
+
+def _store_routes(db: Any, routes: dict[str, list[str]]) -> None:
+    state = db.get(PlatformState, 1)
+    if state is None:
+        state = PlatformState(id=1)
+        db.add(state)
+    state.role_routes = routes or None
+    db.commit()
+
+
 @router.put("/models/routes")
 def put_routes(
     request: Request,
@@ -75,7 +92,7 @@ def put_routes(
     settings: AppSettings,
 ) -> dict[str, Any]:
     """Set, per role, the ordered models to try. A role left out or empty follows the default."""
-    known = {m["name"] for m in _call(manager.models)["models"]} | {settings.default_model}
+    known = _known_models(_call(manager.models), settings)
     roles = {role.value for role in ROLES}
     bad = sorted(
         {f"routes.{role}" for role in body.routes if role not in roles}
@@ -88,12 +105,104 @@ def put_routes(
     if bad:
         raise ApiError(422, "validation_error", fields=bad)
     routes = {role: list(dict.fromkeys(chain)) for role, chain in body.routes.items() if chain}
-    state = db.get(PlatformState, 1)
-    if state is None:
-        state = PlatformState(id=1)
-        db.add(state)
-    state.role_routes = routes or None
-    db.commit()
+    _store_routes(db, routes)
+    return _routes_view(ModelPolicy(request.app.state.session_factory, settings))
+
+
+# --- presets -----------------------------------------------------------------------------------
+
+
+class SlotsBody(BaseModel):
+    local: str | None = Field(default=None, max_length=60)
+    cheap: str | None = Field(default=None, max_length=60)
+    strong: str | None = Field(default=None, max_length=60)
+
+    def as_slots(self) -> dict[str, str | None]:
+        return {"local": self.local, "cheap": self.cheap, "strong": self.strong}
+
+
+def _suggested_slots(listing: dict[str, Any], settings: Any) -> dict[str, str | None]:
+    """What the slots default to: the first model served here, and the platform default for the
+    strong one. `cheap` is left to the owner (it falls back to `strong`)."""
+    local = listing.get("local", [])
+    return {
+        "local": local[0]["name"] if local else None,
+        "cheap": None,
+        "strong": listing.get("default") or settings.default_model,
+    }
+
+
+def _presets_view(
+    listing: dict[str, Any], settings: Any, slots: dict[str, str | None]
+) -> dict[str, Any]:
+    out = []
+    for preset in PRESETS:
+        outcome = resolve(preset, slots)
+        out.append(
+            {
+                "id": preset.id,
+                "required": list(preset.required),
+                "available": outcome.available,
+                "missing": list(outcome.missing),
+                "routes": outcome.routes,
+            }
+        )
+    return {
+        "slots": slots,
+        "suggested": _suggested_slots(listing, settings),
+        "local": [m["name"] for m in listing.get("local", [])],
+        "models": sorted(_known_models(listing, settings)),
+        "presets": out,
+    }
+
+
+def _checked_slots(
+    listing: dict[str, Any], settings: Any, chosen: dict[str, str | None]
+) -> dict[str, str | None]:
+    """The owner's choices over the suggestions; a name nobody knows is a 422."""
+    known = _known_models(listing, settings)
+    slots = {**_suggested_slots(listing, settings), **{k: v for k, v in chosen.items() if v}}
+    bad = sorted(f"slots.{slot}" for slot, name in slots.items() if name and name not in known)
+    if bad:
+        raise ApiError(422, "validation_error", fields=bad)
+    return slots
+
+
+@router.get("/models/presets")
+def get_presets(
+    _admin: AdminUser,
+    manager: Manager,
+    settings: AppSettings,
+    local: str | None = None,
+    cheap: str | None = None,
+    strong: str | None = None,
+) -> dict[str, Any]:
+    """The presets, whether each can be applied, and the routes it would give for these slots."""
+    listing = _call(manager.models)
+    slots = _checked_slots(listing, settings, {"local": local, "cheap": cheap, "strong": strong})
+    return _presets_view(listing, settings, slots)
+
+
+@router.post("/models/presets/{preset_id}/apply")
+def apply_preset(
+    preset_id: str,
+    request: Request,
+    body: SlotsBody,
+    _admin: AdminUser,
+    db: Db,
+    manager: Manager,
+    settings: AppSettings,
+) -> dict[str, Any]:
+    """Replace the routes of every role by the preset's, filled with the chosen models."""
+    preset = BY_ID.get(preset_id)
+    if preset is None:
+        raise ApiError(404, "preset_unknown", name=preset_id)
+    listing = _call(manager.models)
+    slots = _checked_slots(listing, settings, body.as_slots())
+    outcome = resolve(preset, slots)
+    if not outcome.available:
+        raise ApiError(422, "preset_unavailable", missing=list(outcome.missing))
+    _store_routes(db, outcome.routes)
     return _routes_view(ModelPolicy(request.app.state.session_factory, settings))
 
 

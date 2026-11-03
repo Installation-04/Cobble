@@ -737,7 +737,11 @@ def put_model(svc: Service, name: str = "cheap", **over: Any) -> Any:
 
 def test_a_model_is_connected_listed_and_the_key_is_never_sent_back() -> None:
     svc, client, gateway = model_service()
-    assert client.get("/v1/models", headers=AUTH).json() == {"models": [], "default": None}
+    assert client.get("/v1/models", headers=AUTH).json() == {
+        "models": [],
+        "default": None,
+        "local": [],
+    }
     reply = put_model(svc)
     assert reply.status_code == 200
     assert reply.json() == {
@@ -751,6 +755,7 @@ def test_a_model_is_connected_listed_and_the_key_is_never_sent_back() -> None:
             }
         ],
         "default": "cheap",
+        "local": [],  # no backend runs: nothing is served on this machine
     }
     assert (
         SECRET_KEY not in reply.text
@@ -801,7 +806,11 @@ def test_a_gateway_that_does_not_take_the_models_is_a_502_and_nothing_is_kept() 
     reply = put_model(svc)
     assert reply.status_code == 502 and reply.json()["error"]["code"] == "model_gateway_failed"
     assert SECRET_KEY not in reply.text
-    assert client.get("/v1/models", headers=AUTH).json() == {"models": [], "default": None}
+    assert client.get("/v1/models", headers=AUTH).json() == {
+        "models": [],
+        "default": None,
+        "local": [],
+    }
 
 
 def test_a_model_change_during_a_module_operation_is_a_409_busy() -> None:

@@ -25,6 +25,21 @@ answer (refused key, empty balance, rate limit, service down) failed the whole t
 - The API validates that a route only names connected models (or the built-in default), known
   roles and a short chain; a removed connection left in a chain is simply skipped by the fallback.
 
+## Presets and models served here (v0.3 step 2)
+- The models of running `llm-backend` modules are listed next to the connections (`local` in the
+  listing: name, gateway model, module) and a route may name them; they are free and need no key.
+- A **preset** is a template over three slots, `local`, `cheap` and `strong`, in the pure module
+  `router/presets.py`. The platform has no price or quality table yet, so it never guesses which
+  connected model is strong or cheap: the owner picks (defaults: first local model; the platform
+  default for `strong`; `cheap` falls back to `strong`).
+  - `economical-local`: planner `[strong, cheap]`, test-writer / worker / reviewer
+    `[local, cheap]`, escalation `[strong]`. Needs `local` and `strong`.
+  - `balanced`: planner / reviewer / escalation `[strong]`, test-writer / worker `[cheap, strong]`.
+    Needs `strong`.
+- Applying a preset replaces the routes of all five roles (stored in the same `role_routes`);
+  a preset missing a required slot is unavailable and changes nothing. Chains are deduplicated and
+  capped at four.
+
 ## Not decided here (later v0.3 steps)
-Presets ("Économique local", "Équilibré"), the local benchmark that picks the worker, free tiers,
-"local only" projects, the savings counter.
+The local benchmark that picks the worker, up-to-date prices, free tiers, "local only" projects,
+the savings counter.

@@ -7,6 +7,8 @@ import type {
   ModelListing,
   ModelProbe,
   ModelRequest,
+  PresetSlot,
+  PresetsData,
   RoleRoutes,
   ModuleCatalog,
   ModuleOperation,
@@ -120,6 +122,14 @@ export const modelsApi = {
   remove: (name: string) => api.delete<ModelListing>(`/models/${name}`),
   makeDefault: (name: string) => api.post<ModelListing>(`/models/${name}/default`),
   test: (name: string) => api.post<ModelProbe>(`/models/${name}/test`),
+  presets: (slots: Partial<Record<PresetSlot, string>> = {}) => {
+    const query = new URLSearchParams(
+      Object.entries(slots).filter((entry): entry is [string, string] => !!entry[1]),
+    ).toString();
+    return api.get<PresetsData>(`/models/presets${query ? `?${query}` : ""}`);
+  },
+  applyPreset: (id: string, slots: Partial<Record<PresetSlot, string>>) =>
+    api.post<RoleRoutes>(`/models/presets/${id}/apply`, slots),
   routes: () => api.get<RoleRoutes>("/models/routes"),
   saveRoutes: (routes: Record<string, string[]>) =>
     api.put<RoleRoutes>("/models/routes", { routes }),

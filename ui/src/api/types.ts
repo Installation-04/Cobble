@@ -339,6 +339,8 @@ export interface ModelListing {
   default: string | null;
   /** What answers when no connection is the default (the built-in demo model in development). */
   configured_default: string;
+  /** Models served here by installed backends (a route may name them). */
+  local?: LocalModel[];
 }
 
 export interface ModelRequest {
@@ -365,4 +367,30 @@ export interface RoleRoutes {
   routes: Record<string, string[]>;
   /** What each role really uses now (a route, else the setting, else the default). */
   effective: Record<string, string[]>;
+}
+
+/** A model served on this machine by an installed backend: free, no key. */
+export interface LocalModel {
+  name: string;
+  model: string;
+  module: string;
+}
+
+export type PresetSlot = "local" | "cheap" | "strong";
+
+export interface PresetView {
+  id: string;
+  required: PresetSlot[];
+  available: boolean;
+  missing: PresetSlot[];
+  /** The routes the preset would give for the chosen slots (empty when unavailable). */
+  routes: Record<string, string[]>;
+}
+
+export interface PresetsData {
+  slots: Record<PresetSlot, string | null>;
+  suggested: Record<PresetSlot, string | null>;
+  local: string[];
+  models: string[];
+  presets: PresetView[];
 }
