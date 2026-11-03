@@ -53,6 +53,10 @@ answer is wrong on purpose, to test loop detection (`loop_detected`).
 
 ## Verified result
 
+**Through the modules (v0.2, the current harness):** 2026-11-03, `PASS` in 22 min on a development sandbox, fake LLM, Forgejo, Woodpecker, `aider` and `preview` all installed by the module-manager with images pulled from GHCR by digest: all 11 plan tasks and 3 demo tasks `merged` on the first attempt, the 3 milestone demos validated, phase `done`; 59,121 prompt and 13,754 completion tokens, $0.087. After teardown no container, volume or network named `cobble-*` or `wp_*` remained, and no token value appears in the harness log. Two earlier attempts the same day were lost to the sandbox being recycled mid-run (Docker daemon killed), not to a failure of the chain.
+
+**First run (v0.1 pack, kept for the record):**
+
 Run on a development sandbox with the fake LLM (so it proves the **plumbing**, not model quality
 or real cost): 2026-10-31, `PASS` in 12 min 39 s. All 11 plan tasks and the 3 demo tasks reached
 `merged` on their first attempt, each through Woodpecker CI (lint, tests, gitleaks, semgrep, trivy)
