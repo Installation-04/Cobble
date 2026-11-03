@@ -36,9 +36,21 @@ class ProbeResult:
 
 
 class GatewayError(RuntimeError):
-    def __init__(self, status: int) -> None:
+    def __init__(self, status: int, *, unknown_model: bool = False) -> None:
         super().__init__(f"model gateway returned HTTP {status}")
         self.status = status
+        # The gateway answered 400 because *this* model is not configured (for example a
+        # connection that was removed while a route still names it): another model can answer.
+        self.unknown_model = unknown_model
+
+
+def _is_unknown_model(reply: httpx.Response) -> bool:
+    if reply.status_code != 400:
+        return False
+    try:
+        return "invalid model name" in reply.text.lower()
+    except Exception:  # an unreadable body is just a plain 400
+        return False
 
 
 def _cost(headers: httpx.Headers) -> Decimal:
@@ -130,12 +142,16 @@ class LiteLLMGateway:
         role: str | None = None,
         project_id: uuid.UUID | None = None,
         task_id: uuid.UUID | None = None,
+        fallback_from: str | None = None,
+        fallbacks: int = 0,
     ) -> ChatResult:
+        """`fallback_from` / `fallbacks`: the first model that could not answer and how many
+        failed before this one did (set by the cost router, recorded with the call)."""
         reply = self._client.post(
             "/v1/chat/completions", json={"model": model, "messages": messages}
         )
         if reply.status_code != 200:
-            raise GatewayError(reply.status_code)
+            raise GatewayError(reply.status_code, unknown_model=_is_unknown_model(reply))
         data = reply.json()
         usage = data.get("usage") or {}
         result = ChatResult(
@@ -159,6 +175,8 @@ class LiteLLMGateway:
                     completion_tokens=result.completion_tokens,
                     cost_usd=result.cost_usd,
                     request_id=result.request_id,
+                    fallback_from=fallback_from,
+                    fallbacks=fallbacks,
                 )
             )
             session.commit()

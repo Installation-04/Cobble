@@ -59,6 +59,10 @@ def add_parser(sub: Any) -> None:
     for name in ("remove", "default", "test"):
         actions.add_parser(name).add_argument("name")
     actions.choices["remove"].add_argument("--yes", action="store_true")
+    preset = actions.add_parser("preset", help="apply a ready-made set of routes")
+    preset.add_argument("id", nargs="?", help="economical-local or balanced (none: list them)")
+    for slot in ("local", "cheap", "strong"):
+        preset.add_argument(f"--{slot}", default=None, help=f"the model for the {slot} slot")
     route = actions.add_parser("route", help="which models each role tries, in order")
     route.add_argument("role", nargs="?", help="planner, test-writer, worker, reviewer, escalation")
     route.add_argument("names", nargs="*", help="models to try, best first (none: show the role)")
@@ -123,6 +127,8 @@ def run(
             return 0
         if args.action == "test":
             return _test(args.name, term, lang, settings, probe)
+        if args.action == "preset":
+            return _preset(args, api, term, lang, settings, routes)
         if args.action == "route":
             return _route(args, api, term, lang, settings, routes)
         return _add(args, api, term, lang, settings, probe, read_key)
@@ -164,6 +170,60 @@ class DbRoutes:
                 session.add(state)
             state.role_routes = routes or None
             session.commit()
+
+
+def _preset(
+    args: argparse.Namespace,
+    api: ModelsAPI,
+    term: Terminal,
+    lang: str,
+    settings: Settings,
+    store: RoutesStore | None,
+) -> int:
+    from cobble.router.presets import BY_ID, PRESETS, resolve
+
+    listing = api.models()
+    local = listing.get("local", [])
+    known = {m["name"] for m in listing.get("models", [])} | {m["name"] for m in local}
+    known.add(settings.default_model)
+    slots: dict[str, str | None] = {
+        "local": local[0]["name"] if local else None,
+        "cheap": None,
+        "strong": listing.get("default") or settings.default_model,
+    }
+    for slot in slots:
+        chosen = getattr(args, slot)
+        if chosen:
+            slots[slot] = chosen
+    unknown = sorted({name for name in slots.values() if name and name not in known})
+    if unknown:
+        term.warn(t("cli.models.route.unknown", lang, names=", ".join(unknown)))
+        return 2
+    if args.id is None:
+        for preset in PRESETS:
+            outcome = resolve(preset, slots)
+            state = (
+                t("cli.models.preset.ready", lang)
+                if outcome.available
+                else t("cli.models.preset.needs", lang, slots=", ".join(outcome.missing))
+            )
+            term.say(f"{preset.id:<18} {t(f'cli.models.preset.name.{preset.id}', lang)}: {state}")
+        return 0
+    chosen_preset = BY_ID.get(args.id)
+    if chosen_preset is None:
+        ids = ", ".join(BY_ID)
+        term.warn(t("cli.models.preset.unknown", lang, id=args.id, ids=ids))
+        return 2
+    outcome = resolve(chosen_preset, slots)
+    if not outcome.available:
+        needs = t("cli.models.preset.needs", lang, slots=", ".join(outcome.missing))
+        term.warn(f"{args.id}: {needs}")
+        return 1
+    (store or DbRoutes(settings)).put(outcome.routes)
+    term.say(t("cli.models.preset.applied", lang, id=args.id))
+    for role, chain in outcome.routes.items():
+        term.say(f"  {role:<12} {' → '.join(chain)}")
+    return 0
 
 
 def _route(

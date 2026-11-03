@@ -35,5 +35,12 @@
     "planner": "Planification (sans tâche)",
     "unknown": "Inconnu",
     "empty": "Aucun appel de modèle pour l'instant."
+  },
+  "fallbacks": {
+    "title": "Appels traités par un modèle de repli",
+    "summary": "{{calls}} appels sur {{total}} ({{percent}} %) ont été traités par un autre modèle parce que le premier choix pour ce travail ne pouvait pas répondre (clé refusée, solde épuisé, limite de débit, service arrêté).",
+    "hint": "Beaucoup d'appels passent par un repli : vérifiez le premier modèle des routes dans Réglages → Modèles.",
+    "answeredBy": "Traité par",
+    "insteadOf": "Au lieu de"
   }
 }

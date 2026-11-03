@@ -1,7 +1,7 @@
 import { AlertTriangle, Coins } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { errorMessage } from "../api/errors";
-import type { CostLine } from "../api/types";
+import type { CostFallbacks, CostLine } from "../api/types";
 import { cn } from "../lib";
 import { formatCost, formatTokens } from "./format";
 import { useProjectData } from "./ProjectDataProvider";
@@ -9,6 +9,9 @@ import { useProjectData } from "./ProjectDataProvider";
 export type BudgetLevel = "ok" | "warning" | "danger";
 
 export const WARNING_RATIO = 0.8;
+
+/** Above this share of calls answered by a fallback, the tab suggests looking at the routes. */
+export const HIGH_FALLBACK_SHARE = 20;
 
 /** Fill ratio (uncapped) and level of a budget bar; null when there is no usable budget. */
 export function budgetState(
@@ -97,6 +100,77 @@ function CostTable({
           </table>
         </div>
       )}
+    </section>
+  );
+}
+
+/** Where calls were answered by a fallback model: who answered instead of whom, at what cost. */
+function FallbackSection({ fallbacks, lang }: { fallbacks: CostFallbacks; lang: string }) {
+  const { t } = useTranslation("costs");
+  const share =
+    fallbacks.total_calls > 0 ? Math.round((fallbacks.calls / fallbacks.total_calls) * 100) : 0;
+  return (
+    <section
+      aria-labelledby="fallbacks-title"
+      className="flex flex-col gap-2"
+      data-testid="costs-fallbacks"
+    >
+      <h3 id="fallbacks-title" className="text-sm font-semibold">
+        {t("fallbacks.title")}
+      </h3>
+      <p className="text-sm text-muted-foreground" data-testid="costs-fallbacks-summary">
+        {t("fallbacks.summary", {
+          calls: formatTokens(fallbacks.calls, lang),
+          total: formatTokens(fallbacks.total_calls, lang),
+          percent: share,
+        })}
+      </p>
+      {share > HIGH_FALLBACK_SHARE && (
+        <p className="text-sm font-medium text-warning" data-testid="costs-fallbacks-hint">
+          {t("fallbacks.hint")}
+        </p>
+      )}
+      <div className="overflow-x-auto rounded-lg border border-border">
+        <table data-testid="costs-fallbacks-table" className="w-full text-left text-sm">
+          <caption className="sr-only">{t("fallbacks.title")}</caption>
+          <thead className="bg-muted text-xs text-muted-foreground">
+            <tr>
+              <th scope="col" className="px-3 py-2 font-medium">
+                {t("fallbacks.answeredBy")}
+              </th>
+              <th scope="col" className="px-3 py-2 font-medium">
+                {t("fallbacks.insteadOf")}
+              </th>
+              <th scope="col" className="px-3 py-2 text-right font-medium">
+                {t("table.calls")}
+              </th>
+              <th scope="col" className="px-3 py-2 text-right font-medium">
+                {t("table.cost")}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {fallbacks.by_model.map((row) => (
+              <tr
+                key={`${row.model}|${row.fallback_from ?? ""}`}
+                data-testid="costs-fallbacks-row"
+                className="border-t border-border"
+              >
+                <th scope="row" className="px-3 py-2 font-medium">
+                  {row.model}
+                </th>
+                <td className="px-3 py-2">{row.fallback_from ?? t("table.unknown")}</td>
+                <td className="px-3 py-2 text-right tabular-nums">
+                  {formatTokens(row.calls, lang)}
+                </td>
+                <td className="px-3 py-2 text-right tabular-nums">
+                  {formatCost(row.cost_usd, lang)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </section>
   );
 }
@@ -264,6 +338,9 @@ export function CostsTab() {
           line: row,
         }))}
       />
+      {costs.fallbacks && costs.fallbacks.calls > 0 && (
+        <FallbackSection fallbacks={costs.fallbacks} lang={lang} />
+      )}
     </div>
   );
 }

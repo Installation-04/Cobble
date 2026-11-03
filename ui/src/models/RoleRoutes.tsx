@@ -7,6 +7,7 @@ import { Button } from "../components/ui/button";
 import { Select } from "../components/ui/select";
 import { useAsyncAction } from "../project/useAsyncAction";
 import { useFetched } from "../project/useFetched";
+import { Presets } from "./Presets";
 
 const SLOTS = 3; // the chosen model, then up to two fallbacks (the server allows `max_chain`)
 
@@ -120,6 +121,8 @@ export function RoleRoutes() {
   const routes = useFetched(() => modelsApi.routes(), "model-routes");
   const listing = useFetched<ModelListing>(() => modelsApi.list(), "model-routes-models");
   const [override, setOverride] = useState<RoleRoutesData | null>(null);
+  // A preset replaces every route: the rows start again from what it stored.
+  const [version, setVersion] = useState(0);
   const data = override ?? routes.data;
 
   if (routes.error != null && data === null) {
@@ -130,12 +133,25 @@ export function RoleRoutes() {
     );
   }
   if (data === null || listing.data === null) return null;
+  const names = [
+    ...listing.data.models.map((m) => m.name),
+    ...(listing.data.local ?? []).map((m) => m.name),
+  ];
   return (
-    <RoleRows
-      data={data}
-      models={listing.data.models.map((m) => m.name)}
-      fallback={listing.data.configured_default}
-      onSaved={setOverride}
-    />
+    <div className="grid gap-6">
+      <Presets
+        onApplied={(next) => {
+          setOverride(next);
+          setVersion((v) => v + 1);
+        }}
+      />
+      <RoleRows
+        key={version}
+        data={data}
+        models={names}
+        fallback={listing.data.configured_default}
+        onSaved={setOverride}
+      />
+    </div>
   );
 }

@@ -48,9 +48,13 @@ class FakeModels:
 
 
 class API(FakeModels):
+    def __init__(self) -> None:
+        super().__init__()
+        self.local: list[dict[str, Any]] = []
+
     def models(self) -> dict[str, Any]:  # type: ignore[override]
         self._check()
-        return {"models": self.items}
+        return {"models": self.items, "local": self.local}
 
 
 def parse(*argv: str) -> argparse.Namespace:
@@ -185,3 +189,36 @@ def test_a_bad_route_is_refused_and_nothing_is_saved() -> None:
 def test_routes_speak_french() -> None:
     api, store = API(), Routes()
     assert "essaie maintenant" in go("route", "worker", "fake", api=api, routes=store, lang="fr")[1]
+
+
+def test_presets_are_listed_with_what_they_still_need() -> None:
+    code, out, _, _ = go("preset", api=API(), routes=Routes())
+    assert code == 0
+    assert "economical-local" in out and "needs a model for: local" in out
+    assert "balanced" in out and "ready to apply" in out
+
+
+def test_a_preset_replaces_every_route_with_the_chosen_models() -> None:
+    api, store = API(), Routes()
+    api.local = [{"name": "coder", "model": "ollama_chat/x", "module": "ollama"}]
+    go("add", "openai", "gpt-4.1-mini", api=api)  # becomes the connected, default model
+    store.saved = {"reviewer": ["fake"]}
+    code, out, _, _ = go("preset", "economical-local", "--strong", "fake", api=api, routes=store)
+    assert code == 0 and "applied" in out
+    assert store.saved["worker"] == ["coder", "fake"] and store.saved["planner"] == ["fake"]
+    assert set(store.saved) == {"planner", "test-writer", "worker", "reviewer", "escalation"}
+
+
+def test_a_preset_that_cannot_work_or_does_not_exist_changes_nothing() -> None:
+    api, store = API(), Routes()
+    store.saved = {"worker": ["fake"]}
+    code, _, err, _ = go("preset", "economical-local", api=api, routes=store)
+    assert code == 1 and "local" in err and store.saved == {"worker": ["fake"]}
+    code, _, err, _ = go("preset", "nope", api=api, routes=store)
+    assert code == 2 and "economical-local, balanced" in err
+    code, _, err, _ = go("preset", "balanced", "--strong", "ghost", api=api, routes=store)
+    assert code == 2 and "ghost" in err and store.saved == {"worker": ["fake"]}
+
+
+def test_presets_speak_french() -> None:
+    assert "Économique local" in go("preset", api=API(), routes=Routes(), lang="fr")[1]

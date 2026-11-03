@@ -242,6 +242,11 @@ def create_app(
                 for m in models
             ],
             "default": next((m.name for m in models if m.default), None),
+            # Models served by the installed backends (no key, no cost): a route may name them.
+            "local": [
+                {"name": name, "model": model, "module": module}
+                for name, model, module in manager.local_models()
+            ],
         }
 
     def model_call(action: Any) -> dict[str, Any]:

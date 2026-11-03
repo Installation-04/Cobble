@@ -94,7 +94,7 @@ def test_changes_need_the_csrf_header(built: Built, method: str, path: str) -> N
 
 def test_a_model_is_connected_and_the_key_comes_back_nowhere(built: Built) -> None:
     empty = built.api.get(API).json()
-    assert empty == {"models": [], "default": None, "configured_default": "fake"}
+    assert empty == {"models": [], "default": None, "local": [], "configured_default": "fake"}
     reply = built.api.put(f"{API}/cheap", json=BODY, headers=H)
     assert reply.status_code == 200
     assert reply.json()["default"] == "cheap" and reply.json()["configured_default"] == "fake"
@@ -266,3 +266,98 @@ def test_routes_are_for_administrators_only(sessions: sessionmaker[Session], met
 def test_changing_routes_needs_the_csrf_header(built: Built) -> None:
     reply = built.api.put(ROUTES, json={"routes": {}})
     assert reply.status_code == 403 and reply.json()["error"]["code"] == "csrf_failed"
+
+
+# --- local models and presets ------------------------------------------------------------------
+
+PRESETS = f"{API}/presets"
+
+
+def with_local_model(built: Built) -> str:
+    """Install the language-model backend: its model is served on this machine."""
+    built.stack.service.rig.manager.install(["ollama"])
+    return built.api.get(API).json()["local"][0]["name"]
+
+
+def test_models_served_here_are_listed_without_any_key(built: Built) -> None:
+    assert built.api.get(API).json()["local"] == []
+    name = with_local_model(built)
+    local = built.api.get(API).json()["local"]
+    assert [m["name"] for m in local] == [name] and local[0]["module"] == "ollama"
+    assert "api_key" not in built.api.get(API).text
+
+
+def test_a_route_may_name_a_model_served_here(built: Built) -> None:
+    name = with_local_model(built)
+    reply = built.api.put(ROUTES, json={"routes": {"worker": [name, "fake"]}}, headers=H)
+    assert reply.status_code == 200 and reply.json()["routes"]["worker"] == [name, "fake"]
+
+
+def test_presets_say_what_they_need_and_what_they_would_give(built: Built) -> None:
+    body = built.api.get(PRESETS).json()
+    assert [p["id"] for p in body["presets"]] == ["economical-local", "balanced"]
+    eco, balanced = body["presets"]
+    # nothing is served here yet: the economical preset cannot work, the balanced one can
+    assert not eco["available"] and eco["missing"] == ["local"] and eco["routes"] == {}
+    assert balanced["available"] and balanced["routes"]["worker"] == ["fake"]
+    name = with_local_model(built)
+    body = built.api.get(PRESETS).json()
+    assert body["suggested"]["local"] == name and body["local"] == [name]
+    eco = body["presets"][0]
+    assert eco["available"] and eco["routes"]["worker"] == [name, "fake"]
+
+
+def test_a_preset_is_applied_with_the_models_the_owner_picked(built: Built) -> None:
+    name = with_local_model(built)
+    built.api.put(f"{API}/cheap", json=BODY, headers=H)
+    built.api.put(f"{API}/strong", json=BODY, headers=H)
+    reply = built.api.post(
+        f"{PRESETS}/economical-local/apply", json={"cheap": "cheap", "strong": "strong"}, headers=H
+    )
+    assert reply.status_code == 200
+    assert reply.json()["routes"] == {
+        "planner": ["strong", "cheap"],
+        "test-writer": [name, "cheap"],
+        "worker": [name, "cheap"],
+        "reviewer": [name, "cheap"],
+        "escalation": ["strong"],
+    }
+    assert built.api.get(ROUTES).json()["effective"]["worker"] == [name, "cheap"]
+    # applying another preset replaces every route, it does not merge
+    again = built.api.post(f"{PRESETS}/balanced/apply", json={"strong": "strong"}, headers=H)
+    assert again.json()["routes"]["worker"] == ["strong"] and again.json()["routes"]["planner"] == [
+        "strong"
+    ]
+
+
+def test_an_unavailable_or_unknown_preset_changes_nothing(built: Built) -> None:
+    built.api.put(ROUTES, json={"routes": {"worker": ["fake"]}}, headers=H)
+    reply = built.api.post(f"{PRESETS}/economical-local/apply", json={}, headers=H)
+    assert reply.status_code == 422 and reply.json()["error"]["code"] == "preset_unavailable"
+    assert reply.json()["error"]["params"]["missing"] == ["local"]
+    reply = built.api.post(f"{PRESETS}/nope/apply", json={}, headers=H)
+    assert reply.status_code == 404 and reply.json()["error"]["code"] == "preset_unknown"
+    assert built.api.get(ROUTES).json()["routes"] == {"worker": ["fake"]}  # untouched
+
+
+def test_a_preset_cannot_use_a_model_nobody_knows(built: Built) -> None:
+    reply = built.api.post(f"{PRESETS}/balanced/apply", json={"strong": "ghost"}, headers=H)
+    assert reply.status_code == 422 and "slots.strong" in reply.json()["error"]["params"]["fields"]
+    assert built.api.get(f"{PRESETS}?strong=ghost").status_code == 422
+    assert built.api.get(ROUTES).json()["routes"] == {}
+
+
+@pytest.mark.parametrize(
+    ("method", "path"), [("GET", PRESETS), ("POST", f"{PRESETS}/balanced/apply")]
+)
+def test_presets_are_for_administrators_only_and_need_csrf(
+    sessions: sessionmaker[Session], method: str, path: str
+) -> None:
+    b = Built(sessions)
+    if method == "POST":
+        assert b.api.post(path, json={}).json()["error"]["code"] == "csrf_failed"
+    b.api.cookies.clear()
+    assert b.api.request(method, path, json={}, headers=H).status_code == 401
+    b.stack.login(b.api, role="member")
+    reply = b.api.request(method, path, json={}, headers=H)
+    assert reply.status_code == 403 and reply.json()["error"]["code"] == "forbidden"

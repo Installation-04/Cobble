@@ -35,5 +35,12 @@
     "planner": "Planning (no task)",
     "unknown": "Unknown",
     "empty": "No model call yet."
+  },
+  "fallbacks": {
+    "title": "Calls answered by a fallback model",
+    "summary": "{{calls}} of {{total}} calls ({{percent}} %) were answered by another model because the first choice for the job could not answer (refused key, no balance, rate limit, service down).",
+    "hint": "That is a lot of calls on a fallback: check the first model of the routes in Settings → Models.",
+    "answeredBy": "Answered by",
+    "insteadOf": "Instead of"
   }
 }

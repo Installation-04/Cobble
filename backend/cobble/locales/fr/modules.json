@@ -125,6 +125,16 @@
         "too_long": "{max} modèles au plus par rôle.",
         "set": "{role} essaie maintenant : {chain}",
         "cleared": "{role} suit de nouveau le défaut."
+      },
+      "preset": {
+        "ready": "prêt à appliquer",
+        "needs": "demande un modèle pour : {slots} (options --local, --cheap, --strong)",
+        "unknown": "Aucun préréglage « {id} ». Préréglages : {ids}.",
+        "applied": "Préréglage « {id} » appliqué. La route de chaque rôle a été remplacée :",
+        "name": {
+          "economical-local": "Économique local",
+          "balanced": "Équilibré"
+        }
       }
     }
   }

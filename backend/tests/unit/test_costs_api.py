@@ -113,6 +113,7 @@ def test_project_costs_shape_and_numbers(sessions: sessionmaker[Session], pid: u
         "by_task",
         "by_model",
         "by_role",
+        "fallbacks",
     }
     assert body["budget_usd"] == "5.00"
     assert body["spent_usd"] == "0.17651235"
@@ -170,6 +171,7 @@ def test_a_project_with_no_calls(sessions: sessionmaker[Session], pid: uuid.UUID
         "by_task": [],
         "by_model": [],
         "by_role": [],
+        "fallbacks": {"calls": 0, "total_calls": 0, "by_model": []},
     }
 
 
@@ -233,7 +235,7 @@ def test_costs_are_aggregated_in_a_fixed_number_of_queries(
         assert api.get(f"{API}/projects/{pid}/costs").status_code == 200
     finally:
         event.remove(engine, "before_cursor_execute", count)
-    assert first == len(statements) <= 4
+    assert first == len(statements) <= 5  # tasks, models, roles, fallbacks, plan
 
 
 def test_costs_need_login_and_ownership(sessions: sessionmaker[Session], pid: uuid.UUID) -> None:
@@ -272,3 +274,47 @@ def test_global_costs_list_the_owners_projects(
             "status": "paused",
         },
     ]
+
+
+def fell_back(project: uuid.UUID, model: str, failed: str, cost: str, n: int = 1) -> LLMCall:
+    row = call(project, None, "worker", model, cost)
+    row.fallback_from = failed
+    row.fallbacks = n
+    return row
+
+
+def test_calls_answered_by_a_fallback_are_reported_with_who_answered_instead_of_whom(
+    sessions: sessionmaker[Session], pid: uuid.UUID
+) -> None:
+    with sessions() as db:
+        db.add_all(
+            [
+                call(pid, None, "worker", "local", "0"),  # answered by the first choice
+                call(pid, None, "worker", "local", "0"),
+                fell_back(pid, "cheap-api", "local", "0.01"),
+                fell_back(pid, "cheap-api", "local", "0.02"),
+                fell_back(pid, "strong-api", "local", "0.30", n=2),  # two models failed first
+            ]
+        )
+        db.commit()
+    body = client_for(sessions, pid).get(f"{API}/projects/{pid}/costs").json()
+    assert body["fallbacks"]["calls"] == 3 and body["fallbacks"]["total_calls"] == 5
+    entries = {e["model"]: e for e in body["fallbacks"]["by_model"]}
+    assert entries["cheap-api"] == {
+        "model": "cheap-api",
+        "fallback_from": "local",
+        "cost_usd": "0.03",
+        "prompt_tokens": 20,
+        "completion_tokens": 10,
+        "calls": 2,
+    }
+    assert entries["strong-api"]["calls"] == 1 and entries["strong-api"]["cost_usd"] == "0.30"
+    assert [e["model"] for e in body["fallbacks"]["by_model"]] == ["cheap-api", "strong-api"]
+
+
+def test_no_fallback_means_an_empty_block(sessions: sessionmaker[Session], pid: uuid.UUID) -> None:
+    with sessions() as db:
+        db.add(call(pid, None, "worker", "local", "0"))
+        db.commit()
+    body = client_for(sessions, pid).get(f"{API}/projects/{pid}/costs").json()
+    assert body["fallbacks"] == {"calls": 0, "total_calls": 1, "by_model": []}

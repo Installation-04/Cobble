@@ -102,6 +102,12 @@ def project_costs(session: Session, project: Project) -> dict[str, Any]:
         select(LLMCall.role, *_aggregates()).where(where).group_by(LLMCall.role)
     ).all()
 
+    fallback_rows = session.execute(
+        select(LLMCall.model, LLMCall.fallback_from, *_aggregates())
+        .where(where, LLMCall.fallbacks > 0)
+        .group_by(LLMCall.model, LLMCall.fallback_from)
+    ).all()
+
     tasks = sorted(
         ((r[0], _row(*r[1:])) for r in by_task_rows),
         key=lambda r: (r[0] is None, ref_key(r[0]) if r[0] else (0, "")),
@@ -109,6 +115,14 @@ def project_costs(session: Session, project: Project) -> dict[str, Any]:
     models = _by_cost([(r[0], _row(*r[1:])) for r in by_model_rows])
     roles = _by_cost([(r[0], _row(*r[1:])) for r in by_role_rows])
     spent = sum((t.cost for _, t in models), Decimal(0))
+    total_calls = sum(t.calls for _, t in models)
+    fallback_entries = sorted(
+        (
+            {"model": r[0], "fallback_from": r[1], **_entry("model", r[0], _row(*r[2:]))}
+            for r in fallback_rows
+        ),
+        key=lambda e: (-int(e["calls"]), str(e["model"]), str(e["fallback_from"])),
+    )
     estimate = plan_estimate(session, project.id)
     return {
         "budget_usd": money(project.budget_usd) if project.budget_usd is not None else None,
@@ -121,6 +135,13 @@ def project_costs(session: Session, project: Project) -> dict[str, Any]:
         "by_task": [_entry("ref", name, t) for name, t in tasks],
         "by_model": [_entry("model", name, t) for name, t in models],
         "by_role": [_entry("role", name, t) for name, t in roles],
+        # Calls answered by another model because the one chosen for the role could not:
+        # who answered instead of whom, how often and at what cost.
+        "fallbacks": {
+            "calls": sum(int(e["calls"]) for e in fallback_entries),
+            "total_calls": total_calls,
+            "by_model": fallback_entries,
+        },
     }
 
 
