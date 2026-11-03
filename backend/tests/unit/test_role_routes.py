@@ -79,9 +79,12 @@ class Gateway:
     def __init__(self, failures: dict[str, Exception] | None = None) -> None:
         self.failures = failures or {}
         self.tried: list[str] = []
+        self.recorded: list[tuple[str, str | None, int]] = []  # (answered, fallback_from, count)
 
     def chat(self, model: str, messages: list[dict[str, Any]], **kw: Any) -> ChatResult:
         self.tried.append(model)
+        if model not in self.failures:
+            self.recorded.append((model, kw.get("fallback_from"), kw.get("fallbacks", 0)))
         if model in self.failures:
             raise self.failures[model]
         return ChatResult("ok", model, 1, 1, Decimal("0"), None)
@@ -147,3 +150,19 @@ def test_the_budget_is_checked_once_whatever_the_number_of_fallbacks() -> None:
 def test_which_errors_allow_a_fallback() -> None:
     assert can_fall_back(GatewayError(429)) and can_fall_back(httpx.ReadTimeout("slow"))
     assert not can_fall_back(GatewayError(400)) and not can_fall_back(ValueError("bug"))
+
+
+def test_the_answering_call_says_which_model_it_fell_back_from() -> None:
+    gateway = Gateway({"a": GatewayError(429), "b": GatewayError(503)})
+    router(gateway, {"worker": ["a", "b", "c"]}).chat(Role.WORKER, [])
+    assert gateway.recorded == [("c", "a", 2)]  # the first that failed, and how many failed
+    clean = Gateway()
+    router(clean, {"worker": ["a", "b"]}).chat(Role.WORKER, [])
+    assert clean.recorded == [("a", None, 0)]  # no fallback: nothing recorded
+
+
+def test_a_model_the_gateway_does_not_know_hands_over_but_a_plain_bad_request_does_not() -> None:
+    gone = Gateway({"removed": GatewayError(400, unknown_model=True)})
+    assert router(gone, {"worker": ["removed", "cheap"]}).chat(Role.WORKER, []).model == "cheap"
+    assert can_fall_back(GatewayError(400, unknown_model=True))
+    assert not can_fall_back(GatewayError(400))

@@ -45,6 +45,10 @@ class LLMCall(Base):
     completion_tokens: Mapped[int] = mapped_column(Integer, nullable=False)
     cost_usd: Mapped[Decimal] = mapped_column(Numeric(14, 8), nullable=False)
     request_id: Mapped[str | None] = mapped_column(String(200))
+    # Set when the role's first choice could not answer: the first model that failed, and how
+    # many failed before this one answered (nothing is stored for failed attempts: no tokens).
+    fallback_from: Mapped[str | None] = mapped_column(String(200))
+    fallbacks: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
 
 
 def _utcnow() -> datetime:

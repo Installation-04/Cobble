@@ -35,12 +35,14 @@ class ChatGateway(Protocol):
         role: str | None = None,
         project_id: uuid.UUID | None = None,
         task_id: uuid.UUID | None = None,
+        fallback_from: str | None = None,
+        fallbacks: int = 0,
     ) -> ChatResult: ...
 
 
 def can_fall_back(error: Exception) -> bool:
     if isinstance(error, GatewayError):
-        return error.status in FALLBACK_STATUSES
+        return error.status in FALLBACK_STATUSES or error.unknown_model
     return isinstance(error, httpx.TransportError)  # unreachable, timeout, reset
 
 
@@ -102,15 +104,27 @@ class CostRouter:
         task_id: uuid.UUID | None,
     ) -> ChatResult:
         last: Exception | None = None
+        failed: list[str] = []
         for index, candidate in enumerate(candidates):
             try:
+                if not failed:  # the usual case: the call is exactly what it always was
+                    return self._gateway.chat(
+                        candidate, messages, role=role.value, project_id=project_id, task_id=task_id
+                    )
                 return self._gateway.chat(
-                    candidate, messages, role=role.value, project_id=project_id, task_id=task_id
+                    candidate,
+                    messages,
+                    role=role.value,
+                    project_id=project_id,
+                    task_id=task_id,
+                    fallback_from=failed[0],
+                    fallbacks=len(failed),
                 )
             except Exception as error:
                 if not can_fall_back(error):
                     raise
                 last = error
+                failed.append(candidate)
                 if index + 1 < len(candidates):
                     log.warning(
                         "model %s cannot answer for %s, trying %s",

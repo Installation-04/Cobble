@@ -82,3 +82,35 @@ def test_gateway_error_records_nothing(sessions: sessionmaker[Session]) -> None:
     assert info.value.status == 500
     with sessions() as session:
         assert session.scalars(select(LLMCall)).all() == []
+
+
+def test_the_fallback_is_recorded_with_the_call_that_answered(
+    sessions: sessionmaker[Session],
+) -> None:
+    gateway = LiteLLMGateway("http://litellm", "", sessions, None, litellm())
+    gateway.chat("fake", [], fallback_from="local", fallbacks=2)
+    gateway.chat("fake", [])
+    with sessions() as session:
+        rows = session.scalars(select(LLMCall).order_by(LLMCall.fallbacks.desc())).all()
+    assert [(r.fallback_from, r.fallbacks) for r in rows] == [("local", 2), (None, 0)]
+
+
+@pytest.mark.parametrize(
+    ("status", "body", "unknown"),
+    [
+        (400, {"error": "/chat/completions: Invalid model name passed in model=gone."}, True),
+        (400, {"error": "messages must be a list"}, False),
+        (500, {"error": "Invalid model name"}, False),  # only a 400 means "this model is unknown"
+    ],
+)
+def test_an_unknown_model_is_told_apart_from_a_malformed_request(
+    sessions: sessionmaker[Session], status: int, body: dict[str, str], unknown: bool
+) -> None:
+    client = httpx.Client(
+        transport=httpx.MockTransport(lambda r: httpx.Response(status, json=body)),
+        base_url="http://litellm",
+    )
+    gateway = LiteLLMGateway("http://litellm", "", sessions, None, client)
+    with pytest.raises(GatewayError) as info:
+        gateway.chat("gone", [])
+    assert info.value.status == status and info.value.unknown_model is unknown

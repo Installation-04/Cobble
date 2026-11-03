@@ -513,6 +513,41 @@ def test_migration_0010_role_routes_up_and_down(database_url: str) -> None:
     command.upgrade(config, "head")
 
 
+def test_migration_0011_llm_call_fallbacks_up_and_down(database_url: str) -> None:
+    config = alembic_config(database_url)
+    command.downgrade(config, "base")
+    command.upgrade(config, "0010")
+    engine = create_engine(database_url)
+    try:
+        with engine.begin() as conn:
+            conn.execute(
+                text(
+                    "INSERT INTO llm_calls (id, model, prompt_tokens, completion_tokens, cost_usd) "
+                    "VALUES ('00000000-0000-0000-0000-0000000000f1', 'old', 1, 1, 0.5)"
+                )
+            )
+        command.upgrade(config, "0011")
+        with engine.begin() as conn:
+            row = conn.execute(text("SELECT fallback_from, fallbacks FROM llm_calls")).one()
+            assert row[0] is None and row[1] == 0  # old calls: no fallback
+            conn.execute(
+                text(
+                    "INSERT INTO llm_calls (id, model, prompt_tokens, completion_tokens, "
+                    "cost_usd, fallback_from, fallbacks) VALUES "
+                    "('00000000-0000-0000-0000-0000000000f2', 'new', 1, 1, 0, 'local', 2)"
+                )
+            )
+        command.downgrade(config, "0010")
+        columns = {c["name"] for c in inspect(engine).get_columns("llm_calls")}
+        assert not {"fallback_from", "fallbacks"} & columns
+        with engine.begin() as conn:  # the calls themselves survive the round trip
+            assert conn.execute(text("SELECT count(*) FROM llm_calls")).scalar_one() == 2
+    finally:
+        engine.dispose()
+    command.downgrade(config, "base")  # leave the shared test database clean
+    command.upgrade(config, "head")
+
+
 def test_the_models_match_the_migrations(migrated_database: str) -> None:
     """No drift: what `Base.metadata` declares is what the migrations created (module tables)."""
     from alembic.autogenerate import compare_metadata

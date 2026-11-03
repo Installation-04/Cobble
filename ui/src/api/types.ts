@@ -176,6 +176,20 @@ export interface ProjectCosts {
   by_task: CostByTask[];
   by_model: CostByModel[];
   by_role: CostByRole[];
+  /** Calls answered by another model because the one chosen for the role could not. */
+  fallbacks?: CostFallbacks;
+}
+
+export interface CostFallbackLine extends CostLine {
+  model: string;
+  /** The first model of the chain that could not answer. */
+  fallback_from: string | null;
+}
+
+export interface CostFallbacks {
+  calls: number;
+  total_calls: number;
+  by_model: CostFallbackLine[];
 }
 
 export interface GlobalCostRow {

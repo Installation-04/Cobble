@@ -25,6 +25,16 @@ answer (refused key, empty balance, rate limit, service down) failed the whole t
 - The API validates that a route only names connected models (or the built-in default), known
   roles and a short chain; a removed connection left in a chain is simply skipped by the fallback.
 
+## Visibility of fallbacks (v0.3 step 3)
+- Nothing is stored for a failed attempt (no tokens, no cost). The call that finally answers
+  records `llm_calls.fallback_from` (the first model that could not) and `fallbacks` (how many
+  failed before it), migration `0011`. The costs report adds `fallbacks`: calls answered by a
+  fallback, total calls, and per (answering model, failed model) the calls and cost; the Costs tab
+  shows it only when there is one, and suggests checking the routes above 20 % of calls.
+- The gateway answers HTTP 400 `Invalid model name` when a model is not configured (a connection
+  removed while a route still names it). That is about *this* model, not the request, so it now
+  hands over like the 401/402/403/404/408/429/5xx statuses; any other 400 still does not.
+
 ## Presets and models served here (v0.3 step 2)
 - The models of running `llm-backend` modules are listed next to the connections (`local` in the
   listing: name, gateway model, module) and a route may name them; they are free and need no key.
