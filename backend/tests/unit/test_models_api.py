@@ -203,3 +203,66 @@ def test_a_model_change_may_take_as_long_as_a_gateway_restart() -> None:
     assert timeouts["DELETE /v1/models/x"] == GATEWAY_CHANGE_TIMEOUT_S
     assert timeouts["POST /v1/models/x/default"] == 20.0  # no restart: the usual wait is enough
     assert timeouts["GET /v1/models"] == 20.0
+
+
+# --- role routes -------------------------------------------------------------------------------
+
+ROUTES = f"{API}/routes"
+
+
+def test_routes_start_empty_and_every_role_shows_what_it_really_uses(built: Built) -> None:
+    body = built.api.get(ROUTES).json()
+    assert body["routes"] == {} and body["max_chain"] == 4
+    assert body["roles"] == ["planner", "test-writer", "worker", "reviewer", "escalation"]
+    assert body["effective"]["worker"] == ["fake"] == body["effective"]["escalation"]
+
+
+def test_a_route_is_saved_for_a_role_and_changes_what_it_uses_at_once(built: Built) -> None:
+    built.api.put(f"{API}/cheap", json=BODY, headers=H)
+    built.api.put(f"{API}/strong", json=BODY, headers=H)
+    reply = built.api.put(
+        ROUTES, json={"routes": {"worker": ["cheap", "strong"], "reviewer": ["strong"]}}, headers=H
+    )
+    assert reply.status_code == 200
+    body = reply.json()
+    assert body["routes"] == {"worker": ["cheap", "strong"], "reviewer": ["strong"]}
+    assert body["effective"]["worker"] == ["cheap", "strong"]
+    assert body["effective"]["planner"] == ["fake"]  # untouched roles follow the default
+    assert built.api.get(ROUTES).json()["routes"] == body["routes"]
+    # an empty chain or no entry means "follow the default" again
+    cleared = built.api.put(ROUTES, json={"routes": {"worker": []}}, headers=H).json()
+    assert cleared["routes"] == {} and cleared["effective"]["worker"] == ["fake"]
+
+
+def test_a_route_may_only_name_connected_models_known_roles_and_a_short_chain(built: Built) -> None:
+    built.api.put(f"{API}/cheap", json=BODY, headers=H)
+    for routes, field in (
+        ({"worker": ["ghost"]}, "routes.worker"),
+        ({"cook": ["cheap"]}, "routes.cook"),
+        ({"worker": ["cheap"] * 5}, "routes.worker"),
+    ):
+        reply = built.api.put(ROUTES, json={"routes": routes}, headers=H)
+        assert reply.status_code == 422, routes
+        assert field in reply.json()["error"]["params"]["fields"]
+    assert built.api.get(ROUTES).json()["routes"] == {}  # nothing was kept
+
+
+def test_the_built_in_model_can_be_routed_to_as_a_last_resort(built: Built) -> None:
+    built.api.put(f"{API}/cheap", json=BODY, headers=H)
+    body = built.api.put(ROUTES, json={"routes": {"worker": ["cheap", "fake"]}}, headers=H).json()
+    assert body["routes"]["worker"] == ["cheap", "fake"]
+
+
+@pytest.mark.parametrize("method", ["GET", "PUT"])
+def test_routes_are_for_administrators_only(sessions: sessionmaker[Session], method: str) -> None:
+    b = Built(sessions)
+    b.api.cookies.clear()
+    assert b.api.request(method, ROUTES, json={"routes": {}}, headers=H).status_code == 401
+    b.stack.login(b.api, role="member")
+    reply = b.api.request(method, ROUTES, json={"routes": {}}, headers=H)
+    assert reply.status_code == 403 and reply.json()["error"]["code"] == "forbidden"
+
+
+def test_changing_routes_needs_the_csrf_header(built: Built) -> None:
+    reply = built.api.put(ROUTES, json={"routes": {}})
+    assert reply.status_code == 403 and reply.json()["error"]["code"] == "csrf_failed"

@@ -96,11 +96,13 @@ def build_planner(settings: Settings, redis: Redis) -> PlannerService:
     """Wire the planner to the real cost router (LiteLLM gateway + budget + role models)."""
     sessions = make_session_factory(make_engine(settings.database_url))
     gateway = LiteLLMGateway(settings.litellm_url, settings.litellm_key, sessions, redis)
+    policy = ModelPolicy(sessions, settings)
     router = CostRouter(
         gateway,
         BudgetService(sessions, redis),
         settings.role_models,
-        ModelPolicy(sessions, settings).default,
+        policy.default,
+        chain_for=policy.chain_for,
     )
     return PlannerService(sessions, router, redis, settings)
 

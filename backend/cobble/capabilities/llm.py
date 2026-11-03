@@ -16,6 +16,8 @@ class Role(enum.StrEnum):
     TEST_WRITER = "test-writer"
     WORKER = "worker"
     REVIEWER = "reviewer"
+    # The stronger model a task moves to after repeated failures (PLAN section 8).
+    ESCALATION = "escalation"
 
 
 @dataclass(frozen=True)
