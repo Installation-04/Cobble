@@ -41,27 +41,28 @@ projet est `done` dès que toutes les tâches sont fusionnées, comme avant.
 | `scheduler/demo.py` | règles des jalons: valider, commenter, revenir, fin du projet |
 | `capabilities/preview.py` | `PreviewProvider` (`deploy`, `status`, `remove`) |
 | `providers/preview_service.py` | client HTTP du service d'aperçu |
-| `packs/v01/preview-service/` | construit l'étiquette, la lance, relaie `/demo/...`, arrête les démos inactives |
-| `packs/v01/compose.preview.yml` | le service et son réseau interne `cobble_previews` |
-| `packs/v01/preview-service/demo.caddy` | route Caddy à copier dans `packs/v01/caddy/` |
+| `services/preview-service/` | construit l'étiquette, la lance, relaie `/demo/...`, arrête les démos inactives |
+| `catalog/preview/` | le module: le service, son réseau interne `cobble-preview-previews`, sa route `/demo` |
 | `templates/fastapi-react/Dockerfile` | image de l'application générée |
 
-### Réglages
+### Installation et réglages
 
-Noyau (`api`, `worker`): `COBBLE_PREVIEW_SERVICE_URL` (défaut `http://preview-service:8091`) et
-`COBBLE_PREVIEW_SERVICE_TOKEN`. Service d'aperçu: `COBBLE_PREVIEW_SERVICE_TOKEN`,
-`COBBLE_PACK_FORGEJO_URL|TOKEN|OWNER` (mêmes valeurs que agent-service), `COBBLE_PREVIEW_NETWORK`
-(`cobble_previews`), `COBBLE_PREVIEW_MEMORY_MB` (512), `COBBLE_PREVIEW_CPUS` (1), `COBBLE_PREVIEW_PIDS`
-(256), `COBBLE_PREVIEW_IDLE_TTL_S` (1800), `COBBLE_PREVIEW_MAX_RUNNING` (6), `COBBLE_PREVIEW_BUILD_ARGS`
-(objet JSON d'arguments de build Docker, par exemple un proxy), `COBBLE_PREVIEW_SANDBOX` (1).
-`preview-service/gen-env.sh` écrit `.env.preview` et `.env.preview.core` (mode 600).
+```
+cobble modules install preview      # le serveur Git dont il a besoin est ajouté avec lui
+```
 
-### Caddy
+Le module prend l'adresse et le jeton du serveur Git auprès du module qui fournit `git`, génère son
+jeton de service et publie lui-même `/demo/*` sur le proxy inverse (la route du module, avant celle de
+l'API): rien à copier ni à configurer. Le noyau le trouve par le gestionnaire de modules. Sans le
+module, `/demo/*` va à l'API, qui ne répond que dans le mode pack factice, et le projet est `done`
+dès que toutes les tâches sont fusionnées.
 
-`/demo/*` doit atteindre le service d'aperçu. Le fragment est `packs/v01/preview-service/demo.caddy`: copiez-le
-vers `packs/v01/caddy/demo.caddy` quand le vrai service tourne. Tout ce répertoire est importé par le Caddy
-du noyau avant ses propres routes, donc la copie a priorité. Sans copie, `/demo/*` va à l'API, qui ne
-répond que dans le mode pack factice.
+Réglages du service (environnement du fichier compose du module): `COBBLE_PREVIEW_SERVICE_TOKEN`,
+`COBBLE_PACK_FORGEJO_URL|TOKEN|OWNER`, `COBBLE_PREVIEW_NETWORK` (la plateforme le nomme
+`cobble-preview-previews`), `COBBLE_PREVIEW_MEMORY_MB` (512), `COBBLE_PREVIEW_CPUS` (1),
+`COBBLE_PREVIEW_PIDS` (256), `COBBLE_PREVIEW_IDLE_TTL_S` (1800), `COBBLE_PREVIEW_MAX_RUNNING` (6),
+`COBBLE_PREVIEW_BUILD_ARGS` (objet JSON d'arguments de build Docker, par exemple un proxy),
+`COBBLE_PREVIEW_SANDBOX` (1). Désinstaller le module supprime les conteneurs et images de démo.
 
 ## Sécurité des aperçus
 

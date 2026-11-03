@@ -4,6 +4,14 @@ import type {
   Folder,
   GlobalCostRow,
   Milestone,
+  ModelListing,
+  ModelProbe,
+  ModelRequest,
+  ModuleCatalog,
+  ModuleOperation,
+  ModuleOperationRequest,
+  ModulePacks,
+  ModulePlan,
   Plan,
   Project,
   ProjectCosts,
@@ -90,4 +98,31 @@ export const demoApi = {
 export const costsApi = {
   project: (id: string) => api.get<ProjectCosts>(`/projects/${id}/costs`),
   all: () => api.get<GlobalCostRow[]>("/costs"),
+};
+
+export const modulesApi = {
+  catalog: () => api.get<ModuleCatalog>("/modules"),
+  packs: () => api.get<ModulePacks>("/modules/packs"),
+  /** What an install or removal would do; changes nothing. */
+  plan: (request: ModuleOperationRequest) => api.post<ModulePlan>("/modules/plan", request),
+  start: (request: ModuleOperationRequest) =>
+    api.post<{ operation_id: string }>("/modules/operations", request),
+  operation: (id: string) => api.get<ModuleOperation>(`/modules/operations/${id}`),
+  /** Which secrets of a module are set (never their values). */
+  secrets: (id: string) => api.get<Record<string, boolean>>(`/modules/${id}/secrets`),
+};
+
+export const modelsApi = {
+  list: () => api.get<ModelListing>("/models"),
+  /** Connects (or updates) a model service: the gateway restarts, so this takes about 20 s. */
+  put: (name: string, body: ModelRequest) => api.put<ModelListing>(`/models/${name}`, body),
+  remove: (name: string) => api.delete<ModelListing>(`/models/${name}`),
+  makeDefault: (name: string) => api.post<ModelListing>(`/models/${name}/default`),
+  test: (name: string) => api.post<ModelProbe>(`/models/${name}/test`),
+};
+
+/** The first-run wizard: has the administrator been through it? */
+export const setupApi = {
+  progress: () => api.get<{ completed: boolean }>("/setup/progress"),
+  complete: () => api.post<{ completed: boolean }>("/setup/complete"),
 };

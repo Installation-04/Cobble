@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from typing import Any, Protocol
 
 from cobble.capabilities.llm import ChatResult, Role
@@ -31,15 +31,18 @@ class CostRouter:
         gateway: ChatGateway,
         budget: BudgetService,
         role_models: Mapping[str, str],
-        default_model: str,
+        default_model: str | Callable[[], str],
     ) -> None:
         self._gateway = gateway
         self._budget = budget
         self._role_models = dict(role_models)
-        self._default_model = default_model
+        # A callable lets the default change while the process runs (see `ModelPolicy`).
+        self._default_model: Callable[[], str] = (
+            default_model if callable(default_model) else (lambda: default_model)
+        )
 
     def model_for(self, role: Role) -> str:
-        return self._role_models.get(role.value, self._default_model)
+        return self._role_models.get(role.value) or self._default_model()
 
     def chat(
         self,

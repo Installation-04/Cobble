@@ -362,6 +362,34 @@ env_append() { # KEY VALUE: add only when the key is absent (never overwrites).
   grep -q "^$1=" "$DIR/.env" || printf '%s=%s\n' "$1" "$2" >>"$DIR/.env"
 }
 
+env_replace() { # KEY VALUE: set a value that is derived from this installation (not a secret).
+  local f="$DIR/.env" tmp
+  if ! grep -q "^$1=" "$f"; then
+    printf '%s=%s\n' "$1" "$2" >>"$f"
+    return
+  fi
+  tmp="$(mktemp "$f.XXXXXX")"
+  # In place, so that an unchanged value leaves the file byte for byte as it was.
+  awk -v key="$1" -v value="$2" 'index($0, key "=") == 1 { print key "=" value; next } { print }' "$f" >"$tmp"
+  chmod 600 "$tmp"
+  mv "$tmp" "$f"
+}
+
+# What the module-manager needs. The token is a secret (kept across runs); the rest is derived
+# from this installation and refreshed on every run so that a moved or rebuilt tree stays right.
+write_module_settings() {
+  local socket="${COBBLE_DOCKER_SOCKET:-/var/run/docker.sock}" gid
+  env_append MODULE_MANAGER_TOKEN "$(rand_hex)$(rand_hex)"
+  # The module-manager is part of every start (docker compose reads COMPOSE_PROFILES from the
+  # env file), including the systemd unit and `cobble status`.
+  env_append COMPOSE_PROFILES modules
+  # The catalogue is mounted at the same absolute path inside the module-manager: the Docker
+  # daemon resolves the bind mounts of the modules on the host.
+  env_replace COBBLE_CATALOG_DIR "$DIR/src/catalog"
+  gid="$(stat -c %g "$socket" 2>/dev/null || true)"
+  if [ -n "$gid" ]; then env_replace DOCKER_GID "$gid"; fi
+}
+
 write_env() {
   local f="$DIR/.env" port="${COBBLE_HTTP_PORT:-80}"
   if [ -f "$f" ]; then
@@ -387,6 +415,7 @@ write_env() {
   local suffix=""
   [ "$port" = 80 ] || suffix=":$port"
   env_append COBBLE_PUBLIC_URL "http://$(primary_ip)$suffix"
+  write_module_settings
   HTTP_PORT="$port"
   PUBLIC_URL="$(env_get COBBLE_PUBLIC_URL "$f")"
 }

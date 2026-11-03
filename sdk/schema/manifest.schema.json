@@ -1,0 +1,602 @@
+{
+  "$defs": {
+    "Backup": {
+      "additionalProperties": false,
+      "properties": {
+        "volumes": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9_]{0,39}$",
+            "type": "string"
+          },
+          "title": "Volumes",
+          "type": "array"
+        }
+      },
+      "title": "Backup",
+      "type": "object"
+    },
+    "Hardware": {
+      "additionalProperties": false,
+      "properties": {
+        "gpu": {
+          "default": "none",
+          "enum": [
+            "none",
+            "optional",
+            "nvidia",
+            "amd",
+            "any"
+          ],
+          "title": "Gpu",
+          "type": "string"
+        },
+        "min_ram_mb": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Min Ram Mb",
+          "type": "integer"
+        }
+      },
+      "title": "Hardware",
+      "type": "object"
+    },
+    "Healthcheck": {
+      "additionalProperties": false,
+      "properties": {
+        "http": {
+          "pattern": "^/[A-Za-z0-9._~/?=&%-]*$",
+          "title": "Http",
+          "type": "string"
+        },
+        "interval": {
+          "default": "10s",
+          "pattern": "^\\d+(?:ms|s|m)$",
+          "title": "Interval",
+          "type": "string"
+        },
+        "timeout": {
+          "default": "5s",
+          "pattern": "^\\d+(?:ms|s|m)$",
+          "title": "Timeout",
+          "type": "string"
+        }
+      },
+      "required": [
+        "http"
+      ],
+      "title": "Healthcheck",
+      "type": "object"
+    },
+    "Hooks": {
+      "additionalProperties": false,
+      "description": "Shell hooks, relative to the module directory. All must be idempotent.",
+      "properties": {
+        "on_link": {
+          "patternProperties": {
+            "^[a-z][a-z0-9-]{0,39}$": {
+              "type": "string"
+            }
+          },
+          "title": "On Link",
+          "type": "object"
+        },
+        "on_unlink": {
+          "patternProperties": {
+            "^[a-z][a-z0-9-]{0,39}$": {
+              "type": "string"
+            }
+          },
+          "title": "On Unlink",
+          "type": "object"
+        },
+        "post_install": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Post Install"
+        },
+        "pre_uninstall": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pre Uninstall"
+        },
+        "pre_up": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pre Up"
+        },
+        "register_core": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Register Core"
+        }
+      },
+      "title": "Hooks",
+      "type": "object"
+    },
+    "Llm": {
+      "additionalProperties": false,
+      "description": "Where a language-model backend listens and which models it serves by default.",
+      "properties": {
+        "models": {
+          "items": {
+            "$ref": "#/$defs/LlmModel"
+          },
+          "title": "Models",
+          "type": "array"
+        },
+        "port": {
+          "maximum": 65535,
+          "minimum": 1,
+          "title": "Port",
+          "type": "integer"
+        },
+        "service": {
+          "pattern": "^[a-z0-9][a-z0-9_.-]{0,62}$",
+          "title": "Service",
+          "type": "string"
+        }
+      },
+      "required": [
+        "service",
+        "port"
+      ],
+      "title": "Llm",
+      "type": "object"
+    },
+    "LlmModel": {
+      "additionalProperties": false,
+      "description": "A model a language-model backend serves, as the router will see it.",
+      "properties": {
+        "model": {
+          "pattern": "^[a-z0-9_]+/[A-Za-z0-9._:/-]{1,100}$",
+          "title": "Model",
+          "type": "string"
+        },
+        "name": {
+          "pattern": "^[a-z0-9][a-z0-9._:/-]{0,79}$",
+          "title": "Name",
+          "type": "string"
+        },
+        "pull": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9._:/-]{1,100}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pull"
+        }
+      },
+      "required": [
+        "name",
+        "model"
+      ],
+      "title": "LlmModel",
+      "type": "object"
+    },
+    "Localized": {
+      "additionalProperties": false,
+      "description": "A user-visible text in both supported languages.",
+      "properties": {
+        "en": {
+          "minLength": 1,
+          "title": "En",
+          "type": "string"
+        },
+        "fr": {
+          "minLength": 1,
+          "title": "Fr",
+          "type": "string"
+        }
+      },
+      "required": [
+        "fr",
+        "en"
+      ],
+      "title": "Localized",
+      "type": "object"
+    },
+    "Provide": {
+      "additionalProperties": false,
+      "description": "A capability the module provides, and the core adapter that speaks to it.",
+      "properties": {
+        "adapter": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z][a-z0-9-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Adapter"
+        },
+        "capability": {
+          "pattern": "^[a-z][a-z0-9-]{0,39}$",
+          "title": "Capability",
+          "type": "string"
+        }
+      },
+      "required": [
+        "capability"
+      ],
+      "title": "Provide",
+      "type": "object"
+    },
+    "Setting": {
+      "additionalProperties": false,
+      "properties": {
+        "default": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Default"
+        },
+        "key": {
+          "pattern": "^[a-z][a-z0-9_]{0,39}$",
+          "title": "Key",
+          "type": "string"
+        },
+        "options": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Options",
+          "type": "array"
+        },
+        "required": {
+          "default": false,
+          "title": "Required",
+          "type": "boolean"
+        },
+        "type": {
+          "default": "text",
+          "enum": [
+            "text",
+            "email",
+            "number",
+            "bool",
+            "select"
+          ],
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "key"
+      ],
+      "title": "Setting",
+      "type": "object"
+    },
+    "Variant": {
+      "additionalProperties": false,
+      "description": "A hardware-specific flavour of a module (for example Ollama CPU, NVIDIA, AMD).",
+      "properties": {
+        "compose": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Compose"
+        },
+        "gpu": {
+          "default": "none",
+          "enum": [
+            "none",
+            "optional",
+            "nvidia",
+            "amd",
+            "any"
+          ],
+          "title": "Gpu",
+          "type": "string"
+        },
+        "id": {
+          "pattern": "^[a-z][a-z0-9-]{0,19}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "min_ram_mb": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Min Ram Mb",
+          "type": "integer"
+        },
+        "models": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/LlmModel"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Models"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "Variant",
+      "type": "object"
+    },
+    "WebUi": {
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "pattern": "^/[A-Za-z0-9._~/-]*$",
+          "title": "Path",
+          "type": "string"
+        },
+        "port": {
+          "maximum": 65535,
+          "minimum": 1,
+          "title": "Port",
+          "type": "integer"
+        },
+        "public": {
+          "default": true,
+          "title": "Public",
+          "type": "boolean"
+        },
+        "service": {
+          "pattern": "^[a-z0-9][a-z0-9_.-]{0,62}$",
+          "title": "Service",
+          "type": "string"
+        },
+        "strip_prefix": {
+          "default": true,
+          "title": "Strip Prefix",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "service",
+        "port",
+        "path"
+      ],
+      "title": "WebUi",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "backup": {
+      "$ref": "#/$defs/Backup"
+    },
+    "bus": {
+      "items": {
+        "pattern": "^[a-z0-9][a-z0-9_.-]{0,62}$",
+        "type": "string"
+      },
+      "title": "Bus",
+      "type": "array"
+    },
+    "category": {
+      "pattern": "^[a-z][a-z0-9-]{0,29}$",
+      "title": "Category",
+      "type": "string"
+    },
+    "compose": {
+      "default": "compose.yml",
+      "title": "Compose",
+      "type": "string"
+    },
+    "core_secrets": {
+      "items": {
+        "pattern": "^[a-z][a-z0-9_]{0,39}$",
+        "type": "string"
+      },
+      "title": "Core Secrets",
+      "type": "array"
+    },
+    "description": {
+      "$ref": "#/$defs/Localized"
+    },
+    "exclusive": {
+      "items": {
+        "pattern": "^[a-z][a-z0-9-]{0,39}$",
+        "type": "string"
+      },
+      "title": "Exclusive",
+      "type": "array"
+    },
+    "hardware": {
+      "$ref": "#/$defs/Hardware"
+    },
+    "healthcheck": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Healthcheck"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "hooks": {
+      "$ref": "#/$defs/Hooks"
+    },
+    "host_access": {
+      "items": {
+        "const": "docker_socket",
+        "type": "string"
+      },
+      "title": "Host Access",
+      "type": "array"
+    },
+    "id": {
+      "pattern": "^[a-z][a-z0-9-]{1,39}$",
+      "title": "Id",
+      "type": "string"
+    },
+    "images": {
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Images",
+      "type": "array"
+    },
+    "license": {
+      "maxLength": 80,
+      "minLength": 1,
+      "title": "License",
+      "type": "string"
+    },
+    "link_secrets": {
+      "items": {
+        "pattern": "^[a-z][a-z0-9_]{0,39}$",
+        "type": "string"
+      },
+      "title": "Link Secrets",
+      "type": "array"
+    },
+    "llm": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Llm"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "name": {
+      "maxLength": 60,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "offline": {
+      "default": false,
+      "title": "Offline",
+      "type": "boolean"
+    },
+    "provides": {
+      "items": {
+        "$ref": "#/$defs/Provide"
+      },
+      "title": "Provides",
+      "type": "array"
+    },
+    "requires": {
+      "items": {
+        "pattern": "^[a-z][a-z0-9-]{0,39}$",
+        "type": "string"
+      },
+      "title": "Requires",
+      "type": "array"
+    },
+    "secrets": {
+      "items": {
+        "pattern": "^[a-z][a-z0-9_]{0,39}$",
+        "type": "string"
+      },
+      "title": "Secrets",
+      "type": "array"
+    },
+    "settings": {
+      "items": {
+        "$ref": "#/$defs/Setting"
+      },
+      "title": "Settings",
+      "type": "array"
+    },
+    "variants": {
+      "items": {
+        "$ref": "#/$defs/Variant"
+      },
+      "title": "Variants",
+      "type": "array"
+    },
+    "version": {
+      "pattern": "^\\d+\\.\\d+\\.\\d+(?:[-+][0-9A-Za-z.-]+)?$",
+      "title": "Version",
+      "type": "string"
+    },
+    "web_ui": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/WebUi"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "version",
+    "category",
+    "description",
+    "license",
+    "images"
+  ],
+  "title": "Cobble module manifest",
+  "type": "object"
+}

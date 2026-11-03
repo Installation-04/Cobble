@@ -14,7 +14,7 @@ export default defineConfig({
   expect: { timeout: 10_000 },
   reporter: [["list"]],
   // Order matters on a fresh stack: setup activates the admin and saves the session, the plan
-  // spec runs next, then the build spec (needs COBBLE_PACK_MODE=fake), and the shell spec goes
+  // spec runs next, then the build spec (needs COBBLE_PACK_MODE=fake), then the store spec, and the shell spec goes
   // last because it logs out and changes preferences.
   projects: [
     { name: "setup", testMatch: /auth\.setup\.ts/ },
@@ -31,9 +31,17 @@ export default defineConfig({
       use: { storageState: STORAGE_STATE },
     },
     {
+      // The module-manager is not part of the e2e stack (it needs the Docker socket): this spec
+      // mocks the modules API in the browser. Real installs are covered by `make smoke-modules`.
+      name: "store",
+      testMatch: /store\.spec\.ts/,
+      dependencies: ["build"],
+      use: { storageState: STORAGE_STATE },
+    },
+    {
       name: "shell",
       testMatch: /shell\.spec\.ts/,
-      dependencies: ["build"],
+      dependencies: ["store"],
       use: { storageState: STORAGE_STATE },
     },
   ],

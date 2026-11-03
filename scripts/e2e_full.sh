@@ -1,30 +1,30 @@
 #!/usr/bin/env bash
 # Full-chain end-to-end run of the to-do reference project (manual harness, `make e2e-full`).
 #
-# Brings up core + pack (Forgejo, Woodpecker) + agents + previews with freshly generated secrets,
-# activates the admin through the API, creates a project, replays the scripted interview, spec
+# Brings up core + modules (Forgejo, Woodpecker, agents and previews, all installed through the
+# module-manager) with freshly generated secrets, activates the admin through the API, creates a project, replays the scripted interview, spec
 # and plan (cassettes of the fake LLM), approves the plan, starts the build and follows it until
 # the project phase is `done`: tasks tests-first with the fake-LLM agent cassettes
 # (providers/fake-llm/cassettes/agent-todo-*.json), CI, merge, one demo per milestone
 # (validated here through the API). Prints the final task table, tokens, cost and elapsed time,
 # then tears everything down.
 #
-# Usage: scripts/e2e_full.sh [--keep] [--timeout SECONDS] [--lang en|fr] [--comment] [--force]
+# Usage: scripts/e2e_full.sh [--keep] [--timeout SECONDS] [--lang en|fr] [--comment]
 #   --keep      leave the stack running (and print how to remove it)
 #   --timeout   give up after this many seconds of building (default 3600)
 #   --comment   after `done`, comment on the last demo and follow the new C-001 task
-#   --force     start even though packs/v01 already holds generated secrets (they are DELETED
-#               at teardown unless --keep)
 # Environment: E2E_PORT (host port of Caddy, default 18080), E2E_EMAIL, E2E_PASSWORD,
 # E2E_HOST (address CI containers use to reach the stack, default: first address of this host),
-# E2E_BUILD_CA (path of a CA bundle passed to every image build as the optional `ca` BuildKit
+# E2E_BUILD_CA (path of a CA bundle passed to the core image builds as the optional `ca` BuildKit
 # secret and mounted in the CI step containers; for hosts behind a TLS-inspecting proxy, unset by default).
+# The agent and preview images are pulled from ghcr.io (published by the "Module images" workflow
+# and pinned in catalog/): the packages must be public, or `docker login ghcr.io` must have been done.
 #
 # Uses only the documented APIs (ADR 0003, 0005, 0006, 0007). Endpoints that answer 404 are
 # reported as SKIPPED instead of failing the run (the harness predates some of them).
 # Needs: docker compose (v2), curl, python3 (standard library only). Needs network access to
-# pull images and the registries the agents use. It uses the fixed compose project names of
-# the core (`cobble`) and the pack, so it refuses to run next to a dev stack.
+# pull images and the registries the agents use. It uses the fixed compose project name of
+# the core (`cobble`), so it refuses to run next to a dev stack.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -32,15 +32,13 @@ KEEP=0
 TIMEOUT=3600
 LANG_CODE=en
 COMMENT=0
-FORCE=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --keep) KEEP=1 ;;
     --timeout) TIMEOUT="${2:?--timeout needs a value}"; shift ;;
     --lang) LANG_CODE="${2:?--lang needs en or fr}"; shift ;;
     --comment) COMMENT=1 ;;
-    --force) FORCE=1 ;;
-    -h | --help) sed -n 2,22p "${BASH_SOURCE[0]}"; exit 0 ;;
+    -h | --help) sed -n 2,23p "${BASH_SOURCE[0]}"; exit 0 ;;
     *) echo "unknown option: $1" >&2; exit 2 ;;
   esac
   shift
@@ -57,7 +55,6 @@ PASSWORD="${E2E_PASSWORD:-$(head -c 12 /dev/urandom | od -An -tx1 | tr -d ' \n')
 WORK="$(mktemp -d)"
 CORE_ENV="$WORK/core.env"
 JAR="$WORK/cookies"
-PACK="$ROOT/packs/v01"
 STARTED=$(date +%s)
 FAILED=0
 
@@ -66,7 +63,7 @@ skip() { printf '[e2e-full] SKIPPED: %s\n' "$*"; }
 die() { printf '[e2e-full] ERROR: %s\n' "$*" >&2; exit 1; }
 
 # Optional build-time CA (see E2E_BUILD_CA): one override file per compose project.
-CA_CORE=() CA_AGENTS=() CA_PREVIEW=() CA_PACK=""
+CA_CORE=()
 if [ -n "${E2E_BUILD_CA:-}" ]; then
   [ -r "$E2E_BUILD_CA" ] || die "E2E_BUILD_CA is not readable: $E2E_BUILD_CA"
   export BUILDX_BAKE_ENTITLEMENTS_FS=0
@@ -78,7 +75,9 @@ if [ -n "${E2E_BUILD_CA:-}" ]; then
   }
 fi
 
-core() { docker compose -p cobble --env-file "$CORE_ENV" -f "$ROOT/core/compose.yml" "${CA_CORE[@]}" "$@"; }
+core() { docker compose -p cobble --env-file "$CORE_ENV" -f "$ROOT/core/compose.yml" "${CA_CORE[@]}" --profile modules "$@"; }
+# mm ACTION [MODULE...]: runs the module-manager client inside its container (it holds the token)
+mm() { core exec -T module-manager python - "$@" <"$ROOT/scripts/module_client.py"; }
 
 # --- preflight ---------------------------------------------------------------------------------
 for tool in docker curl python3; do
@@ -88,8 +87,8 @@ docker compose version >/dev/null 2>&1 || die "docker compose v2 is required"
 if [ -n "$(docker compose -p cobble ps -q 2>/dev/null)" ]; then
   die "a stack named 'cobble' is running (make dev?): stop it first, this run wipes its volumes"
 fi
-if [ "$FORCE" -ne 1 ] && { [ -e "$PACK/.env" ] || [ -e "$PACK/.env.pack" ]; }; then
-  die "$PACK already holds generated secrets (a pack is installed): use --force to replace them"
+if [ -n "$(docker ps -aq --filter 'label=cobble.managed=true')" ]; then
+  die "module containers are running (another stack?): remove them first, this run wipes the platform's state"
 fi
 
 # --- teardown ----------------------------------------------------------------------------------
@@ -99,16 +98,12 @@ teardown() {
   if [ "$KEEP" -eq 1 ]; then
     log "stack kept. Open $BASE (admin $EMAIL). Remove it with:"
     log "  docker compose -p cobble --env-file $CORE_ENV -f core/compose.yml down -v"
-    log "  packs/v01/hooks/uninstall.sh --purge   # and the agents/preview projects"
+    log "  (first uninstall the modules: scripts/module_client.py uninstall aider preview woodpecker forgejo)"
     exit "$rc"
   fi
   log "tearing down"
-  docker compose -p cobble-pack-preview -f "$PACK/compose.preview.yml" down -v >/dev/null 2>&1 || true
-  docker compose -p cobble-pack-agents -f "$PACK/compose.agents.yml" down -v >/dev/null 2>&1 || true
-  "$PACK/hooks/uninstall.sh" --purge >/dev/null 2>&1 || true
+  mm uninstall aider preview woodpecker forgejo >/dev/null 2>&1 || true
   core down -v >/dev/null 2>&1 || true
-  rm -f "$PACK/.env.agents" "$PACK/.env.agents.core" "$PACK/.env.preview" "$PACK/.env.preview.core" \
-    "$PACK/caddy/demo.caddy"
   rm -rf "$WORK"
   exit "$rc"
 }
@@ -153,33 +148,23 @@ sed -i "s/^COBBLE_HTTP_PORT=.*/COBBLE_HTTP_PORT=$PORT/;s/^COBBLE_LANG=.*/COBBLE_
   echo "COBBLE_PUBLIC_URL=$BASE"
   echo "COBBLE_ENV=development"
 } >>"$CORE_ENV"
+if [ -n "${E2E_BUILD_CA:-}" ]; then # a CA made visible to pipeline steps (TLS-inspecting proxy)
+  ca=/etc/ssl/certs/ca-certificates.crt
+  extra="{\"COBBLE_STEP_VOLUMES\": \"$E2E_BUILD_CA:$ca:ro\", \"COBBLE_PIPELINE_ENV\": \"SSL_CERT_FILE:$ca,REQUESTS_CA_BUNDLE:$ca,NODE_EXTRA_CA_CERTS:$ca,PIP_CERT:$ca,UV_SYSTEM_CERTS:1\"}"
+  echo "COBBLE_MODULE_EXTRA_ENV='$extra'" >>"$CORE_ENV"
+fi
 
 if [ -n "${E2E_BUILD_CA:-}" ]; then
-  ca_override "$WORK/ca-core.yml" fake-llm api worker ui
-  ca_override "$WORK/ca-agents.yml" agent-proxy agent-service agent-runner-image
-  ca_override "$WORK/ca-preview.yml" preview-service
-  CA_CORE=(-f "$WORK/ca-core.yml") CA_AGENTS=(-f "$WORK/ca-agents.yml") CA_PREVIEW=(-f "$WORK/ca-preview.yml")
+  ca_override "$WORK/ca-core.yml" fake-llm api worker ui module-manager
+  CA_CORE=(-f "$WORK/ca-core.yml")
 fi
 
 log "starting the core (project cobble)"
 core up --build -d --wait
 
-log "installing the pack (Forgejo, Woodpecker)"
-COBBLE_PACK_PUBLIC_URL="$BASE" COBBLE_PACK_STEP_CA="${E2E_BUILD_CA:-}" "$PACK/hooks/install.sh"
-
-log "building and starting agent-service, the egress proxy and the runner image"
-docker compose -f "$PACK/compose.agents.yml" "${CA_AGENTS[@]}" --profile build build
-"$PACK/agent-service/gen-env.sh"
-docker compose -f "$PACK/compose.agents.yml" up -d
-
-log "building and starting preview-service"
-docker compose -f "$PACK/compose.preview.yml" "${CA_PREVIEW[@]}" build
-"$PACK/preview-service/gen-env.sh"
-docker compose -f "$PACK/compose.preview.yml" up -d
-cp "$PACK/preview-service/demo.caddy" "$PACK/caddy/demo.caddy"
-
-log "restarting api, worker and caddy to load the pack settings"
-core up -d --force-recreate --wait api worker caddy
+log "installing the modules (Forgejo and Woodpecker as dependencies, the agents and the previews)"
+mm install woodpecker aider preview >"$WORK/install.log" 2>&1 || { cat "$WORK/install.log" >&2; die "module installation failed"; }
+tail -n 1 "$WORK/install.log" | cut -c1-200
 
 # --- 2. admin account ------------------------------------------------------------------------------
 log "activating the admin account"

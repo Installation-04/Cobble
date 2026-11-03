@@ -1,0 +1,65 @@
+# Aider agents for Cobble. The platform rewrites this file (names, networks, limits).
+x-hardening: &hardening
+  security_opt: ["no-new-privileges:true"]
+  cap_drop: [ALL]
+  restart: unless-stopped
+
+services:
+  # Allow-list HTTP proxy: the only way out of the agents network. "api" is the platform API.
+  agent-proxy:
+    image: ghcr.io/installation-04/cobble-agent-proxy@sha256:372c64e0696db5ac0dbfd35e9c711be62b9bd3b5340889244c81bfb9866debad
+    <<: *hardening
+    read_only: true
+    tmpfs: ["/tmp:size=4m,uid=10004,mode=700"]
+    environment:
+      AGENT_PROXY_ALLOW: ${COBBLE_AGENT_PROXY_ALLOW:-api,pypi.org,files.pythonhosted.org,registry.npmjs.org}
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 3128"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    mem_limit: 128m
+    pids_limit: 128
+    networks: [agents]
+
+  # Holds the Docker socket to start the agent containers (CLAUDE.md rule 5, declared in the
+  # manifest). Agent containers get neither the socket nor any git credential.
+  agent-service:
+    image: ghcr.io/installation-04/cobble-agent-service@sha256:47c89e1cd0b43f7936f538077963d35e6adac9caac137908a6862188c75c8cd7
+    <<: *hardening
+    user: "10001:10001"
+    group_add: ["${COBBLE_DOCKER_GID:-0}"]
+    read_only: true
+    tmpfs: ["/tmp:size=64m,uid=10001,mode=700"]
+    environment:
+      COBBLE_AGENT_SERVICE_TOKEN: ${COBBLE_SECRET_SERVICE_TOKEN:?}
+      COBBLE_INTERNAL_API_URL: http://api:8000/internal/llm/v1
+      COBBLE_PACK_FORGEJO_URL: ${COBBLE_SECRET_FORGEJO_URL:?}
+      COBBLE_PACK_FORGEJO_TOKEN: ${COBBLE_SECRET_FORGEJO_TOKEN:?}
+      COBBLE_PACK_FORGEJO_OWNER: cobble-bot
+      # The platform renames the volume and the network below to cobble-aider-<key>.
+      COBBLE_AGENT_DATA_VOLUME: cobble-aider-agents-data
+      COBBLE_AGENT_NETWORK: cobble-aider-agents
+      COBBLE_AGENT_RUNNER_IMAGE: ghcr.io/installation-04/cobble-aider-runner@sha256:5e1acab5b595b3ac31f73304d4ff219fb47e5f0045c16a7d92de1ea335743302
+      COBBLE_AGENT_PROXY_URL: http://agent-proxy:3128
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - agents-data:/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://localhost:8090/healthz')"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    mem_limit: 512m
+    pids_limit: 256
+    depends_on:
+      agent-proxy: {condition: service_healthy}
+
+networks:
+  # Agent sandboxes live here. internal: no route to the host or the internet; the only
+  # neighbour that can leave is agent-proxy, which is allow-list only.
+  agents:
+    internal: true
+
+volumes:
+  agents-data: {}

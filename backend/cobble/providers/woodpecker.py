@@ -1,4 +1,4 @@
-"""CIProvider backed by Woodpecker (the CI of the v0.1 pack)."""
+"""CIProvider backed by Woodpecker (the `woodpecker` module)."""
 
 from __future__ import annotations
 

@@ -10,12 +10,13 @@ scripts/e2e_full.sh --keep --timeout 5400 --lang fr
 ```
 
 Options: `--keep` (laisse la pile active), `--timeout SECONDES` (durée de construction, 3600 par défaut),
-`--lang en|fr`, `--comment` (après `done`, commente la dernière démo et suit la tâche `C-001`), `--force`
-(remplace les secrets du pack déjà présents dans `packs/v01`). `E2E_PORT` fixe le port hôte (18080). `E2E_HOST` est l'adresse que les conteneurs de CI utilisent
+`--lang en|fr`, `--comment` (après `done`, commente la dernière démo et suit la tâche `C-001`). `E2E_PORT` fixe le port hôte (18080). `E2E_HOST` est l'adresse que les conteneurs de CI utilisent
 pour joindre la pile (par défaut: la première adresse de cette machine; `localhost` ne marcherait pas
 depuis un conteneur). `E2E_BUILD_CA` est un paquet de CA pour les machines derrière un proxy qui
-inspecte TLS: il est passé à chaque construction d'image et monté dans les conteneurs d'étapes de CI
-(non défini par défaut).
+inspecte TLS: il est passé aux constructions d'images du noyau et monté dans les conteneurs d'étapes de CI
+(non défini par défaut). Les images d'agents et d'aperçus sont téléchargées depuis `ghcr.io` (publiées par
+le workflow « Module images », épinglées dans `catalog/`): les paquets doivent être publics, ou
+`docker login ghcr.io` fait au préalable.
 
 ## Déroulement
 
@@ -54,6 +55,10 @@ détection de boucle (`loop_detected`).
 
 ## Résultat vérifié
 
+**Par les modules (v0.2, le banc actuel) :** 2026-11-03, `PASS` en 22 min sur un bac à sable de développement, faux LLM, Forgejo, Woodpecker, `aider` et `preview` installés par le gestionnaire de modules avec des images tirées de GHCR par empreinte : les 11 tâches du plan et les 3 tâches de démo `merged` dès la première tentative, les 3 démos de jalon validées, phase `done` ; 59 121 jetons d'entrée et 13 754 de sortie, 0,087 $. Après le démontage, aucun conteneur, volume ou réseau `cobble-*` ou `wp_*` ne restait, et aucune valeur de jeton n'apparaît dans le journal du banc. Deux essais précédents le même jour ont été perdus parce que le bac à sable a été recyclé en cours de route (démon Docker tué), pas à cause d'un échec de la chaîne.
+
+**Premier essai (pack v0.1, gardé pour mémoire) :**
+
 Exécuté sur un bac à sable de développement avec le faux LLM (cela prouve la **plomberie**, pas la
 qualité d'un modèle ni le coût réel): 2026-10-31, `PASS` en 12 min 39 s. Les 11 tâches du plan et les
 3 tâches de démo sont passées à `merged` dès la première tentative, chacune via la CI Woodpecker
@@ -67,7 +72,7 @@ sortie, 0,116 $): le commentaire sur la dernière démo a créé `C-001`, qui a 
 à la première tentative, puis la démo du jalon a été validée de nouveau.
 
 Les premiers essais ont trouvé et fait corriger sept défauts, invisibles aux tests unitaires et
-navigateur: les scripts `gen-env.sh` qui échouaient au premier lancement, `git` absent de l'image du
+navigateur: les scripts `gen-env.sh` (remplacés depuis par les modules) qui échouaient au premier lancement, `git` absent de l'image du
 backend, l'accès aux registres des agents (l'image du runner embarque désormais un cache uv et un
 magasin pnpm préchauffés), l'environnement uv d'Aider qui fuyait dans les tests du projet, les tests
 frontend lancés avant `pnpm install`, une fusion refusée un instant par Forgejo juste après une autre

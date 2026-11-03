@@ -3,7 +3,7 @@
 Status: accepted (v0.1, step 7)
 
 ## Principles
-- **Only the pack service touches Docker (rule 5).** `agent-service` (in `packs/v01/agent-service/`) holds the Docker socket and exposes a small internal HTTP API. The backend implements the `AgentRunner` capability as an HTTP client of it (`backend/cobble/providers/agent_service.py`). Agent containers never get the socket, run as non-root, with CPU/RAM/PID/time limits, a read-only root filesystem except the worktree and `/tmp`, and no capabilities.
+- **Only the pack service touches Docker (rule 5).** `agent-service` (in `services/agent-service/` since v0.2, shipped by the `aider` module) holds the Docker socket and exposes a small internal HTTP API. The backend implements the `AgentRunner` capability as an HTTP client of it (`backend/cobble/providers/agent_service.py`). Agent containers never get the socket, run as non-root, with CPU/RAM/PID/time limits, a read-only root filesystem except the worktree and `/tmp`, and no capabilities.
 - **Agent containers hold no git credentials.** `agent-service` clones the repository into a per-run worktree on a host volume, mounts it into the container, and after the container exits it checks the result and pushes the task branch itself.
 - **Agents never call a model provider or LiteLLM directly (rule 2).** They call the **internal LLM endpoint** of the Cobble API, which applies the project budget, maps the role to a model, goes through LiteLLM and records tokens/cost with `project_id` and `task_id` in `llm_calls`.
 - **Egress**: the agent container sits on an internal network `cobble_agents` whose only exits are an allowlist HTTP proxy (`agent-proxy`) permitting the API's internal endpoint and the package registries (PyPI, npm). Not LiteLLM, not Forgejo.

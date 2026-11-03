@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -57,7 +57,11 @@ function actions(): SidebarActions {
   };
 }
 
-async function renderSidebar(a = actions(), data = { folders: FOLDERS, projects: PROJECTS }) {
+async function renderSidebar(
+  a = actions(),
+  data = { folders: FOLDERS, projects: PROJECTS },
+  showStore = false,
+) {
   mockFetch({
     "GET /folders": () => ({ body: data.folders }),
     "GET /projects": () => ({ body: data.projects }),
@@ -65,7 +69,7 @@ async function renderSidebar(a = actions(), data = { folders: FOLDERS, projects:
   render(
     <MemoryRouter>
       <WorkspaceProvider>
-        <Sidebar actions={a} />
+        <Sidebar actions={a} showStore={showStore} />
       </WorkspaceProvider>
     </MemoryRouter>,
   );
@@ -77,6 +81,14 @@ beforeEach(() => setLang("en"));
 afterEach(() => vi.unstubAllGlobals());
 
 describe("Sidebar", () => {
+  it("links to the Store for administrators only", async () => {
+    await renderSidebar();
+    expect(screen.queryByTestId("nav-store")).not.toBeInTheDocument();
+    cleanup();
+    await renderSidebar(actions(), { folders: FOLDERS, projects: PROJECTS }, true);
+    expect(screen.getByTestId("nav-store")).toHaveAttribute("href", "/store");
+  });
+
   it("lists folders by position with their projects nested, and unfiled projects apart", async () => {
     await renderSidebar();
     const folders = screen.getAllByTestId("folder-item");

@@ -220,3 +220,42 @@ def test_build_planner_wires_the_cost_router() -> None:
 @pytest.mark.parametrize("name", ["cobble:jobs", "workers"])
 def test_stream_and_group_names_match_the_adr(name: str) -> None:
     assert name in (JOBS_STREAM, JOBS_GROUP)
+
+
+class NoScheduler:
+    """A supervisor whose providers are gone (the last git/CI module was uninstalled)."""
+
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def run_start_job(self, project_id: uuid.UUID) -> bool:
+        self.calls += 1
+        from cobble.scheduler.supervisor import SchedulerUnavailable
+
+        raise SchedulerUnavailable
+
+    run_revert_job = None
+
+
+@pytest.mark.parametrize("kind", ["start", "revert"])
+def test_a_job_for_a_scheduler_that_is_off_fails_visibly_and_is_acknowledged(
+    sessions: sessionmaker[Session], kind: str
+) -> None:
+    pid = make_project(sessions)
+    redis = FakeStreamRedis()
+    supervisor = NoScheduler()
+    if kind == "revert":
+        from cobble.scheduler.supervisor import SchedulerUnavailable
+
+        def revert(_pid: uuid.UUID, _ref: str) -> bool:
+            raise SchedulerUnavailable
+
+        supervisor.run_revert_job = revert  # type: ignore[assignment]
+    ensure_jobs_group(redis)  # type: ignore[arg-type]
+    enqueue_job(redis, kind, pid)  # type: ignore[arg-type]
+    handler = make_job_handler(Recorder(), supervisor, redis)  # type: ignore[arg-type]
+    consume_jobs_once(redis, "w1", handler)  # type: ignore[arg-type]
+    name, payload = events_of(redis, pid)[-1]
+    assert name == "job.failed"
+    assert payload["code"] == "scheduler_unavailable" and payload["kind"] == kind
+    assert redis.acked == ["1-0"]

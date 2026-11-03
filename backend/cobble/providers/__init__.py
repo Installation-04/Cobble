@@ -1,4 +1,4 @@
-"""Implementations of the capability interfaces for the fixed v0.1 pack.
+"""Implementations of the capability interfaces for the official modules.
 
 This is the only package of the backend allowed to name the pack's products.
 """

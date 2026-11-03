@@ -1,0 +1,126 @@
+# Woodpecker for Cobble. The platform rewrites this file (names, networks, limits).
+x-hardening: &hardening
+  security_opt: ["no-new-privileges:true"]
+  cap_drop: [ALL]
+  restart: unless-stopped
+
+services:
+  # One-shot: the data volume must belong to the unprivileged server user.
+  init:
+    image: alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    cap_add: [CHOWN]
+    restart: "no"
+    command: ["chown", "-R", "10002:10002", "/var/lib/woodpecker"]
+    volumes:
+      - woodpecker_data:/var/lib/woodpecker
+    mem_limit: 32m
+
+  server:
+    image: quay.io/woodpeckerci/woodpecker-server:v3.20.1@sha256:0f31560e29d67ec4a06d6eeee4bac38d2a2697a6a741b8a0db3998180f3a3517
+    <<: *hardening
+    user: "10002:10002"
+    environment:
+      WOODPECKER_HOST: ${COBBLE_PUBLIC_URL:-http://localhost}/ci
+      WOODPECKER_OPEN: "false"
+      WOODPECKER_ADMIN: cobble-bot
+      WOODPECKER_AGENT_SECRET: ${COBBLE_SECRET_AGENT_SECRET:?}
+      WOODPECKER_FORGEJO: "true"
+      # Everything between Woodpecker and the Git server stays on the private network. Consequence:
+      # the Woodpecker web login (browser OAuth) is not available; the core uses the API token
+      # the post-install hook mints headlessly.
+      WOODPECKER_FORGEJO_URL: http://cobble-forgejo-forgejo:3000
+      WOODPECKER_EXPERT_WEBHOOK_HOST: http://cobble-woodpecker-server:8000/ci
+      WOODPECKER_FORGEJO_CLIENT: ${COBBLE_SECRET_FORGEJO_CLIENT:?}
+      WOODPECKER_FORGEJO_SECRET: ${COBBLE_SECRET_FORGEJO_SECRET:?}
+      # Clone plugin pinned by digest (it handles git credentials, hence the trust entry).
+      WOODPECKER_DEFAULT_CLONE_PLUGIN: quay.io/woodpeckerci/plugin-git:2.11.0@sha256:9802cb7852dcf31f9c5c1d1ddeadfb9002d4fae85751f7b6a792eedb267bcc59
+      WOODPECKER_PLUGINS_TRUSTED_CLONE: quay.io/woodpeckerci/plugin-git:2.11.0@sha256:9802cb7852dcf31f9c5c1d1ddeadfb9002d4fae85751f7b6a792eedb267bcc59
+      # Variables every pipeline sees. COBBLE_SKIP_STEPS: scanners to skip on hosts without
+      # internet access (operator choice, e.g. "trivy,semgrep"). COBBLE_PIPELINE_ENV: extra
+      # "KEY:value,KEY:value" (for example a proxy CA).
+      WOODPECKER_ENVIRONMENT: COBBLE_SKIP_STEPS:${COBBLE_SKIP_STEPS:-none}${COBBLE_PIPELINE_ENV:+,${COBBLE_PIPELINE_ENV}}
+      WOODPECKER_DISABLE_VERSION_CHECK: "true"
+      WOODPECKER_DEFAULT_PIPELINE_TIMEOUT: "30"
+      WOODPECKER_LOG_LEVEL: info
+    volumes:
+      - woodpecker_data:/var/lib/woodpecker
+    depends_on:
+      init: {condition: service_completed_successfully}
+    healthcheck:
+      test: ["CMD", "/bin/woodpecker-server", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 40
+    mem_limit: 512m
+    pids_limit: 256
+
+  # The ONLY catalogue container that mounts the Docker socket (declared in the manifest as
+  # host_access). Accepted by CLAUDE.md rule 5 as a documented exception; see docs/en/modules.md for
+  # the risk and mitigations (no published port, no capabilities, pipeline steps limited and
+  # never privileged, repositories never marked "trusted").
+  agent:
+    image: quay.io/woodpeckerci/woodpecker-agent:v3.20.1@sha256:a7d7299a13add0b3936fa0ac9ed23507fe283a7fc7d9596c4289d7e8206541eb
+    <<: *hardening
+    user: "10003:10003"
+    group_add: ["${COBBLE_DOCKER_GID:-0}"]
+    environment:
+      WOODPECKER_SERVER: server:9000
+      WOODPECKER_AGENT_SECRET: ${COBBLE_SECRET_AGENT_SECRET:?}
+      # Pipeline steps run on this network (it has outside access: pip, npm, scanner databases).
+      WOODPECKER_BACKEND_DOCKER_NETWORK: cobble-woodpecker-ci
+      WOODPECKER_MAX_WORKFLOWS: ${COBBLE_CI_PARALLELISM:-2}
+      # Optional read-only mounts for steps, comma separated (for example a proxy CA bundle).
+      WOODPECKER_BACKEND_DOCKER_VOLUMES: ${COBBLE_STEP_VOLUMES:-}
+      WOODPECKER_BACKEND_DOCKER_LIMIT_MEM: ${COBBLE_STEP_MEM_BYTES:-2147483648}
+      WOODPECKER_BACKEND_DOCKER_LIMIT_CPU_QUOTA: ${COBBLE_STEP_CPU_QUOTA:-200000}
+      WOODPECKER_HEALTHCHECK: "true"
+      WOODPECKER_HEALTHCHECK_ADDR: ":3000"
+      WOODPECKER_LOG_LEVEL: info
+      WOODPECKER_AGENT_LABELS: cobble.module=woodpecker
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      server: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD", "/bin/woodpecker-agent", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 20
+    mem_limit: 256m
+    pids_limit: 256
+
+  # Lets pipeline containers reach the PUBLIC git URL (the clone URL the forge reports, and the
+  # host the git credentials are bound to). On the ci network it answers to the public host name
+  # (or a fixed name when the public address is an IP, which pipelines reach directly) and port.
+  gateway:
+    image: caddy:2-alpine@sha256:e70b164da81ef698b3ad19af799ea6086ce6d9e48ed4079eb9fe26f6fbf14ee5
+    <<: *hardening
+    cap_add: [NET_BIND_SERVICE]
+    environment:
+      COBBLE_PUBLIC_PORT: ${COBBLE_PUBLIC_PORT:-80}
+    volumes:
+      - ./gateway.Caddyfile:/etc/caddy/Caddyfile:ro
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:${COBBLE_PUBLIC_PORT:-80}/git/api/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 40
+    mem_limit: 128m
+    pids_limit: 128
+    networks:
+      default: {}
+      ci:
+        aliases: ["${COBBLE_GATEWAY_ALIAS:-cobble-gateway}"]
+      bus: {}
+
+volumes:
+  woodpecker_data:
+
+networks:
+  # Pipeline steps: they need registries (pip, npm, scanner databases), so not internal.
+  ci: {}
+  bus:
+    name: cobble_core
+    external: true

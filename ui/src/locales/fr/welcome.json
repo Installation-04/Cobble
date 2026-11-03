@@ -1,0 +1,26 @@
+{
+  "title": "Bienvenue dans Cobble",
+  "intro": "Trois étapes rapides pour être prêt. Vous pouvez en passer n'importe laquelle et y revenir plus tard depuis le Magasin et les Réglages.",
+  "progress": "Étape {{current}} sur {{total}}",
+  "next": "Suivant",
+  "skipAll": "Passer la configuration",
+  "machine": {
+    "title": "Votre machine",
+    "detected": "Cette machine a {{ram}} de mémoire et {{gpu}}.",
+    "noGpu": "pas de carte graphique",
+    "install": "Installer le pack recommandé",
+    "noPack": "Aucun pack de départ ne convient à cette machine. Vous pouvez toujours choisir les modules un par un dans le Magasin."
+  },
+  "model": {
+    "title": "Un service de modèles",
+    "description": "Cobble a besoin d'un modèle de langage pour planifier et écrire vos applications. Connectez un service avec votre propre clé d'API, ou gardez le modèle de démonstration pour explorer."
+  },
+  "project": {
+    "title": "Votre premier projet",
+    "description": "Commencez avec un exemple pour voir toute la boucle : Cobble pose quelques questions, écrit un plan, construit l'application et vous montre une démo.",
+    "start": "Commencer avec un exemple",
+    "skip": "Terminer sans projet",
+    "exampleName": "Liste de tâches",
+    "examplePrompt": "Crée une application simple de liste de tâches : ajouter des tâches, les marquer comme faites, les supprimer."
+  }
+}

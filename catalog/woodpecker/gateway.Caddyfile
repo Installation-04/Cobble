@@ -1,0 +1,16 @@
+# Answers to the platform's public address on the pipelines' network, with the same routes as
+# the platform's own reverse proxy: /git is the Git server, /ci the CI.
+{
+	auto_https off
+	admin off
+}
+
+http://:{$COBBLE_PUBLIC_PORT:80} {
+	handle_path /git/* {
+		reverse_proxy cobble-forgejo-forgejo:3000
+	}
+	handle /ci/* {
+		reverse_proxy cobble-woodpecker-server:8000
+	}
+	respond "cobble gateway" 200
+}

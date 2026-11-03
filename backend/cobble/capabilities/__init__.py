@@ -1,6 +1,6 @@
 """Capability interfaces. The core depends on these, never on a product.
 
-The fixed v0.1 pack (packs/v01) provides the implementations.
+The catalogue modules (catalog/) provide the implementations.
 """
 
 from .agent import AgentLimits, AgentOutcome, AgentResult, AgentRunner, AgentTask

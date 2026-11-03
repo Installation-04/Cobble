@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import type { Folder, Project } from "../api/types";
+import { useAuth } from "../auth/AuthProvider";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { FolderDialog } from "../components/FolderDialog";
 import { ProjectDialog } from "../components/ProjectDialog";
@@ -25,6 +26,7 @@ function ShellInner() {
   const { t } = useTranslation("shell");
   const navigate = useNavigate();
   const { deleteFolder, deleteProject } = useWorkspace();
+  const { user } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(isDesktop);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [dialog, setDialog] = useState<Dialogs>({ kind: "none" });
@@ -60,7 +62,7 @@ function ShellInner() {
           sidebarOpen ? "translate-x-0" : "-translate-x-full md:hidden",
         )}
       >
-        <Sidebar actions={actions} />
+        <Sidebar actions={actions} showStore={user?.role === "admin"} />
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">
         <TopBar

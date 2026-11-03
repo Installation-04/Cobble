@@ -20,6 +20,7 @@ setup("activate the admin (or log in) and save the session", async ({ page, requ
       headers: HEADERS,
     });
     expect(reset.ok()).toBe(true);
+    await request.post("/api/v1/setup/complete", { headers: HEADERS });
     await request.storageState({ path: STORAGE_STATE });
     return;
   }
@@ -31,5 +32,6 @@ setup("activate the admin (or log in) and save the session", async ({ page, requ
   await page.getByTestId("activate-submit").click();
   await expect(page.getByTestId("app-shell")).toBeVisible();
   await expect(page.getByTestId("new-project-button")).toHaveText("New project");
+  await page.request.post("/api/v1/setup/complete", { headers: HEADERS });
   await page.context().storageState({ path: STORAGE_STATE });
 });

@@ -9,7 +9,7 @@
                                        │
               worker ─▶ planner · scheduler ─▶ cost router ─▶ LiteLLM ─▶ models
                                        │
-   pack service (only one touching Docker) ─▶ isolated Aider agents · Forgejo · Woodpecker · previews
+   module-manager (holds the Docker socket) ─▶ modules: Forgejo · Woodpecker · Ollama · isolated Aider agents · previews
 ```
 
 - **Caddy** is the only service that publishes a port; everything else sits on internal networks.
@@ -20,7 +20,7 @@
 
 ## Capabilities, not products
 
-The core never names Forgejo, Woodpecker, Ollama or Aider: it uses `GitProvider`, `CIProvider`, `AgentRunner`, `LLMClient` and `PreviewProvider`. The **fixed v0.1 pack** implements them: Forgejo (Git), Woodpecker (CI with Semgrep, Trivy, Gitleaks), Aider (agents) and a preview service. An automated test forbids product names in the core.
+The core never names Forgejo, Woodpecker, Ollama or Aider: it uses `GitProvider`, `CIProvider`, `AgentRunner`, `LLMClient` and `PreviewProvider`. The **official modules** implement them: Forgejo (Git), Woodpecker (CI with Semgrep, Trivy, Gitleaks), Ollama (local models), Aider (agents) and a preview service, installed from the Store or `cobble modules`. An automated test forbids product names in the core.
 
 ## A project's lifecycle
 
@@ -43,7 +43,7 @@ Short, dated records in [`docs/decisions/`](https://github.com/Installation-04/C
                                           │
                   worker ─▶ planner · ordonnanceur ─▶ routeur de coûts ─▶ LiteLLM ─▶ modèles
                                           │
-        service de pack (seul à toucher Docker) ─▶ agents Aider isolés · Forgejo · Woodpecker · aperçus
+        gestionnaire de modules (tient le socket Docker) ─▶ modules : Forgejo · Woodpecker · Ollama · agents Aider isolés · aperçus
 ```
 
 - **Caddy** est le seul service qui publie un port; tout le reste est sur des réseaux internes.
@@ -54,7 +54,7 @@ Short, dated records in [`docs/decisions/`](https://github.com/Installation-04/C
 
 ## Capacités, pas produits
 
-Le noyau ne nomme jamais Forgejo, Woodpecker, Ollama ni Aider: il utilise `GitProvider`, `CIProvider`, `AgentRunner`, `LLMClient`, `PreviewProvider`. Le **pack fixe v0.1** les implémente: Forgejo (Git), Woodpecker (CI avec Semgrep, Trivy, Gitleaks), Aider (agents), un service d'aperçu. Un test automatique interdit les noms de produits dans le noyau.
+Le noyau ne nomme jamais Forgejo, Woodpecker, Ollama ni Aider: il utilise `GitProvider`, `CIProvider`, `AgentRunner`, `LLMClient`, `PreviewProvider`. Les **modules officiels** les implémentent: Forgejo (Git), Woodpecker (CI avec Semgrep, Trivy, Gitleaks), Ollama (modèles locaux), Aider (agents), un service d'aperçu, installés depuis le Magasin ou `cobble modules`. Un test automatique interdit les noms de produits dans le noyau.
 
 ## Le cycle d'un projet
 

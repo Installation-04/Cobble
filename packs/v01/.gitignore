@@ -1,6 +1,0 @@
-# Generated secrets and wiring (never committed)
-.env
-.env.*
-!.env.example
-*.secret
-caddy/demo.caddy

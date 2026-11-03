@@ -1,0 +1,25 @@
+# Ollama on the CPU. No published port: only the language-model gateway talks to it, over the
+# platform network. The platform rewrites this file (names, networks, limits).
+services:
+  ollama:
+    image: ollama/ollama:0.40.13@sha256:b2f0122c476bc9fe7ce679d8bb4bd555351e25e2554eefb156f61cb0a89cf429
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    restart: unless-stopped
+    environment:
+      OLLAMA_HOST: 0.0.0.0:11434
+      OLLAMA_KEEP_ALIVE: 10m
+    volumes:
+      - ollama_models:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+    # Models need memory: the platform default is too small for them.
+    mem_limit: 12g
+    cpus: 4
+    pids_limit: 512
+
+volumes:
+  ollama_models:

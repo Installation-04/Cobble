@@ -90,9 +90,41 @@ later. If `ufw` is active, ports 80 and 443 are opened; SSH is not touched.
 | `cobble update [--source S]` | back up `.env`, then rebuild and restart (or install the source `S`) |
 | `cobble doctor` | check Docker, containers, HTTP health, disk, port, `.env` mode, systemd unit, GPU; each failure comes with a fix; exit code 1 if any check fails |
 | `cobble reset-admin [--yes]` | sign the admin out and print a one-use link to set a new email and password (projects and data are kept) |
+| `cobble modules list` / `status <id>` | the catalogue with each module's state and whether it fits this machine; the details of one module (which secrets are set, never their values) |
+| `cobble modules packs` | the starter packs (a ready-made set of modules), whether each fits this machine, and which one is recommended |
+| `cobble modules install --pack <id>` | install a starter pack: all its modules in one go |
+| `cobble modules install <id>... [--yes] [--choose capability=module] [--replace]` | install modules; what they need is added automatically, you are shown the plan and asked first |
+| `cobble modules uninstall <id>... [--yes]` | remove modules; if other modules depend on them you are asked about those too |
+| `cobble models list` / `add <openai\|anthropic\|openrouter\|custom> <model> [--base-url URL] [--no-default]` / `test <name>` / `default <name>` / `remove <name> [--yes]` | connect a model service with an API key (typed at a hidden prompt or piped on stdin, never an argument), test it and choose the default model. Same as the **Models** tab in Settings. The gateway restarts: allow about 20 seconds |
 | `cobble uninstall [--keep-data] [--yes]` | stop and remove Cobble. `--keep-data` keeps `.env` and the data volumes |
 | `cobble version` | versions |
 | `cobble backup`, `cobble restore` | not available yet |
+
+### Modules
+
+From v0.2 the installer also starts the **module-manager**, the only part of Cobble that talks to
+Docker to install other software (Git server, CI, model server...). It is configured in `.env`:
+`MODULE_MANAGER_TOKEN` (generated, a secret), `COBBLE_CATALOG_DIR` (the catalogue shipped in
+`<dir>/src/catalog`), `DOCKER_GID` (the group of the Docker socket) and `COMPOSE_PROFILES=modules`.
+The same thing is available in the browser: the **Store** entry in the sidebar (administrators only)
+starts with the **starter packs** (a ready-made set of modules; the one recommended for this machine
+is marked) and lists the modules with their state and whether they fit this machine (a module that needs more memory
+or a GPU you do not have is greyed, with the reason), and its drawer installs or removes a module:
+you see what will happen first, you choose when several modules can provide something, you confirm
+when removing a module takes others with it, and you follow the steps live.
+Nothing is installed until you ask: try `cobble modules list`, then for example
+`cobble modules install woodpecker` (the Git server it needs is added with it).
+
+The module-manager keeps the secrets of the modules in an encrypted vault whose key lives in the
+Docker volume `cobble-module-keys`. `cobble uninstall --keep-data` keeps that volume; without it, the
+key and the modules' secrets are deleted together. If the key is lost while the modules remain, their
+stored secrets cannot be read any more: remove and reinstall the modules.
+
+The agents and the demo previews are modules too (`cobble modules install --pack local-cpu` installs
+the whole set). If you installed the **v0.1 pack by hand**, it is no longer supported or detected:
+remove its containers and volumes yourself (compose projects `cobble-pack`, `cobble-pack-agents`,
+`cobble-pack-preview`) and install the modules instead; nothing is converted or deleted for you
+(see [the official modules](modules.md)).
 
 If you installed with `--dir`, set `COBBLE_DIR` only when the CLI cannot find the install
 (the installer already records the directory in the CLI).

@@ -64,7 +64,7 @@ M_done_url_ip='Ouvrez Cobble à : %s'
 M_done_url_host='Ou par nom d’hôte : %s'
 M_done_activation='Lien à usage unique pour créer le compte admin (valide 24 h) :'
 M_done_admin_exists='Pas de lien d’activation : le compte admin existe déjà (ou l’API n’est pas prête). Pour obtenir un nouveau lien : cobble reset-admin'
-M_done_next='Commandes utiles : cobble status | cobble doctor | cobble logs | cobble help'
+M_done_next='Commandes utiles : cobble status | cobble doctor | cobble logs | cobble modules | cobble help'
 
 M_cli_not_installed="Cobble ne semble pas installé dans %s (définissez COBBLE_DIR si vous avez utilisé --dir)."
 M_cli_unknown='Commande inconnue : %s (voir : cobble help)'
@@ -101,6 +101,12 @@ M_doc_unit_bad="cobble.service n'est pas actif"
 M_doc_gpu='GPU : %s (container toolkit : %s)'
 M_doc_summary_fail='%s vérification(s) en échec.'
 M_doc_summary_ok='Toutes les vérifications sont passées.'
+M_doc_modules_notoken='MODULE_MANAGER_TOKEN est absent de .env'
+M_doc_modules_nocatalog='le catalogue de modules est absent ou vide (%s)'
+M_doc_modules_ok='catalogue de modules trouvé (%s modules)'
+M_doc_modules_gid='Le groupe du socket Docker a changé (installé %s, maintenant %s) : le gestionnaire de modules ne peut plus utiliser Docker'
+M_modules_unreachable='cobble modules n’a pas pu joindre le gestionnaire de modules : lancez cobble doctor'
+M_fix_modules='Relancez l’installateur pour réparer les réglages des modules : sudo bash install.sh --yes'
 M_fix_docker_install='Installez ou mettez à jour Docker, ou relancez l’installateur : sudo bash install.sh --yes'
 M_fix_docker_start='Démarrez-le : sudo systemctl start docker'
 M_fix_start='Démarrez Cobble : sudo systemctl start cobble (ou : cobble update)'
@@ -119,7 +125,9 @@ Utilisation : cobble <commande>
   logs [service]       suivre les journaux
   update [--source S]  reconstruire et redémarrer (ou installer la source S : dossier, archive, URL git)
   doctor               diagnostiquer les problèmes et proposer des correctifs (code 1 si échec)
+  models <commande>    connecter un service de modèles avec une clé d’API : list, add, test, default, remove
   reset-admin [--yes]  afficher un lien à usage unique pour définir un nouvel admin (courriel, mot de passe)
+  modules <commande>   lister, installer et désinstaller des modules (cobble modules help)
   uninstall [--keep-data] [--yes]
                        arrêter et retirer Cobble (--keep-data garde .env et les volumes)
   version              afficher les versions

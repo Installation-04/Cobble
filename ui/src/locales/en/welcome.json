@@ -1,0 +1,26 @@
+{
+  "title": "Welcome to Cobble",
+  "intro": "Three quick steps to get ready. You can skip any of them and come back later from the Store and Settings.",
+  "progress": "Step {{current}} of {{total}}",
+  "next": "Next",
+  "skipAll": "Skip the setup",
+  "machine": {
+    "title": "Your machine",
+    "detected": "This machine has {{ram}} of memory and {{gpu}}.",
+    "noGpu": "no graphics card",
+    "install": "Install the recommended pack",
+    "noPack": "No starter pack fits this machine. You can still pick modules one by one in the Store."
+  },
+  "model": {
+    "title": "A model service",
+    "description": "Cobble needs a language model to plan and write your apps. Connect a service with your own API key, or keep the demo model to look around."
+  },
+  "project": {
+    "title": "Your first project",
+    "description": "Start with an example to see the whole loop: Cobble asks a few questions, writes a plan, builds it, and shows you a demo.",
+    "start": "Start with an example",
+    "skip": "Finish without a project",
+    "exampleName": "To-do list",
+    "examplePrompt": "Create a simple to-do list app: add tasks, mark them done, delete them."
+  }
+}

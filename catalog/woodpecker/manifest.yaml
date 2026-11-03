@@ -1,0 +1,38 @@
+# Woodpecker: the CI (capability `ci`), signed in to the Git server through OAuth.
+# Converted from the v0.1 pack. Its agent is the one catalogue container that mounts the Docker
+# socket (declared below): Woodpecker's docker backend needs it to start pipeline containers.
+id: woodpecker
+name: Woodpecker CI
+version: 3.20.1
+category: ci
+description:
+  en: Continuous integration that checks every change before it is merged.
+  fr: Intégration continue qui vérifie chaque changement avant sa fusion.
+license: Apache-2.0
+provides: [ci]
+requires: [git]
+images:
+  - quay.io/woodpeckerci/woodpecker-server:v3.20.1@sha256:0f31560e29d67ec4a06d6eeee4bac38d2a2697a6a741b8a0db3998180f3a3517
+  - quay.io/woodpeckerci/woodpecker-agent:v3.20.1@sha256:a7d7299a13add0b3936fa0ac9ed23507fe283a7fc7d9596c4289d7e8206541eb
+  - alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc
+  - caddy:2-alpine@sha256:e70b164da81ef698b3ad19af799ea6086ce6d9e48ed4079eb9fe26f6fbf14ee5
+compose: compose.yml
+host_access: [docker_socket]
+# The gateway lets pipeline containers reach the Git server at its public address.
+bus: [gateway]
+web_ui:
+  service: server
+  port: 8000
+  path: /ci
+  strip_prefix: false   # Woodpecker is configured for the /ci prefix and expects to see it
+healthcheck:
+  http: /ci/healthz
+# agent_secret is generated. The OAuth application and the API token come from the hooks.
+secrets: [agent_secret]
+core_secrets: [api_token]
+hooks:
+  pre_up: hooks/pre-up.sh
+  post_install: hooks/post-install.sh
+  pre_uninstall: hooks/pre-uninstall.sh
+backup:
+  volumes: [woodpecker_data]

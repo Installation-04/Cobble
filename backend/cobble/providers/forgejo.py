@@ -1,4 +1,4 @@
-"""GitProvider backed by Forgejo (the git server of the v0.1 pack).
+"""GitProvider backed by Forgejo (the `forgejo` module).
 
 Product names are allowed here (and only in `cobble/providers/`): the core talks to the
 `GitProvider` protocol.

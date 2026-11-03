@@ -1,0 +1,37 @@
+{
+  "title": "Models",
+  "empty": "No model service is connected yet: Cobble answers with the built-in demo model “{{model}}”, which only replays recorded conversations. Connect a service below to build real projects.",
+  "list": "Connected models",
+  "default": "Default",
+  "testAction": "Test",
+  "makeDefault": "Use by default",
+  "remove": "Remove",
+  "add": "Connect a model service",
+  "provider": {
+    "openai": "OpenAI",
+    "anthropic": "Anthropic",
+    "openrouter": "OpenRouter",
+    "custom": "Other (OpenAI-compatible address)"
+  },
+  "form": {
+    "provider": "Service",
+    "model": "Model name",
+    "baseUrl": "Address of the service",
+    "apiKey": "API key",
+    "keyHelp": "Kept encrypted on this machine. It is sent once and never shown again.",
+    "makeDefault": "Use it for everything",
+    "submit": "Connect and test"
+  },
+  "working": "Connecting… the model gateway restarts, this takes about 20 seconds.",
+  "test": {
+    "ok": "answers: the key works.",
+    "auth_failed": "refused the key. Check that it is correct and has not expired.",
+    "model_not_found": "does not know this model name. Check the spelling.",
+    "rate_limited": "refused because of a limit or a missing balance on your account.",
+    "unreachable": "cannot be reached. Check the address and the network.",
+    "failed": "did not answer correctly."
+  },
+  "removeTitle": "Remove “{{name}}”?",
+  "removeDescription": "The key is deleted from this machine. Projects keep their history.",
+  "removeDefault": "This is the model used by default: Cobble goes back to the built-in demo model until you choose another. The key is deleted from this machine."
+}

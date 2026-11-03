@@ -1,0 +1,37 @@
+{
+  "title": "Modèles",
+  "empty": "Aucun service de modèles n'est connecté: Cobble répond avec le modèle de démonstration intégré « {{model}} », qui ne fait que rejouer des conversations enregistrées. Connectez un service ci-dessous pour construire de vrais projets.",
+  "list": "Modèles connectés",
+  "default": "Par défaut",
+  "testAction": "Tester",
+  "makeDefault": "Utiliser par défaut",
+  "remove": "Retirer",
+  "add": "Connecter un service de modèles",
+  "provider": {
+    "openai": "OpenAI",
+    "anthropic": "Anthropic",
+    "openrouter": "OpenRouter",
+    "custom": "Autre (adresse compatible OpenAI)"
+  },
+  "form": {
+    "provider": "Service",
+    "model": "Nom du modèle",
+    "baseUrl": "Adresse du service",
+    "apiKey": "Clé d'API",
+    "keyHelp": "Conservée chiffrée sur cette machine. Elle est envoyée une fois et n'est plus jamais affichée.",
+    "makeDefault": "L'utiliser pour tout",
+    "submit": "Connecter et tester"
+  },
+  "working": "Connexion… la passerelle de modèles redémarre, cela prend environ 20 secondes.",
+  "test": {
+    "ok": "répond: la clé fonctionne.",
+    "auth_failed": "a refusé la clé. Vérifiez qu'elle est correcte et n'a pas expiré.",
+    "model_not_found": "ne connaît pas ce nom de modèle. Vérifiez l'orthographe.",
+    "rate_limited": "a refusé à cause d'une limite ou d'un solde manquant sur votre compte.",
+    "unreachable": "est injoignable. Vérifiez l'adresse et le réseau.",
+    "failed": "n'a pas répondu correctement."
+  },
+  "removeTitle": "Retirer « {{name}} » ?",
+  "removeDescription": "La clé est supprimée de cette machine. Les projets gardent leur historique.",
+  "removeDefault": "C'est le modèle utilisé par défaut: Cobble revient au modèle de démonstration intégré jusqu'à ce que vous en choisissiez un autre. La clé est supprimée de cette machine."
+}

@@ -1,0 +1,44 @@
+# Demo previews for Cobble. The platform rewrites this file (names, networks, limits).
+x-hardening: &hardening
+  security_opt: ["no-new-privileges:true"]
+  cap_drop: [ALL]
+  restart: unless-stopped
+
+services:
+  # Builds the generated app at a tag (docker build through the Engine API), runs it as a
+  # confined container and reverse-proxies /demo/<project>/<milestone>/.
+  preview-service:
+    image: ghcr.io/installation-04/cobble-preview-service@sha256:8f786623a6b97393316fa65f138d9b32c987ab74a5802a9a195d8dbd2d0733a0
+    <<: *hardening
+    user: "10001:10001"
+    group_add: ["${COBBLE_DOCKER_GID:-0}"]
+    read_only: true
+    tmpfs: ["/tmp:size=64m,uid=10001,mode=700"]
+    environment:
+      COBBLE_PREVIEW_SERVICE_TOKEN: ${COBBLE_SECRET_SERVICE_TOKEN:?}
+      COBBLE_PACK_FORGEJO_URL: ${COBBLE_SECRET_FORGEJO_URL:?}
+      COBBLE_PACK_FORGEJO_TOKEN: ${COBBLE_SECRET_FORGEJO_TOKEN:?}
+      COBBLE_PACK_FORGEJO_OWNER: cobble-bot
+      # The platform renames the network below to cobble-preview-<key>.
+      COBBLE_PREVIEW_NETWORK: cobble-preview-previews
+      COBBLE_PREVIEW_DATA_DIR: /data
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - previews-data:/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://localhost:8091/healthz')"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    mem_limit: 512m
+    pids_limit: 256
+    networks: [previews]
+
+networks:
+  # Demo containers live here. internal: no route to the host or the internet; preview-service
+  # is their only neighbour.
+  previews:
+    internal: true
+
+volumes:
+  previews-data: {}
