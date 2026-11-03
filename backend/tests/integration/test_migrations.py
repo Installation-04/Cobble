@@ -508,6 +508,8 @@ def test_migration_0010_role_routes_up_and_down(database_url: str) -> None:
             )
     finally:
         engine.dispose()
+    # The shared test database must not keep the 'cheap' default this test set: start over.
+    command.downgrade(config, "base")
     command.upgrade(config, "head")
 
 
