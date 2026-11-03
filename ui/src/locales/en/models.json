@@ -33,5 +33,30 @@
   },
   "removeTitle": "Remove “{{name}}”?",
   "removeDescription": "The key is deleted from this machine. Projects keep their history.",
-  "removeDefault": "This is the model used by default: Cobble goes back to the built-in demo model until you choose another. The key is deleted from this machine."
+  "removeDefault": "This is the model used by default: Cobble goes back to the built-in demo model until you choose another. The key is deleted from this machine.",
+  "routes": {
+    "title": "Which model for which job",
+    "description": "Each job can use a different model. Pick the one to try first and, if it cannot answer (refused key, no balance, rate limit, service down), the models to try next. A job left on “follow the default” uses the default model.",
+    "role": {
+      "planner": "Planner",
+      "test-writer": "Test writer",
+      "worker": "Worker",
+      "reviewer": "Reviewer",
+      "escalation": "Escalation"
+    },
+    "hint": {
+      "planner": "Interviews you and writes the spec and the plan.",
+      "test-writer": "Writes the tests of each task before the code.",
+      "worker": "Writes the code of each task.",
+      "reviewer": "Reads the changes of a milestone.",
+      "escalation": "Takes over a task after repeated failures. Without a choice it uses the planner's models."
+    },
+    "first": "First model to try",
+    "then": "Fallback {{n}}",
+    "followDefault": "Follow the default",
+    "none": "No fallback",
+    "effective": "Now used: {{chain}}",
+    "save": "Save the routes",
+    "saved": "Saved. It applies to the next request."
+  }
 }

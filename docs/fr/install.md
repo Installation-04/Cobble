@@ -97,6 +97,7 @@ version 24 ou plus. Si `ufw` est actif, les ports 80 et 443 sont ouverts; SSH n'
 | `cobble modules install <id>... [--yes] [--choose capacité=module] [--replace]` | installe des modules; ce dont ils ont besoin est ajouté automatiquement, le plan vous est montré et on vous demande d'abord |
 | `cobble modules uninstall <id>... [--yes]` | retire des modules; si d'autres modules en dépendent, on vous interroge aussi à leur sujet |
 | `cobble models list` / `add <openai\|anthropic\|openrouter\|custom> <modèle> [--base-url URL] [--no-default]` / `test <nom>` / `default <nom>` / `remove <nom> [--yes]` | connecte un service de modèles avec une clé d'API (demandée à l'invite, masquée, ou lue sur l'entrée standard; jamais en argument), la teste et choisit le modèle par défaut. Même chose que l'onglet **Modèles** des Réglages. La passerelle redémarre: comptez environ 20 secondes |
+| `cobble models route [rôle [modèle...]] [--clear]` | quels modèles chaque rôle essaie, dans l'ordre: le premier, puis des replis s'il ne peut pas répondre (clé refusée, solde épuisé, limite de débit, modèle inconnu, service arrêté). Rôles: `planner`, `test-writer`, `worker`, `reviewer`, `escalation`. Sans argument: les affiche tous. Même chose que les routes par rôle de **Réglages → Modèles**; prend effet à la requête suivante |
 | `cobble uninstall [--keep-data] [--yes]` | arrête et retire Cobble. `--keep-data` garde `.env` et les volumes de données |
 | `cobble version` | versions |
 | `cobble backup`, `cobble restore` | pas encore disponibles |

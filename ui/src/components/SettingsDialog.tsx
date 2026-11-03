@@ -1,9 +1,11 @@
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../auth/AuthProvider";
 import { isLang, LANGS } from "../i18n";
 import { isThemeMode, THEME_MODES } from "../theme/store";
 import { useTheme } from "../theme/useTheme";
 import { ModelConnections } from "../models/ModelConnections";
+import { RoleRoutes } from "../models/RoleRoutes";
 import { UI_VERSION } from "../version";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Label } from "./ui/label";
@@ -19,6 +21,8 @@ export function SettingsDialog({
 }) {
   const { t, i18n } = useTranslation(["settings", "common", "models"]);
   const { savePrefs, user } = useAuth();
+  // Bumped when a connection changes, so the role routes offer the current list of models.
+  const [modelsVersion, setModelsVersion] = useState(0);
   const { mode, setMode } = useTheme();
 
   return (
@@ -81,7 +85,10 @@ export function SettingsDialog({
           </TabsContent>
           {user?.role === "admin" && (
             <TabsContent value="models">
-              <ModelConnections />
+              <div className="grid gap-6">
+                <ModelConnections onChanged={() => setModelsVersion((v) => v + 1)} />
+                <RoleRoutes key={modelsVersion} />
+              </div>
             </TabsContent>
           )}
           <TabsContent value="about" className="grid gap-2 text-sm">

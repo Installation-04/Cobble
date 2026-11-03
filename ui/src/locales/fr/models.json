@@ -33,5 +33,30 @@
   },
   "removeTitle": "Retirer « {{name}} » ?",
   "removeDescription": "La clé est supprimée de cette machine. Les projets gardent leur historique.",
-  "removeDefault": "C'est le modèle utilisé par défaut: Cobble revient au modèle de démonstration intégré jusqu'à ce que vous en choisissiez un autre. La clé est supprimée de cette machine."
+  "removeDefault": "C'est le modèle utilisé par défaut: Cobble revient au modèle de démonstration intégré jusqu'à ce que vous en choisissiez un autre. La clé est supprimée de cette machine.",
+  "routes": {
+    "title": "Quel modèle pour quel travail",
+    "description": "Chaque travail peut utiliser un modèle différent. Choisissez celui à essayer en premier et, s'il ne peut pas répondre (clé refusée, solde épuisé, limite de débit, service arrêté), les modèles à essayer ensuite. Un travail laissé sur « suivre le défaut » utilise le modèle par défaut.",
+    "role": {
+      "planner": "Planificateur",
+      "test-writer": "Rédacteur de tests",
+      "worker": "Développeur",
+      "reviewer": "Réviseur",
+      "escalation": "Escalade"
+    },
+    "hint": {
+      "planner": "Vous interroge et rédige la spécification et le plan.",
+      "test-writer": "Écrit les tests de chaque tâche avant le code.",
+      "worker": "Écrit le code de chaque tâche.",
+      "reviewer": "Relit les changements d'un jalon.",
+      "escalation": "Reprend une tâche après des échecs répétés. Sans choix, il utilise les modèles du planificateur."
+    },
+    "first": "Premier modèle à essayer",
+    "then": "Repli {{n}}",
+    "followDefault": "Suivre le défaut",
+    "none": "Pas de repli",
+    "effective": "Utilisé maintenant : {{chain}}",
+    "save": "Enregistrer les routes",
+    "saved": "Enregistré. S'applique à la prochaine requête."
+  }
 }

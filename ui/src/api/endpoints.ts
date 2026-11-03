@@ -7,6 +7,7 @@ import type {
   ModelListing,
   ModelProbe,
   ModelRequest,
+  RoleRoutes,
   ModuleCatalog,
   ModuleOperation,
   ModuleOperationRequest,
@@ -119,6 +120,9 @@ export const modelsApi = {
   remove: (name: string) => api.delete<ModelListing>(`/models/${name}`),
   makeDefault: (name: string) => api.post<ModelListing>(`/models/${name}/default`),
   test: (name: string) => api.post<ModelProbe>(`/models/${name}/test`),
+  routes: () => api.get<RoleRoutes>("/models/routes"),
+  saveRoutes: (routes: Record<string, string[]>) =>
+    api.put<RoleRoutes>("/models/routes", { routes }),
 };
 
 /** The first-run wizard: has the administrator been through it? */

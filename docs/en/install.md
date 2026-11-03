@@ -96,6 +96,7 @@ later. If `ufw` is active, ports 80 and 443 are opened; SSH is not touched.
 | `cobble modules install <id>... [--yes] [--choose capability=module] [--replace]` | install modules; what they need is added automatically, you are shown the plan and asked first |
 | `cobble modules uninstall <id>... [--yes]` | remove modules; if other modules depend on them you are asked about those too |
 | `cobble models list` / `add <openai\|anthropic\|openrouter\|custom> <model> [--base-url URL] [--no-default]` / `test <name>` / `default <name>` / `remove <name> [--yes]` | connect a model service with an API key (typed at a hidden prompt or piped on stdin, never an argument), test it and choose the default model. Same as the **Models** tab in Settings. The gateway restarts: allow about 20 seconds |
+| `cobble models route [role [model...]] [--clear]` | which models each role tries, in order: the first one, then fallbacks if it cannot answer (key refused, no balance, rate limit, unknown model, service down). Roles: `planner`, `test-writer`, `worker`, `reviewer`, `escalation`. No arguments: show them all. Same as the role routes in **Settings → Models**; takes effect at the next request |
 | `cobble uninstall [--keep-data] [--yes]` | stop and remove Cobble. `--keep-data` keeps `.env` and the data volumes |
 | `cobble version` | versions |
 | `cobble backup`, `cobble restore` | not available yet |

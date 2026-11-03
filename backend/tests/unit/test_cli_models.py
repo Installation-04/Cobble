@@ -59,8 +59,24 @@ def parse(*argv: str) -> argparse.Namespace:
     return root.parse_args(["models", *argv])
 
 
+class Routes:
+    def __init__(self) -> None:
+        self.saved: dict[str, list[str]] = {}
+
+    def get(self) -> dict[str, list[str]]:
+        return {k: list(v) for k, v in self.saved.items()}
+
+    def put(self, routes: dict[str, list[str]]) -> None:
+        self.saved = routes
+
+
 def go(
-    *argv: str, api: API | None = None, lang: str = "en", answer: str = "n", probe_code: str = "ok"
+    *argv: str,
+    api: API | None = None,
+    lang: str = "en",
+    answer: str = "n",
+    probe_code: str = "ok",
+    routes: Routes | None = None,
 ):
     api = api or API()
     out, err = io.StringIO(), io.StringIO()
@@ -73,6 +89,7 @@ def go(
         term=term,
         probe=lambda name: (probe_code == "ok", probe_code),
         read_key=lambda _prompt: SECRET,
+        routes=routes or Routes(),
     )
     return code, out.getvalue(), err.getvalue(), api
 
@@ -134,3 +151,37 @@ def test_french_and_failures() -> None:
     assert code == 1 and "nothing was changed" in err
     api.error = ModuleManagerRejected(404, "model_unknown", {"name": "zz"})
     assert "zz" in go("default", "zz", api=api)[2]
+
+
+def test_routes_are_shown_set_and_cleared_per_role() -> None:
+    api, store = API(), Routes()
+    go("add", "openai", "gpt-4.1-mini", api=api)
+    code, out, _, _ = go("route", api=api, routes=store)
+    assert code == 0 and "worker" in out and "(the default model)" in out
+    code, out, _, _ = go("route", "worker", "openai-gpt-4.1-mini", "fake", api=api, routes=store)
+    assert code == 0 and "worker now tries: openai-gpt-4.1-mini → fake" in out
+    assert store.saved == {"worker": ["openai-gpt-4.1-mini", "fake"]}
+    assert "openai-gpt-4.1-mini → fake" in go("route", "worker", api=api, routes=store)[1]
+    go("route", "planner", "fake", api=api, routes=store)
+    assert go("route", "worker", "--clear", api=api, routes=store)[0] == 0
+    assert store.saved == {"planner": ["fake"]}  # the other roles keep their route
+
+
+def test_a_bad_route_is_refused_and_nothing_is_saved() -> None:
+    api, store = API(), Routes()
+    for argv, text in (
+        (("route", "cook", "fake"), "not a role"),
+        (("route", "worker", "ghost"), "ghost"),
+        (("route", "worker", *["fake"] * 5), "fake"),  # duplicates collapse to one: allowed
+    ):
+        code, _, err, _ = go(*argv, api=api, routes=store)
+        if text == "fake":
+            assert code == 0
+        else:
+            assert code == 2 and text in err
+    assert store.saved == {"worker": ["fake"]}
+
+
+def test_routes_speak_french() -> None:
+    api, store = API(), Routes()
+    assert "essaie maintenant" in go("route", "worker", "fake", api=api, routes=store, lang="fr")[1]

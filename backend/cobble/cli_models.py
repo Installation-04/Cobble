@@ -59,6 +59,10 @@ def add_parser(sub: Any) -> None:
     for name in ("remove", "default", "test"):
         actions.add_parser(name).add_argument("name")
     actions.choices["remove"].add_argument("--yes", action="store_true")
+    route = actions.add_parser("route", help="which models each role tries, in order")
+    route.add_argument("role", nargs="?", help="planner, test-writer, worker, reviewer, escalation")
+    route.add_argument("names", nargs="*", help="models to try, best first (none: show the role)")
+    route.add_argument("--clear", action="store_true", help="make the role follow the default")
 
 
 def _read_key(prompt: str) -> str:
@@ -94,6 +98,7 @@ def run(
     term: Terminal | None = None,
     probe: Probe | None = None,
     read_key: Callable[[str], str] = _read_key,
+    routes: RoutesStore | None = None,
 ) -> int:
     lang = settings.lang
     term = term or Terminal()
@@ -118,6 +123,8 @@ def run(
             return 0
         if args.action == "test":
             return _test(args.name, term, lang, settings, probe)
+        if args.action == "route":
+            return _route(args, api, term, lang, settings, routes)
         return _add(args, api, term, lang, settings, probe, read_key)
     except ModuleManagerUnavailable:
         term.warn(t("cli.modules.unavailable", lang))
@@ -125,6 +132,88 @@ def run(
     except ModuleManagerRejected as exc:
         term.warn(_refusal_text(exc, lang))
         return 1
+
+
+class RoutesStore(Protocol):
+    def get(self) -> dict[str, list[str]]: ...
+    def put(self, routes: dict[str, list[str]]) -> None: ...
+
+
+class DbRoutes:
+    """The routes as the core stores them (`platform_state.role_routes`)."""
+
+    def __init__(self, settings: Settings) -> None:
+        from cobble.db import make_engine, make_session_factory
+
+        self._sessions = make_session_factory(make_engine(settings.database_url))
+
+    def get(self) -> dict[str, list[str]]:
+        from cobble.db.models import PlatformState
+
+        with self._sessions() as session:
+            state = session.get(PlatformState, 1)
+            return {k: list(v) for k, v in (state.role_routes or {}).items()} if state else {}
+
+    def put(self, routes: dict[str, list[str]]) -> None:
+        from cobble.db.models import PlatformState
+
+        with self._sessions() as session:
+            state = session.get(PlatformState, 1)
+            if state is None:
+                state = PlatformState(id=1)
+                session.add(state)
+            state.role_routes = routes or None
+            session.commit()
+
+
+def _route(
+    args: argparse.Namespace,
+    api: ModelsAPI,
+    term: Terminal,
+    lang: str,
+    settings: Settings,
+    store: RoutesStore | None,
+) -> int:
+    from cobble.router.policy import MAX_CHAIN, ROLES
+
+    roles = [role.value for role in ROLES]
+    current = (store or DbRoutes(settings)).get()
+    if args.role is None:
+        for role in roles:
+            chain = (
+                " → ".join(current[role])
+                if role in current
+                else t("cli.models.route.default", lang)
+            )
+            term.say(f"{role:<12} {chain}")
+        return 0
+    if args.role not in roles:
+        term.warn(t("cli.models.route.bad_role", lang, role=args.role, roles=", ".join(roles)))
+        return 2
+    if not args.names and not args.clear:
+        chain = (
+            " → ".join(current[args.role])
+            if args.role in current
+            else t("cli.models.route.default", lang)
+        )
+        term.say(f"{args.role}: {chain}")
+        return 0
+    names = list(dict.fromkeys(args.names))
+    if args.clear:
+        names = []
+    known = {m["name"] for m in api.models().get("models", [])} | {settings.default_model}
+    unknown = [n for n in names if n not in known]
+    if unknown or len(names) > MAX_CHAIN:
+        key = "unknown" if unknown else "too_long"
+        term.warn(t(f"cli.models.route.{key}", lang, names=", ".join(unknown), max=MAX_CHAIN))
+        return 2
+    updated = {**current, args.role: names}
+    (store or DbRoutes(settings)).put({r: c for r, c in updated.items() if c})
+    if names:
+        term.say(t("cli.models.route.set", lang, role=args.role, chain=" → ".join(names)))
+    else:
+        term.say(t("cli.models.route.cleared", lang, role=args.role))
+    return 0
 
 
 def _add(
