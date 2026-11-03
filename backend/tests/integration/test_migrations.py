@@ -485,6 +485,34 @@ def test_migration_0009_model_connections_up_and_down(database_url: str) -> None
     command.upgrade(config, "head")
 
 
+def test_migration_0010_role_routes_up_and_down(database_url: str) -> None:
+    config = alembic_config(database_url)
+    command.downgrade(config, "base")
+    command.upgrade(config, "0009")
+    engine = create_engine(database_url)
+    try:
+        with engine.begin() as conn:
+            conn.execute(text("UPDATE platform_state SET default_model = 'cheap'"))
+        command.upgrade(config, "0010")
+        with engine.begin() as conn:
+            row = conn.execute(text("SELECT default_model, role_routes FROM platform_state")).one()
+            assert row[0] == "cheap" and row[1] is None  # nothing set, nothing else changed
+            conn.execute(text('UPDATE platform_state SET role_routes = \'{"worker": ["a", "b"]}\''))
+        command.downgrade(config, "0009")
+        columns = {c["name"] for c in inspect(engine).get_columns("platform_state")}
+        assert "role_routes" not in columns
+        with engine.begin() as conn:  # the earlier state survives the round trip
+            assert (
+                conn.execute(text("SELECT default_model FROM platform_state")).scalar_one()
+                == "cheap"
+            )
+    finally:
+        engine.dispose()
+    # The shared test database must not keep the 'cheap' default this test set: start over.
+    command.downgrade(config, "base")
+    command.upgrade(config, "head")
+
+
 def test_the_models_match_the_migrations(migrated_database: str) -> None:
     """No drift: what `Base.metadata` declares is what the migrations created (module tables)."""
     from alembic.autogenerate import compare_metadata

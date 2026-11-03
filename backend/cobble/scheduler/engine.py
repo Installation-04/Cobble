@@ -140,6 +140,8 @@ class Scheduler:
     # --- helpers --------------------------------------------------------------------------
 
     def _default_model_for(self, role: Role) -> str:
+        if role is Role.ESCALATION:
+            return self._settings.escalation_model or self._default_model_for(Role.PLANNER)
         return self._settings.role_models.get(role.value, self._settings.default_model)
 
     def _emit(self, project_id: uuid.UUID, event: str, payload: dict[str, Any]) -> None:
@@ -184,7 +186,7 @@ class Scheduler:
         ]
 
     def _escalation_model(self) -> str:
-        return self._settings.escalation_model or self._model_for(Role.PLANNER)
+        return self._model_for(Role.ESCALATION)
 
     # --- project lifecycle ----------------------------------------------------------------
 

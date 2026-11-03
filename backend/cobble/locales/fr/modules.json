@@ -117,6 +117,14 @@
         "rate_limited": "a refusé à cause d'une limite ou d'un solde manquant sur votre compte.",
         "unreachable": "est injoignable. Vérifiez l'adresse et le réseau.",
         "failed": "n'a pas répondu correctement."
+      },
+      "route": {
+        "default": "(le modèle par défaut)",
+        "bad_role": "« {role} » n'est pas un rôle. Rôles : {roles}.",
+        "unknown": "Aucun modèle connecté ne s'appelle : {names}. Voir `cobble models list`.",
+        "too_long": "{max} modèles au plus par rôle.",
+        "set": "{role} essaie maintenant : {chain}",
+        "cleared": "{role} suit de nouveau le défaut."
       }
     }
   }

@@ -117,6 +117,14 @@
         "rate_limited": "refused because of a limit or a missing balance on your account.",
         "unreachable": "cannot be reached. Check the address and the network.",
         "failed": "did not answer correctly."
+      },
+      "route": {
+        "default": "(the default model)",
+        "bad_role": "“{role}” is not a role. Roles: {roles}.",
+        "unknown": "No connected model called: {names}. See `cobble models list`.",
+        "too_long": "At most {max} models per role.",
+        "set": "{role} now tries: {chain}",
+        "cleared": "{role} follows the default again."
       }
     }
   }

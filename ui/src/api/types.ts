@@ -356,3 +356,13 @@ export interface ModelProbe {
   ok: boolean;
   code: ProbeCode;
 }
+
+/** Per-role model routes: ordered models to try, the first one, then each fallback. */
+export interface RoleRoutes {
+  roles: string[];
+  max_chain: number;
+  /** What was set in the product (only roles that have a route). */
+  routes: Record<string, string[]>;
+  /** What each role really uses now (a route, else the setting, else the default). */
+  effective: Record<string, string[]>;
+}

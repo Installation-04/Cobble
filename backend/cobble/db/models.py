@@ -416,3 +416,6 @@ class PlatformState(Base):
     # The model used when a role has none of its own; None means the configured one (`fake` in
     # development). Set when a model connection is made the default.
     default_model: Mapped[str | None] = mapped_column(String(40))
+    # Per role, the ordered models to try: the first one, then each fallback if the previous
+    # one cannot answer (`{"worker": ["local", "cheap-api"]}`). None: no routes were set.
+    role_routes: Mapped[dict[str, list[str]] | None] = mapped_column(JSON)

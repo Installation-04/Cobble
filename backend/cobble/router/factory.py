@@ -17,9 +17,11 @@ def build_cost_router(
     settings: Settings, sessions: sessionmaker[Session], redis: Redis
 ) -> CostRouter:
     gateway = LiteLLMGateway(settings.litellm_url, settings.litellm_key, sessions, redis)
+    policy = ModelPolicy(sessions, settings)
     return CostRouter(
         gateway,
         BudgetService(sessions, redis),
         settings.role_models,
-        ModelPolicy(sessions, settings).default,
+        policy.default,
+        chain_for=policy.chain_for,
     )

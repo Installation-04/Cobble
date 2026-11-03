@@ -4,7 +4,7 @@ Cobble est une plateforme libre et auto-hébergée qui transforme une idée en a
 
 ## Version en cours
 
-**v0.2 — Magasin et modules.** Voir `PLAN.md` section 14 et `docs/decisions/0008-module-manager.md`. Le propriétaire a demandé de commencer v0.2 avant la validation de l'étape 11 de v0.1 (dérogation explicite à `PLAN.md` §18; le code de v0.1 est livré, sa validation sur VM vierge avec un vrai modèle reste à faire et `v0.1.0` n'est pas publiée). Ne rien implémenter qui appartient à une version ultérieure (v0.3 et suivantes), même si c'est tentant. Les idées hors portée vont dans une issue avec l'étiquette `idée`.
+**v0.3 — Coûts et fiabilité des agents (commencée).** v0.2 (Magasin et modules, `docs/releases/v0.2.md`) est fusionnée dans `main`; le propriétaire a demandé de commencer v0.3 avant la validation de l'étape 11 de v0.1 (nouvelle dérogation explicite à `PLAN.md` §18; le critère de v0.3, 5 projets de référence avec de vrais modèles, demande une clé d'API que seul le propriétaire fournit). Voir `PLAN.md` section 14 et `docs/decisions/0010-role-routes.md`; pour v0.2 voir `docs/decisions/0008-module-manager.md`. Le propriétaire a demandé de commencer v0.2 avant la validation de l'étape 11 de v0.1 (dérogation explicite à `PLAN.md` §18; le code de v0.1 est livré, sa validation sur VM vierge avec un vrai modèle reste à faire et `v0.1.0` n'est pas publiée). Ne rien implémenter qui appartient à une version ultérieure (v0.4 et suivantes), même si c'est tentant. Les idées hors portée vont dans une issue avec l'étiquette `idée`.
 
 ## Pile
 
