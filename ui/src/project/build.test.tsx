@@ -350,6 +350,13 @@ describe("Plan tab: start building", () => {
     const banner = await screen.findByTestId("job-failed");
     expect(banner).toHaveAttribute("data-code", "repo_error");
     expect(banner).toHaveTextContent("repository could not be created");
+
+    // A job whose handler kept crashing was set aside by the worker (dead-letter stream).
+    FakeEventSource.last.emit("job.failed", { kind: "start", code: "crashed" });
+    await waitFor(() =>
+      expect(screen.getByTestId("job-failed")).toHaveAttribute("data-code", "crashed"),
+    );
+    expect(screen.getByTestId("job-failed")).toHaveTextContent("set aside");
   });
 
   it("adds Building and Done to the phase stepper", async () => {

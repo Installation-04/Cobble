@@ -81,6 +81,17 @@ class FakeStreamRedis:
         self.pending: dict[tuple[str, str], dict[str, tuple[str, dict[bytes, bytes]]]] = {}
         self.acked: list[str] = []
         self._counter = 0
+        self.now_ms = 0  # fake clock for idle times: advance it with `advance`
+        # per pending entry: when it was last delivered/claimed and how many times
+        self.delivered: dict[tuple[str, str], dict[str, tuple[int, int]]] = {}
+
+    def advance(self, ms: int) -> None:
+        self.now_ms += ms
+
+    def _mark(self, stream: str, group: str, entry_id: str) -> None:
+        table = self.delivered.setdefault((stream, group), {})
+        count = table.get(entry_id, (0, 0))[1]
+        table[entry_id] = (self.now_ms, count + 1)
 
     def _check(self) -> None:
         if self.fail:
@@ -126,6 +137,7 @@ class FakeStreamRedis:
         entries = self.streams.setdefault(stream, [])
         self.groups[(stream, group)] = 0 if id == "0" else len(entries)
         self.pending[(stream, group)] = {}
+        self.delivered[(stream, group)] = {}
         return True
 
     def xreadgroup(
@@ -145,6 +157,7 @@ class FakeStreamRedis:
             self.groups[(name, group)] = start + len(take)
             for entry_id, fields in take:
                 self.pending[(name, group)][entry_id] = (consumer, fields)
+                self._mark(name, group, entry_id)
             if take:
                 out.append((name.encode(), [(i.encode(), f) for i, f in take]))
         if not out and block:
@@ -155,6 +168,7 @@ class FakeStreamRedis:
         self._check()
         key = entry_id.decode() if isinstance(entry_id, bytes) else str(entry_id)
         self.acked.append(key)
+        self.delivered.get((stream, group), {}).pop(key, None)
         return 1 if self.pending[(stream, group)].pop(key, None) else 0
 
     def xautoclaim(
@@ -174,3 +188,47 @@ class FakeStreamRedis:
         for entry_id, (_owner, fields) in claimed:
             self.pending[(stream, group)][entry_id] = (consumer, fields)
         return [b"0-0", [(i.encode(), v[1]) for i, v in claimed], []]
+
+    def xpending_range(
+        self, stream: str, group: str, min: Any, max: Any, count: int, **_kw: Any
+    ) -> list[dict[str, Any]]:
+        self._check()
+        lo = (0, 0) if min == "-" else _num(min.decode() if isinstance(min, bytes) else str(min))
+        hi = (
+            (10**18, 0)
+            if max == "+"
+            else _num(max.decode() if isinstance(max, bytes) else str(max))
+        )
+        rows = sorted(self.pending[(stream, group)].items(), key=lambda kv: _num(kv[0]))
+        out: list[dict[str, Any]] = []
+        for entry_id, (owner, _fields) in rows:
+            if not lo <= _num(entry_id) <= hi:
+                continue
+            at, times = self.delivered[(stream, group)][entry_id]
+            out.append(
+                {
+                    "message_id": entry_id.encode(),
+                    "consumer": owner.encode(),
+                    "time_since_delivered": self.now_ms - at,
+                    "times_delivered": times,
+                }
+            )
+        return out[:count]
+
+    def xclaim(
+        self, stream: str, group: str, consumer: str, min_idle_time: int, message_ids: list[Any]
+    ) -> list[Any]:
+        self._check()
+        claimed: list[Any] = []
+        for raw in message_ids:
+            entry_id = raw.decode() if isinstance(raw, bytes) else str(raw)
+            held = self.pending[(stream, group)].get(entry_id)
+            if held is None:
+                continue
+            at, _times = self.delivered[(stream, group)][entry_id]
+            if self.now_ms - at < min_idle_time:
+                continue
+            self.pending[(stream, group)][entry_id] = (consumer, held[1])
+            self._mark(stream, group, entry_id)
+            claimed.append((entry_id.encode(), held[1]))
+        return claimed

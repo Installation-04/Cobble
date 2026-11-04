@@ -27,6 +27,7 @@
   "job_wrong_phase": "The project is not ready to be built.",
   "job_internal_error": "An internal error stopped the build from starting. Try again.",
   "job_scheduler_unavailable": "The build service is not available on this installation.",
+  "job_crashed": "An internal error stopped this job several times, so it was set aside. Try again, and ask the administrator to look at the failed jobs if it keeps happening.",
   "agent_unavailable": "The agent service is unavailable, so the run could not be stopped. Nothing was changed.",
   "git_unavailable": "The git server is unavailable. Try again in a moment.",
   "forbidden": "Only an administrator can do this.",
