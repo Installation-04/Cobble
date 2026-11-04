@@ -15,6 +15,8 @@ from cobble.api.app import create_app
 from cobble.auth.sessions import create_session
 from cobble.config import Settings
 from cobble.db import LLMCall, Plan, Project, Task, User
+from cobble.db.models import PlatformState
+from cobble.router.prices import Prices
 
 from .scheduling import Harness, make_ready_project
 
@@ -114,6 +116,7 @@ def test_project_costs_shape_and_numbers(sessions: sessionmaker[Session], pid: u
         "by_model",
         "by_role",
         "fallbacks",
+        "savings",
     }
     assert body["budget_usd"] == "5.00"
     assert body["spent_usd"] == "0.17651235"
@@ -172,6 +175,7 @@ def test_a_project_with_no_calls(sessions: sessionmaker[Session], pid: uuid.UUID
         "by_model": [],
         "by_role": [],
         "fallbacks": {"calls": 0, "total_calls": 0, "by_model": []},
+        "savings": None,
     }
 
 
@@ -318,3 +322,88 @@ def test_no_fallback_means_an_empty_block(sessions: sessionmaker[Session], pid: 
         db.commit()
     body = client_for(sessions, pid).get(f"{API}/projects/{pid}/costs").json()
     assert body["fallbacks"] == {"calls": 0, "total_calls": 1, "by_model": []}
+
+
+# --- the savings counter -----------------------------------------------------------------------
+
+
+class Book:
+    """Stands in for the gateway's prices: {model: (prompt, completion)} in USD per token."""
+
+    def __init__(self, prices: dict[str, tuple[str, str]]) -> None:
+        self.prices_by_model = prices
+        self.asked: list[str] = []
+
+    def prices(self, model: str) -> Prices | None:
+        self.asked.append(model)
+        found = self.prices_by_model.get(model)
+        return Prices(Decimal(found[0]), Decimal(found[1])) if found else None
+
+
+def savings_for(
+    sessions: sessionmaker[Session],
+    pid: uuid.UUID,
+    book: Book,
+    *,
+    routes: dict[str, list[str]] | None = None,
+) -> dict | None:  # type: ignore[type-arg]
+    api = client_for(sessions, pid)
+    api.app.state.price_book = book  # type: ignore[attr-defined]
+    if routes:
+        with sessions() as db:
+            db.add(PlatformState(id=1, role_routes=routes))
+            db.commit()
+    return api.get(f"{API}/projects/{pid}/costs").json()["savings"]  # type: ignore[no-any-return]
+
+
+def test_the_counter_compares_the_real_cost_with_the_strongest_model(
+    sessions: sessionmaker[Session], pid: uuid.UUID
+) -> None:
+    with sessions() as db:
+        # 1,000 prompt + 500 completion tokens, really paid 0.002
+        db.add(call(pid, None, "worker", "local", "0.002", prompt=1000, completion=500))
+        db.commit()
+    book = Book({"big": ("0.00001", "0.00003")})
+    found = savings_for(sessions, pid, book, routes={"escalation": ["big", "other"]})
+    # the same tokens with the strongest model: 1000 x 0.00001 + 500 x 0.00003 = 0.025
+    assert found == {
+        "reference_model": "big",
+        "reference_cost_usd": "0.025",
+        "actual_cost_usd": "0.002",
+        "saved_usd": "0.023",
+        "saved_percent": 92,
+    }
+    assert book.asked == ["big"]  # the first model of the escalation chain, nothing else
+
+
+def test_a_project_that_cost_more_than_the_strongest_model_says_so(
+    sessions: sessionmaker[Session], pid: uuid.UUID
+) -> None:
+    with sessions() as db:
+        db.add(call(pid, None, "worker", "pricey", "1.00", prompt=100, completion=100))
+        db.commit()
+    found = savings_for(sessions, pid, Book({"fake": ("0.001", "0.001")}))
+    assert found is not None and found["saved_usd"].startswith("-")
+    assert found["saved_percent"] < 0  # shown as it is, never clamped to zero
+
+
+def test_without_a_price_or_without_calls_there_is_no_figure(
+    sessions: sessionmaker[Session], pid: uuid.UUID
+) -> None:
+    assert savings_for(sessions, pid, Book({"fake": ("1", "1")})) is None  # no calls yet
+    with sessions() as db:
+        db.add(call(pid, None, "worker", "local", "0.1"))
+        db.commit()
+    assert savings_for(sessions, pid, Book({})) is None  # the gateway cannot price the model
+
+
+def test_the_default_model_is_the_reference_when_no_route_is_set(
+    sessions: sessionmaker[Session], pid: uuid.UUID
+) -> None:
+    with sessions() as db:
+        db.add(call(pid, None, "worker", "local", "0", prompt=10, completion=10))
+        db.commit()
+    book = Book({"fake": ("1", "1")})
+    found = savings_for(sessions, pid, book)
+    assert found is not None and found["reference_model"] == "fake"
+    assert found["saved_usd"].startswith("20")  # 20 tokens x 1 - 0

@@ -1,7 +1,7 @@
 import { AlertTriangle, Coins } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { errorMessage } from "../api/errors";
-import type { CostFallbacks, CostLine } from "../api/types";
+import type { CostFallbacks, CostLine, CostSavings } from "../api/types";
 import { cn } from "../lib";
 import { formatCost, formatTokens } from "./format";
 import { useProjectData } from "./ProjectDataProvider";
@@ -99,6 +99,56 @@ function CostTable({
             </tbody>
           </table>
         </div>
+      )}
+    </section>
+  );
+}
+
+/** What the cheaper models saved compared with the strongest one doing everything. */
+function SavingsCard({ savings, lang }: { savings: CostSavings | null; lang: string }) {
+  const { t } = useTranslation("costs");
+  const saved = savings !== null && !savings.saved_usd.startsWith("-") && savings.saved_percent > 0;
+  return (
+    <section
+      aria-labelledby="savings-title"
+      data-testid="costs-savings"
+      data-state={savings === null ? "unavailable" : saved ? "saved" : "none"}
+      className="flex flex-col gap-1 rounded-lg border border-border bg-card p-4 text-card-foreground"
+    >
+      <h3 id="savings-title" className="text-sm font-semibold">
+        {t("savings.title")}
+      </h3>
+      {savings === null ? (
+        <p className="text-sm text-muted-foreground">{t("savings.unavailable")}</p>
+      ) : saved ? (
+        <>
+          <p className="text-xl font-semibold text-success" data-testid="costs-saved">
+            {t("savings.saved", {
+              amount: formatCost(savings.saved_usd, lang),
+              percent: savings.saved_percent,
+            })}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {t("savings.detail", {
+              model: savings.reference_model,
+              reference: formatCost(savings.reference_cost_usd, lang),
+              actual: formatCost(savings.actual_cost_usd, lang),
+            })}
+          </p>
+        </>
+      ) : (
+        <>
+          <p className="text-sm text-muted-foreground" data-testid="costs-saved">
+            {t("savings.none", { model: savings.reference_model })}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {t("savings.detail", {
+              model: savings.reference_model,
+              reference: formatCost(savings.reference_cost_usd, lang),
+              actual: formatCost(savings.actual_cost_usd, lang),
+            })}
+          </p>
+        </>
       )}
     </section>
   );
@@ -270,6 +320,8 @@ export function CostsTab() {
           </>
         )}
       </section>
+
+      <SavingsCard savings={costs.savings ?? null} lang={lang} />
 
       <dl className="grid gap-3 sm:grid-cols-3" data-testid="costs-totals">
         <div className="rounded-lg border border-border bg-card p-4 text-card-foreground">

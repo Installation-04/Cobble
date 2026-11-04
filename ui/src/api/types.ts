@@ -178,6 +178,17 @@ export interface ProjectCosts {
   by_role: CostByRole[];
   /** Calls answered by another model because the one chosen for the role could not. */
   fallbacks?: CostFallbacks;
+  /** Compared with doing every call with the strongest model; null when it cannot be priced. */
+  savings?: CostSavings | null;
+}
+
+export interface CostSavings {
+  reference_model: string;
+  reference_cost_usd: string;
+  actual_cost_usd: string;
+  /** Negative (a leading "-") when the project cost more than the reference model would have. */
+  saved_usd: string;
+  saved_percent: number;
 }
 
 export interface CostFallbackLine extends CostLine {

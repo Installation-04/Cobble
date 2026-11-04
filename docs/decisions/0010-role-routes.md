@@ -25,6 +25,21 @@ answer (refused key, empty balance, rate limit, service down) failed the whole t
 - The API validates that a route only names connected models (or the built-in default), known
   roles and a short chain; a removed connection left in a chain is simply skipped by the fallback.
 
+## Savings counter (v0.3 step 4)
+- **Definition:** the project's real cost against the cost of the same tokens priced at the
+  reference model, `saved = tokens x reference prices - real cost`, and its percentage of the
+  reference cost. Negative values are shown as "no saving"; they are never clamped or hidden.
+- **Reference model:** the first model of the `escalation` route (by the existing precedence:
+  route, `COBBLE_ESCALATION_MODEL`, the planner's chain): the strongest the owner configured.
+- **Prices:** from the gateway's `GET /model/info` (`router/prices.py`: the effective
+  `model_info` price, else the custom price in `litellm_params`; half a price is no price), asked
+  at most every five minutes and never raising. No price (unknown model, unreachable gateway) means
+  the card says "not available": Cobble does not invent a figure. Checked against the pinned
+  LiteLLM v1.106.6.
+- **When:** computed each time the report is read, with the current reference model and price;
+  nothing is stored, so changing the escalation route changes the comparison for past calls too.
+  The up-to-date price table of PLAN.md §17 is a separate, later item.
+
 ## Visibility of fallbacks (v0.3 step 3)
 - Nothing is stored for a failed attempt (no tokens, no cost). The call that finally answers
   records `llm_calls.fallback_from` (the first model that could not) and `fallbacks` (how many

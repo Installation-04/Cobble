@@ -42,5 +42,12 @@
     "hint": "Beaucoup d'appels passent par un repli : vérifiez le premier modèle des routes dans Réglages → Modèles.",
     "answeredBy": "Traité par",
     "insteadOf": "Au lieu de"
+  },
+  "savings": {
+    "title": "Économies",
+    "saved": "Vous avez économisé {{amount}} ({{percent}} %)",
+    "none": "Aucune économie par rapport à {{model}}",
+    "detail": "Tout faire avec {{model}} aurait coûté environ {{reference}} ; ce projet a coûté {{actual}}.",
+    "unavailable": "Pas encore disponible : il faut quelques appels de modèles et un prix connu pour le modèle le plus fort (le modèle d'escalade)."
   }
 }
