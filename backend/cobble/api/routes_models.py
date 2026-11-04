@@ -9,16 +9,19 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, Field, SecretStr
+from redis.exceptions import RedisError
 
 from cobble.benchmark import service as benchmarks
+from cobble.benchmark.job import BenchmarkStatus
 from cobble.benchmark.tasks import VERSION as BENCHMARK_VERSION
 from cobble.db.models import PlatformState
+from cobble.events import enqueue_benchmark
 from cobble.router import price_table
 from cobble.router.gateway import LiteLLMGateway
 from cobble.router.policy import MAX_CHAIN, ROLES, ModelPolicy
 from cobble.router.presets import BY_ID, PRESETS, resolve
 
-from .deps import AdminUser, AppSettings, CurrentUser, Db
+from .deps import AdminUser, AppSettings, CurrentUser, Db, RedisDep
 from .errors import ApiError
 from .routes_costs import sync_prices
 from .routes_modules import Manager, _call
@@ -213,7 +216,8 @@ def apply_preset(
 @router.get("/models/benchmarks")
 def get_benchmarks(request: Request, _admin: AdminUser) -> dict[str, Any]:
     """The latest benchmark of each model (current task set), best first, and which model the
-    benchmark proposes for the worker role. Runs are started with `cobble models benchmark`."""
+    benchmark proposes for the worker role. Runs are started from Settings or with
+    `cobble models benchmark`."""
     rows = benchmarks.latest(request.app.state.session_factory, BENCHMARK_VERSION)
     return {
         "version": BENCHMARK_VERSION,
@@ -233,6 +237,53 @@ def get_benchmarks(request: Request, _admin: AdminUser) -> dict[str, Any]:
         ],
         "suggested_worker": benchmarks.best_worker(rows),
     }
+
+
+class BenchmarkBody(BaseModel):
+    models: list[str] = Field(default_factory=list, max_length=20)
+    allow_paid: bool = False
+
+
+@router.get("/models/benchmarks/status")
+def get_benchmark_status(_admin: AdminUser, redis: RedisDep) -> dict[str, Any]:
+    """Is a benchmark running, which model, how far; and how the last run ended (an error code
+    such as `sandbox_unavailable`)."""
+    try:
+        return BenchmarkStatus(redis).read()
+    except RedisError:
+        raise ApiError(503, "queue_unavailable") from None
+
+
+@router.post("/models/benchmarks/run", status_code=202)
+def run_benchmarks(
+    body: BenchmarkBody, _admin: AdminUser, redis: RedisDep, manager: Manager
+) -> dict[str, Any]:
+    """Queue a benchmark for the chosen models (none: every model served here). Models that cost
+    money per token need `allow_paid`. One run at a time; the worker does the work (ADR 0019)."""
+    listing = _call(manager.models)
+    local = [m["name"] for m in listing.get("local", [])]
+    known = set(local) | {m["name"] for m in listing["models"]}
+    wanted = list(dict.fromkeys(body.models)) or local
+    unknown = [name for name in wanted if name not in known]
+    if unknown:
+        raise ApiError(422, "model_unknown", name=", ".join(unknown))
+    if not wanted:
+        raise ApiError(422, "benchmark_nothing")
+    costly = [name for name in wanted if name not in local]
+    if costly and not body.allow_paid:
+        raise ApiError(422, "benchmark_paid", names=costly)
+    status = BenchmarkStatus(redis)
+    try:
+        if not status.start(wanted):
+            raise ApiError(409, "benchmark_running")
+        try:
+            enqueue_benchmark(redis, wanted)
+        except RedisError:
+            status.cancel_start()
+            raise
+        return status.read()
+    except RedisError:
+        raise ApiError(503, "queue_unavailable") from None
 
 
 @router.get("/models/prices")

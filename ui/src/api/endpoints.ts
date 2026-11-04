@@ -9,6 +9,7 @@ import type {
   ModelRequest,
   PresetSlot,
   PresetsData,
+  BenchmarkStatus,
   Benchmarks,
   ModelPrices,
   RoleRoutes,
@@ -142,6 +143,9 @@ export const modelsApi = {
   routes: () => api.get<RoleRoutes>("/models/routes"),
   prices: () => api.get<ModelPrices>("/models/prices"),
   benchmarks: () => api.get<Benchmarks>("/models/benchmarks"),
+  benchmarkStatus: () => api.get<BenchmarkStatus>("/models/benchmarks/status"),
+  runBenchmark: (models: string[], allowPaid: boolean) =>
+    api.post<BenchmarkStatus>("/models/benchmarks/run", { models, allow_paid: allowPaid }),
   saveRoutes: (routes: Record<string, string[]>) =>
     api.put<RoleRoutes>("/models/routes", { routes }),
 };

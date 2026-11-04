@@ -91,3 +91,9 @@ def enqueue_job(client: Redis, kind: str, project_id: uuid.UUID | str, **extra: 
     """Queue a background job (`reply`, `spec` or `plan`). Raises RedisError if Redis is down."""
     job = {"kind": kind, "project_id": str(project_id), **extra}
     return _entry_id(client.xadd(JOBS_STREAM, {"job": json.dumps(job, default=str)}))
+
+
+def enqueue_benchmark(client: Redis, models: list[str]) -> str:
+    """Queue a local model benchmark (no project). Raises RedisError if Redis is down."""
+    job = {"kind": "benchmark", "models": models}
+    return _entry_id(client.xadd(JOBS_STREAM, {"job": json.dumps(job)}))

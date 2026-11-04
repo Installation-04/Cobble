@@ -7,7 +7,8 @@ whose worker died before the acknowledgement stays pending and is claimed again 
 at start-up and periodically, so it is resumed. A failed job publishes `job.failed` and is
 acknowledged: nothing is retried forever. The scheduler loop (own thread) drives the building
 projects: it reconciles at start-up, then ticks every `COBBLE_SCHEDULER_INTERVAL_S` seconds. The
-`start` job (queued by `POST /projects/{id}/start`) is executed by the jobs loop.
+`start` job (queued by `POST /projects/{id}/start`) is executed by the jobs loop, and so is the
+`benchmark` job (queued from Settings, no project; ADR 0019).
 """
 
 from __future__ import annotations
@@ -109,6 +110,7 @@ def make_job_handler(
     planner: PlannerService,
     scheduler: Scheduler | SchedulerSupervisor | None = None,
     events: Redis | None = None,
+    benchmark: Callable[[list[str]], None] | None = None,
 ) -> JobHandler:
     def unavailable(kind: str, project_id: uuid.UUID) -> None:
         log.warning("%s job dropped: the scheduler is not configured", kind)
@@ -121,6 +123,14 @@ def make_job_handler(
         try:
             job = json.loads(fields[b"job"])
             kind = str(job["kind"])
+            if kind == "benchmark":  # not tied to a project
+                names = [str(n) for n in job["models"]]
+                log.info("job benchmark for %d model(s)", len(names))
+                if benchmark is None:
+                    log.warning("benchmark job dropped: no benchmark runner")
+                else:
+                    benchmark(names)
+                return
             project_id = uuid.UUID(str(job["project_id"]))
         except (KeyError, ValueError, TypeError):
             log.warning("dropping malformed job: %r", fields)
@@ -147,6 +157,18 @@ def make_job_handler(
         )
 
     return handler
+
+
+def make_benchmark_runner(settings: Settings, redis: Redis) -> Callable[[list[str]], None]:
+    """The benchmark job: the real gateway and the module-manager's sandbox (ADR 0012, 0019)."""
+    from cobble.benchmark.job import BenchmarkStatus, LiveBench, run_job
+    from cobble.providers.module_manager import HttpModuleManager
+
+    def run_benchmark_job(names: list[str]) -> None:
+        rig = LiveBench(settings, HttpModuleManager.from_settings(settings))
+        run_job(names, rig, BenchmarkStatus(redis))
+
+    return run_benchmark_job
 
 
 def _process(client: Redis, entries: list[Any], handler: JobHandler) -> int:
@@ -227,7 +249,12 @@ def main() -> None:
     scheduler: Scheduler | SchedulerSupervisor | None = make_scheduler_supervisor(
         settings, sessions, client
     ) or build_scheduler(settings, sessions, client)
-    handler = make_job_handler(build_planner(settings, client), scheduler, client)
+    handler = make_job_handler(
+        build_planner(settings, client),
+        scheduler,
+        client,
+        benchmark=make_benchmark_runner(settings, client),
+    )
     threads = [threading.Thread(target=run_jobs, args=(client, stop, handler), name="jobs")]
     if scheduler is not None:
         threads.append(

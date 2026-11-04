@@ -61,6 +61,9 @@
   "module_code_unknown": "L'opération a échoué.",
   "model_unknown": "Le modèle « {{name}} » n'existe pas.",
   "model_gateway_failed": "Le service de modèles n'a pas accepté cette connexion, rien n'a donc été modifié. Vérifiez la clé, puis réessayez.",
+  "benchmark_running": "Un banc d'essai est déjà en cours. Attendez qu'il se termine.",
+  "benchmark_paid": "Ces modèles coûtent de l'argent par jeton : {{names}}. Cochez-les explicitement pour les mesurer quand même.",
+  "benchmark_nothing": "Aucun modèle à mesurer : aucun n'est servi sur cette machine. Installez un moteur de modèles local, ou choisissez un modèle.",
   "local_only_unavailable": "Ce projet est en local seulement et aucun modèle servi sur cette machine ne peut répondre. Installez un modèle local (par exemple le module Ollama) ou désactivez « local seulement ».",
   "job_local_only_unavailable": "Ce projet est en local seulement et aucun modèle servi sur cette machine ne peut répondre. Installez un modèle local ou désactivez « local seulement » dans l'onglet Coûts."
 }

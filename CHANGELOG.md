@@ -6,6 +6,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 ## [Unreleased]
 
 ### Added
+- v0.3: **run the local benchmark from Settings** (ADR 0019). Settings → Models → Local benchmark has a "Run benchmark" button: tick the models (local ones by default; paid ones only on purpose), follow the progress (task x of 8), and the results refresh when it ends; a failure such as `sandbox_unavailable` is explained there in French and English. Admin-only API `POST /api/v1/models/benchmarks/run` (409 `benchmark_running` if a run is going, 422 `benchmark_paid` without `allow_paid`) and `GET /api/v1/models/benchmarks/status`; the run is a `benchmark` job on the existing Redis job stream, its state lives in Redis (no migration). The CLI and the job share one runner (`cobble.benchmark.job`); a sandbox or model failure no longer stores a misleading score.
 - v0.3: **local package cache** (ADR 0015). Two optional catalogue modules, `verdaccio` (npm) and `devpi` (PyPI), each a read-through cache with no web page, a data volume, resource limits and a health check, providing `package-cache` plus `npm-cache` / `pypi-cache`. They are in no starter pack and are covered by the install/uninstall matrix test. They are not wired to the agent runners yet (needs optional links in the resolver and the agents' proxy allow-list: described in the ADR). Docs in `docs/{fr,en}/modules.md`.
 
 ### Changed

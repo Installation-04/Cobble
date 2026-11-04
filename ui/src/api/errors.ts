@@ -37,6 +37,9 @@ export const KNOWN_ERROR_CODES = [
   "invalid_request",
   "model_unknown",
   "model_gateway_failed",
+  "benchmark_running",
+  "benchmark_paid",
+  "benchmark_nothing",
 ] as const;
 
 /** Failure codes of an install or removal step, translated as `errors:module_code_<code>`. */
