@@ -71,6 +71,7 @@ async def test_every_endpoint_requires_the_bearer_token(
     calls = [
         client.post("/v1/runs", json=body(settings), headers=headers),
         client.get("/v1/runs/abc", headers=headers),
+        client.get("/v1/runs", params={"task_id": "t", "marker": "m"}, headers=headers),
         client.get("/v1/runs/abc/logs", headers=headers),
         client.post("/v1/runs/abc/stop", headers=headers),
     ]
@@ -108,6 +109,29 @@ async def test_full_flow(client: httpx.AsyncClient, settings: Settings) -> None:
     tail = await client.get(f"/v1/runs/{run_id}/logs", params={"offset": nxt})
     assert tail.content == b"" and tail.headers["X-Next-Offset"] == str(nxt)
     assert (await client.post(f"/v1/runs/{run_id}/stop")).status_code == 204
+
+
+async def test_runs_are_found_by_task_and_marker_newest_first(
+    client: httpx.AsyncClient, settings: Settings
+) -> None:
+    first = (await client.post("/v1/runs", json=body(settings))).json()["run_id"]
+    await asyncio.sleep(0.01)
+    second = (await client.post("/v1/runs", json=body(settings))).json()["run_id"]
+    other = (
+        await client.post(
+            "/v1/runs", json=body(settings, task_id="T-002", marker="[cobble-task:T-002:worker:1]")
+        )
+    ).json()["run_id"]
+    found = await client.get(
+        "/v1/runs", params={"task_id": "T-001", "marker": "[cobble-task:T-001:worker:1]"}
+    )
+    assert found.status_code == 200
+    assert [r["run_id"] for r in found.json()] == [second, first]
+    assert other not in found.text
+    none = await client.get("/v1/runs", params={"task_id": "T-001", "marker": "nope"})
+    assert none.status_code == 200 and none.json() == []
+    missing = await client.get("/v1/runs", params={"task_id": "T-001"})
+    assert missing.status_code == 422
 
 
 async def test_unknown_run_is_404(client: httpx.AsyncClient) -> None:

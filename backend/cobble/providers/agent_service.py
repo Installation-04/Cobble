@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import logging
 import time
+import uuid
 from collections.abc import Callable
 from typing import Any
 
@@ -138,6 +139,20 @@ class HttpAgentRunner:
         if response.status_code in (200, 202, 204, 404):  # 404: already gone
             return
         raise AgentUnavailable(f"agent service answered HTTP {response.status_code}")
+
+    def find(self, marker: str, task_id: uuid.UUID) -> str | None:
+        response = self._request(
+            "GET", "/v1/runs", params={"task_id": str(task_id), "marker": marker}
+        )
+        if response.status_code in (404, 405):  # an older service without the lookup
+            return None
+        if response.status_code != 200:
+            raise AgentUnavailable(f"agent service answered HTTP {response.status_code}")
+        try:
+            runs = response.json()
+            return str(runs[0]["run_id"]) if runs else None  # newest first
+        except (ValueError, KeyError, TypeError, IndexError):
+            raise AgentUnavailable("agent service sent an unreadable answer") from None
 
     def logs(self, run_id: str, offset: int = 0) -> tuple[str, int]:
         response = self._request(

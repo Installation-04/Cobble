@@ -63,6 +63,13 @@ def create_app(settings: Settings | None = None, engine: ContainerEngine | None 
     async def create_run(body: RunRequest) -> RunCreated:
         return RunCreated(run_id=await manager.create(body))
 
+    @app.get("/v1/runs", response_model=list[RunStatus], dependencies=[auth])
+    async def find_runs(
+        task_id: Annotated[str, Query(min_length=1, max_length=64)],
+        marker: Annotated[str, Query(min_length=1, max_length=300)],
+    ) -> list[RunStatus]:
+        return manager.find(task_id, marker)
+
     @app.get("/v1/runs/{run_id}", response_model=RunStatus, dependencies=[auth])
     async def get_run(run_id: str) -> RunStatus:
         return manager.status(run_id)
