@@ -1,0 +1,13 @@
+{
+  "title": "Variantes de maquette",
+  "label": "Comparer des maquettes avant le plan",
+  "onHelp": "L'assistant propose 2 ou 3 maquettes différentes pour quelques sous. Choisissez-en une avant la génération du plan; le plan la suit.",
+  "offHelp": "Désactivé : le plan est généré directement à partir de la spécification.",
+  "generate": "Proposer des maquettes",
+  "regenerate": "Proposer d'autres maquettes",
+  "generating": "Dessin des maquettes…",
+  "pickHint": "Choisissez une maquette pour passer au plan.",
+  "choose": "Choisir celle-ci",
+  "chosen": "Choisie",
+  "wireframe": "Schéma de {{title}}"
+}

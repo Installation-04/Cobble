@@ -15,5 +15,6 @@
   "regenerating": "Rédaction d'une nouvelle version de la spécification…",
   "approvedNote": "Spécification approuvée. L'étape suivante est le plan.",
   "generatePlan": "Générer le plan",
-  "generatingPlan": "Génération du plan…"
+  "generatingPlan": "Génération du plan…",
+  "mockupHint": "Choisissez une maquette dans l'onglet Plan avant de générer le plan."
 }

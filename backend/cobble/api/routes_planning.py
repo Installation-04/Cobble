@@ -10,7 +10,7 @@ from fastapi.responses import StreamingResponse
 from redis.exceptions import RedisError
 from sqlalchemy import select
 
-from cobble.db import Message, Plan, Project, Spec
+from cobble.db import Message, MockupVariant, Plan, Project, Spec
 from cobble.events import enqueue_job, project_stream, publish_project
 from cobble.orchestrator.service import message_payload
 
@@ -50,6 +50,17 @@ def _latest_spec(db: Db, project_id: uuid.UUID) -> Spec | None:
     return db.scalars(
         select(Spec).where(Spec.project_id == project_id).order_by(Spec.version.desc()).limit(1)
     ).first()
+
+
+def _has_chosen_mockup(db: Db, project_id: uuid.UUID) -> bool:
+    return (
+        db.scalars(
+            select(MockupVariant.id).where(
+                MockupVariant.project_id == project_id, MockupVariant.chosen.is_(True)
+            )
+        ).first()
+        is not None
+    )
 
 
 def _latest_plan(db: Db, project_id: uuid.UUID) -> Plan | None:
@@ -132,6 +143,8 @@ def generate_plan(
     if spec is None or spec.status != "approved":
         raise ApiError(409, "wrong_phase", phase=project.phase)
     _require_active(project)
+    if project.mockups_enabled and not _has_chosen_mockup(db, project.id):
+        raise ApiError(409, "mockup_choice_required")
     _enqueue(redis, "plan", project.id, feedback=body.feedback if body else None)
     return {}
 

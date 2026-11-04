@@ -13,6 +13,7 @@ import { buildApi, costsApi, demoApi, flowApi } from "../api/endpoints";
 import type {
   ChatMessage,
   Milestone,
+  MockupVariant,
   Phase,
   Plan,
   Project,
@@ -40,6 +41,10 @@ export interface ProjectData {
   approveSpec: () => Promise<void>;
   generatePlan: (feedback?: string) => Promise<void>;
   approvePlan: () => Promise<void>;
+  /** Mockup variants (ADR 0018): empty unless the project uses them. */
+  mockups: MockupVariant[];
+  generateMockups: (feedback?: string) => Promise<void>;
+  chooseMockup: (variantId: string) => Promise<void>;
   /** Build phase (ADR 0006/0007): tasks, demo milestones and costs, kept live by the stream. */
   tasks: Task[];
   milestones: Milestone[];
@@ -105,6 +110,7 @@ export function ProjectDataProvider({
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [spec, setSpec] = useState<Spec | null>(null);
   const [plan, setPlan] = useState<Plan | null>(null);
+  const [mockups, setMockups] = useState<MockupVariant[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState<unknown>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -149,6 +155,11 @@ export function ProjectDataProvider({
   const loadPlan = useCallback(async () => {
     const next = await optional(flowApi.plan(projectId));
     if (alive.current) setPlan(next);
+  }, [projectId]);
+
+  const loadMockups = useCallback(async () => {
+    const next = await flowApi.mockups(projectId);
+    if (alive.current) setMockups(next);
   }, [projectId]);
 
   /** A build resource: a 404 means "nothing yet", any other error is kept for the tabs. */
@@ -200,14 +211,14 @@ export function ProjectDataProvider({
 
   const loadAll = useCallback(async () => {
     try {
-      await Promise.all([loadMessages(), loadSpec(), loadPlan()]);
+      await Promise.all([loadMessages(), loadSpec(), loadPlan(), loadMockups()]);
       if (alive.current) setLoadError(null);
     } catch (e) {
       if (alive.current) setLoadError(e);
     } finally {
       if (alive.current) setLoaded(true);
     }
-  }, [loadMessages, loadSpec, loadPlan]);
+  }, [loadMessages, loadSpec, loadPlan, loadMockups]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -222,6 +233,7 @@ export function ProjectDataProvider({
     onMessage: (message) => setMessages((prev) => mergeMessage(prev, message)),
     onSpecUpdated: () => void loadSpec().catch(() => undefined),
     onPlanUpdated: () => void loadPlan().catch(() => undefined),
+    onMockupsUpdated: () => void loadMockups().catch(() => undefined),
     onPhaseChanged: (phase) => {
       patchProject(projectId, { phase });
       if (phase === "building" || phase === "done") {
@@ -314,6 +326,26 @@ export function ProjectDataProvider({
     [projectId, markStarted, markStopped],
   );
 
+  const generateMockups = useCallback(
+    async (feedback?: string) => {
+      markStarted("mockups");
+      try {
+        await flowApi.generateMockups(projectId, feedback ? { feedback } : {});
+      } catch (e) {
+        markStopped("mockups");
+        throw e;
+      }
+    },
+    [projectId, markStarted, markStopped],
+  );
+
+  const chooseMockup = useCallback(
+    async (variantId: string) => {
+      setMockups(await flowApi.chooseMockup(projectId, variantId));
+    },
+    [projectId],
+  );
+
   const approvePlan = useCallback(async () => {
     setPlan(await flowApi.approvePlan(projectId));
     patchProject(projectId, { phase: "ready" });
@@ -355,6 +387,9 @@ export function ProjectDataProvider({
       approveSpec,
       generatePlan,
       approvePlan,
+      mockups,
+      generateMockups,
+      chooseMockup,
       tasks,
       milestones,
       costs,
@@ -380,6 +415,9 @@ export function ProjectDataProvider({
       approveSpec,
       generatePlan,
       approvePlan,
+      mockups,
+      generateMockups,
+      chooseMockup,
       tasks,
       milestones,
       costs,

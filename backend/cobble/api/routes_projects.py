@@ -70,6 +70,8 @@ def update_project(project_id: str, body: ProjectPatch, user: CurrentUser, db: D
         apply_budget(db, project, body.budget_usd)
     if body.local_only is not None:
         project.local_only = body.local_only
+    if body.mockups_enabled is not None:
+        project.mockups_enabled = body.mockups_enabled
     db.commit()
     return project
 

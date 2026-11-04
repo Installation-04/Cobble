@@ -124,6 +124,7 @@ class ProjectPatch(BaseModel):
     folder_id: uuid.UUID | None = None
     budget_usd: Decimal | None = Field(default=None, ge=0, max_digits=14, decimal_places=2)
     local_only: bool | None = None
+    mockups_enabled: bool | None = None
 
     @field_validator("name")
     @classmethod
@@ -142,6 +143,7 @@ class ProjectOut(BaseModel):
     created_at: datetime
     budget_usd: Decimal | None
     local_only: bool
+    mockups_enabled: bool
     status: Literal["active", "paused"]
     phase: Phase
 

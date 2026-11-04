@@ -34,6 +34,8 @@ export interface Project {
   budget_usd?: string | null;
   /** True: no request of this project may reach a model that is not served on this machine. */
   local_only?: boolean;
+  /** True: the planner proposes mockup variants and the user picks one before planning. */
+  mockups_enabled?: boolean;
   status: "active" | "paused";
   phase: Phase;
 }
@@ -89,7 +91,17 @@ export interface Plan {
   created_at: string;
 }
 
-export type JobKind = "reply" | "spec" | "plan" | "start";
+export type JobKind = "reply" | "spec" | "plan" | "start" | "mockups";
+
+/** A mockup proposed by the planner: plain text only, always rendered as escaped text. */
+export interface MockupVariant {
+  id: string;
+  position: number;
+  title: string;
+  summary: string;
+  wireframe: string;
+  chosen: boolean;
+}
 
 /** Scheduler task states (ADR 0006). */
 export const TASK_STATES = [

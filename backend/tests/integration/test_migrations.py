@@ -695,3 +695,49 @@ def test_migration_0015_job_checkpoints_up_and_down(database_url: str) -> None:
     assert "job_checkpoints" not in tables(database_url)
     command.upgrade(config, "head")
     assert "job_checkpoints" in tables(database_url)
+
+
+def test_migration_0017_mockup_variants_up_and_down(database_url: str) -> None:
+    config = alembic_config(database_url)
+    command.downgrade(config, "base")
+    command.upgrade(config, "0015")
+    assert "mockup_variants" not in tables(database_url)
+
+    command.upgrade(config, "0017")
+    engine = create_engine(database_url)
+    try:
+        inspector = inspect(engine)
+        assert {"project_id", "position", "title", "summary", "wireframe", "chosen"} <= {
+            c["name"] for c in inspector.get_columns("mockup_variants")
+        }
+        assert "mockups_enabled" in {c["name"] for c in inspector.get_columns("projects")}
+    finally:
+        engine.dispose()
+
+    command.downgrade(config, "0015")
+    engine = create_engine(database_url)
+    try:
+        assert "mockup_variants" not in tables(database_url)
+        assert "mockups_enabled" not in {c["name"] for c in inspect(engine).get_columns("projects")}
+    finally:
+        engine.dispose()
+    command.upgrade(config, "head")
+    assert "mockup_variants" in tables(database_url)
+
+
+def test_the_mockup_models_match_the_migrations(migrated_database: str) -> None:
+    """No drift on the mockup table and the project switch."""
+    from alembic.autogenerate import compare_metadata
+    from alembic.migration import MigrationContext
+
+    from cobble.db.base import Base
+
+    engine = create_engine(migrated_database)
+    try:
+        with engine.connect() as conn:
+            context = MigrationContext.configure(conn, opts={"compare_type": True})
+            diff = compare_metadata(context, Base.metadata)
+    finally:
+        engine.dispose()
+    mine = [d for d in diff if "mockup_variants" in _tables_of(d) or "mockups_enabled" in repr(d)]
+    assert mine == []

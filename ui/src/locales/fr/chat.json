@@ -35,7 +35,8 @@
       "reply": "Réponse de l'assistant",
       "spec": "Génération de la spécification",
       "plan": "Génération du plan",
-      "start": "Démarrage de la construction"
+      "start": "Démarrage de la construction",
+      "mockups": "Génération des maquettes"
     }
   }
 }

@@ -12,6 +12,8 @@ export const KNOWN_ERROR_CODES = [
   "not_found",
   "validation_error",
   "wrong_phase",
+  "mockups_disabled",
+  "mockup_choice_required",
   "project_paused",
   "plan_invalid",
   "llm_error",

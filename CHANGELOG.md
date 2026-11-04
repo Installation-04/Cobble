@@ -6,6 +6,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 ## [Unreleased]
 
 ### Added
+- v0.3: **mockup variants** (ADR 0018). Optional per project (off by default, Plan tab): the planner proposes 2 or 3 different mockups (title, summary, ASCII wireframe) for one short planner call, the user compares them side by side and picks one before the plan; the chosen mockup is added to the plan prompt, and plan generation waits for the choice while the option is on. Wireframes are stored and shown as plain text only (never markup). Migration `0017` (`projects.mockups_enabled`, `mockup_variants`), `GET`/`POST /api/v1/projects/{id}/mockups…`, job kind `mockups`. Docs in `docs/{fr,en}/mockups.md`.
 - v0.3: **local package cache** (ADR 0015). Two optional catalogue modules, `verdaccio` (npm) and `devpi` (PyPI), each a read-through cache with no web page, a data volume, resource limits and a health check, providing `package-cache` plus `npm-cache` / `pypi-cache`. They are in no starter pack and are covered by the install/uninstall matrix test. They are not wired to the agent runners yet (needs optional links in the resolver and the agents' proxy allow-list: described in the ADR). Docs in `docs/{fr,en}/modules.md`.
 
 ### Changed

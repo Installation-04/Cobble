@@ -35,7 +35,8 @@
       "reply": "The assistant's reply",
       "spec": "Spec generation",
       "plan": "Plan generation",
-      "start": "Build start"
+      "start": "Build start",
+      "mockups": "Mockup generation"
     }
   }
 }

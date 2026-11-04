@@ -5,6 +5,7 @@ import { useProjectData } from "./ProjectDataProvider";
 
 const KNOWN_CODES = [
   "plan_invalid",
+  "mockups_invalid",
   "llm_error",
   "budget_reached",
   "local_only_unavailable",
