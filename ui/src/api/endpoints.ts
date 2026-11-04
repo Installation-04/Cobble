@@ -1,4 +1,4 @@
-import { api, requestText, type TextChunk } from "./client";
+import { API_BASE, api, requestText, type TextChunk } from "./client";
 import type {
   ChatMessage,
   Folder,
@@ -19,6 +19,7 @@ import type {
   Plan,
   Project,
   ProjectCosts,
+  ProjectReport,
   Spec,
   Task,
   TaskDetail,
@@ -102,6 +103,12 @@ export const demoApi = {
 export const costsApi = {
   project: (id: string) => api.get<ProjectCosts>(`/projects/${id}/costs`),
   all: () => api.get<GlobalCostRow[]>("/costs"),
+};
+
+export const reportApi = {
+  get: (id: string) => api.get<ProjectReport>(`/projects/${id}/report`),
+  /** Same-origin download of the Markdown version, in the user's language. */
+  markdownUrl: (id: string) => `${API_BASE}/projects/${id}/report?format=md`,
 };
 
 export const modulesApi = {

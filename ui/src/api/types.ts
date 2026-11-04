@@ -193,6 +193,39 @@ export interface CostSavings {
   saved_percent: number;
 }
 
+/** `GET /projects/{id}/report` (ADR 0014): the end-of-project report. */
+export interface ReportMilestone {
+  ref: string;
+  title: string;
+  status: "pending" | "built" | "validated";
+  validated_at: string | null;
+  tasks_total: number;
+  tasks_done: number;
+  tasks_failed: number;
+}
+
+export interface ProjectReport {
+  project: { id: string; name: string; phase: string; status: string; finished: boolean };
+  span: { started_at: string | null; ended_at: string | null; duration_seconds: number | null };
+  build: {
+    milestones: ReportMilestone[];
+    milestones_validated: number;
+    tasks: { total: number; done: number; failed: number; escalated: number; attempts: number };
+  };
+  costs: {
+    spent_usd: string;
+    budget_usd: string | null;
+    estimate_usd: string | null;
+    budget_used_percent: number | null;
+    estimate_delta_percent: number | null;
+    tokens: { prompt: number; completion: number };
+    savings: CostSavings | null;
+    by_model: CostByModel[];
+    by_role: CostByRole[];
+    fallbacks: CostFallbacks;
+  };
+}
+
 export interface CostFallbackLine extends CostLine {
   model: string;
   /** The first model of the chain that could not answer. */

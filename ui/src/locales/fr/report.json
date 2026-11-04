@@ -1,0 +1,52 @@
+{
+  "title": "Rapport : {{name}}",
+  "download": "Télécharger en Markdown",
+  "na": "n/d",
+  "unknown": "inconnu",
+  "state": {
+    "finished": "Ce projet est terminé.",
+    "ongoing": "Ce projet n'est pas encore terminé : les chiffres sont ceux d'aujourd'hui."
+  },
+  "duration": {
+    "days": "{{days}} j {{hours}} h",
+    "hours": "{{hours}} h {{minutes}} min",
+    "minutes": "{{minutes}} min"
+  },
+  "built": {
+    "title": "Ce qui a été construit",
+    "summary": "{{validated}} jalons validés sur {{milestones}}. Tâches : {{done}} réussies sur {{total}}, {{failed}} en échec, {{escalated}} escaladées vers un modèle plus fort."
+  },
+  "milestoneStatus": {
+    "pending": "à faire",
+    "built": "construit",
+    "validated": "validé"
+  },
+  "time": {
+    "started": "Début",
+    "ended": "Dernière activité",
+    "duration": "Durée"
+  },
+  "costs": {
+    "spent": "Dépensé",
+    "budget": "Budget",
+    "noBudget": "aucun",
+    "estimate": "Estimation du plan",
+    "tokens": "Jetons : {{prompt}} en entrée, {{completion}} en sortie"
+  },
+  "fallbacks": {
+    "title": "Replis",
+    "summary": "{{calls}} appels sur {{total}} ont reçu leur réponse d'un modèle de repli."
+  },
+  "byModel": { "title": "Coût par modèle" },
+  "byRole": { "title": "Coût par rôle" },
+  "col": {
+    "milestone": "Jalon",
+    "status": "État",
+    "tasks": "Tâches réussies",
+    "failed": "En échec",
+    "model": "Modèle",
+    "role": "Rôle",
+    "calls": "Appels",
+    "cost": "Coût"
+  }
+}
