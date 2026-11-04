@@ -22,7 +22,7 @@ Investigated in `backend/cobble/worker.py`, `scheduler/engine.py` and `orchestra
 One mechanism, the smallest one that closes the biggest gap (1): **step checkpoints in the
 database**.
 
-- Table `job_checkpoints (project_id, key, content, created_at)`, migration 0014 (tested up and
+- Table `job_checkpoints (project_id, key, content, created_at)`, migration 0015 (tested up and
   down).
 - `PlannerService._chat` is the only place a planner job calls the model. Inside `run_job` it
   looks for a checkpoint keyed by `sha256(step, role, messages)`; when found (and younger than
