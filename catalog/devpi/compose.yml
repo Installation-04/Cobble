@@ -1,0 +1,21 @@
+# devpi for Cobble. No published port: the other modules reach it on the platform network. The
+# platform rewrites this file (names, networks, limits). The index `root/pypi` mirrors PyPI.
+services:
+  devpi:
+    image: jonasal/devpi-server:6.21.0@sha256:3f06e7c54139d74e18f44f731f5facb39dbe9b48384dd13c4f05c71ded6be39e
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    restart: unless-stopped
+    volumes:
+      - devpi_data:/devpi
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://127.0.0.1:3141/+api')"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+    mem_limit: 768m
+    cpus: 1
+    pids_limit: 256
+
+volumes:
+  devpi_data: {}

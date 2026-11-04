@@ -5,6 +5,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ## [Unreleased]
 
+### Added
+- v0.3: **local package cache** (ADR 0015). Two optional catalogue modules, `verdaccio` (npm) and `devpi` (PyPI), each a read-through cache with no web page, a data volume, resource limits and a health check, providing `package-cache` plus `npm-cache` / `pypi-cache`. They are in no starter pack and are covered by the install/uninstall matrix test. They are not wired to the agent runners yet (needs optional links in the resolver and the agents' proxy allow-list: described in the ADR). Docs in `docs/{fr,en}/modules.md`.
+
 ### Changed
 - v0.3 step 6: **local model benchmark** (ADR 0012). `cobble models benchmark` measures models on 8 coding tasks with hidden cases, running the generated code in a new module-manager sandbox (`POST /v1/sandbox/run`: throwaway container, no network, read-only, 256 MB, 1 CPU, 64 processes, killed at the time limit). Results (quality, tokens/s) are stored (migration `0013`), shown in Settings → Models → Local benchmark with a "Use as worker" button, and the best `worker` model is proposed (`--apply` to set it). Local models only unless `--allow-paid`.
 - v0.3 step 5: **"local only" projects** (ADR 0011). A project can be switched, in the Costs tab (Privacy card) or with `local_only` on the projects API, to use only models served on this machine: the cost router, through which every model call passes, drops every other model from the role's chain and from escalations, and refuses the call before sending anything when none is left (`local_only_unavailable`). It fails closed: if the local models cannot be listed, none is local. Migration `0012`. Package downloads of the generated app are not covered.

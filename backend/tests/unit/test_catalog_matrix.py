@@ -9,6 +9,7 @@ explicitly requested modules call for, and that nothing is left once everything 
 from __future__ import annotations
 
 import itertools
+import random
 from pathlib import Path
 
 import pytest
@@ -65,7 +66,7 @@ def check(r: Rig, explicit: set[str]) -> None:
 
 
 def test_the_catalogue_is_the_expected_one() -> None:
-    assert IDS == ["aider", "forgejo", "ollama", "preview", "woodpecker"]
+    assert IDS == ["aider", "devpi", "forgejo", "ollama", "preview", "verdaccio", "woodpecker"]
 
 
 def run_story(install: tuple[str, ...], removal: tuple[str, ...]) -> None:
@@ -89,7 +90,25 @@ def run_story(install: tuple[str, ...], removal: tuple[str, ...]) -> None:
     assert r.runner.running == {} and r.runner.volumes == set()
 
 
-@pytest.mark.parametrize("order", list(itertools.permutations(IDS)))
+# Seven modules make 5040 orders, each replayed three ways: too slow for every run. The five
+# modules that depend on each other are tried in every order (the two package caches, which
+# depend on nothing, are slotted in at a different place each time), and the full set is tried
+# in a fixed random sample of orders.
+CACHES = ("devpi", "verdaccio")
+LINKED = tuple(m for m in IDS if m not in CACHES)
+
+
+def orders() -> list[tuple[str, ...]]:
+    out: list[tuple[str, ...]] = []
+    for n, base in enumerate(itertools.permutations(LINKED)):
+        caches = CACHES if n % 2 == 0 else CACHES[::-1]
+        at = n % (len(LINKED) + 1)
+        out.append(base[:at] + caches + base[at:])
+    out.extend(random.Random(7).sample(list(itertools.permutations(IDS)), 60))  # noqa: S311 - not security
+    return out
+
+
+@pytest.mark.parametrize("order", orders())
 def test_installing_one_by_one_in_any_order_then_removing_in_the_same_reversed_or_rotated_order(
     order: tuple[str, ...],
 ) -> None:
@@ -97,7 +116,7 @@ def test_installing_one_by_one_in_any_order_then_removing_in_the_same_reversed_o
         run_story(order, removal)
 
 
-@pytest.mark.parametrize("removal", list(itertools.permutations(IDS)))
+@pytest.mark.parametrize("removal", orders()[::6])
 def test_removing_in_any_order_after_a_fixed_install(removal: tuple[str, ...]) -> None:
     run_story(tuple(IDS), removal)
 
@@ -141,3 +160,20 @@ def test_a_machine_too_small_for_a_module_refuses_it_and_leaves_nothing_behind()
             r.manager.install([module])
         assert r.counts() == {"modules": 0, "secrets": 0, "links": 0}
         assert r.runner.running == {}
+
+
+def test_the_package_caches_stand_alone_and_leave_the_other_modules_alone() -> None:
+    for cache, specific in (("verdaccio", "npm-cache"), ("devpi", "pypi-cache")):
+        manifest = MODULES[cache]
+        assert {p.capability for p in manifest.provides} == {"package-cache", specific}
+        assert manifest.requires == [] and manifest.exclusive == []
+        r = rig()
+        r.manager.install([cache])
+        assert set(r.modules()) == {cache}
+        with r.sessions() as s:
+            assert not list(s.scalars(select(ModuleLink)))
+    r = rig()
+    r.manager.install(["verdaccio", "devpi", "aider"])  # both caches coexist; aider pulls git
+    assert set(r.modules()) == {"verdaccio", "devpi", "aider", "forgejo"}
+    r.manager.uninstall(["verdaccio"], confirm_cascade=True)
+    assert set(r.modules()) == {"devpi", "aider", "forgejo"}
