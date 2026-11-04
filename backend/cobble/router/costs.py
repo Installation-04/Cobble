@@ -9,6 +9,7 @@ service itself rejects as malformed (HTTP 400) is the same for every model and i
 from __future__ import annotations
 
 import logging
+import time
 import uuid
 from collections.abc import Callable, Mapping
 from typing import Any, Protocol
@@ -33,6 +34,48 @@ class LocalOnlyUnavailable(Exception):
 
 # Statuses that mean "this model cannot answer right now", not "this request is wrong".
 FALLBACK_STATUSES = frozenset({401, 402, 403, 404, 408, 429}) | frozenset(range(500, 600))
+
+
+class RateLimitBackoff:
+    """Leaves a model alone for a while after it answered 429 (rate limited).
+
+    The wait doubles at each consecutive refusal (`base_s`, 2x, 4x... up to `max_s`) and is
+    forgotten at the first answer. A model cooling down is not removed from the owner's chain:
+    it is tried after the others for the duration (the call still goes to it when nothing else
+    is left). Free tiers are the usual case: their limits are low and strict (ADR 0013)."""
+
+    def __init__(
+        self,
+        base_s: float = 30.0,
+        max_s: float = 600.0,
+        clock: Callable[[], float] = time.monotonic,
+    ) -> None:
+        self._base_s = base_s
+        self._max_s = max_s
+        self._clock = clock
+        self._until: dict[str, float] = {}
+        self._strikes: dict[str, int] = {}
+
+    def hit(self, model: str) -> None:
+        strikes = self._strikes.get(model, 0) + 1
+        self._strikes[model] = strikes
+        self._until[model] = self._clock() + min(self._base_s * 2 ** (strikes - 1), self._max_s)
+
+    def ok(self, model: str) -> None:
+        self._strikes.pop(model, None)
+        self._until.pop(model, None)
+
+    def cooling(self, model: str) -> bool:
+        return self._until.get(model, 0.0) > self._clock()
+
+    def order(self, candidates: list[str]) -> list[str]:
+        """The same models, those cooling down last (the relative order is kept)."""
+        ready = [m for m in candidates if not self.cooling(m)]
+        return ready + [m for m in candidates if self.cooling(m)]
+
+
+# Shared by every router of the process, so the memory of a 429 outlives one request.
+SHARED_BACKOFF = RateLimitBackoff()
 
 
 class ChatGateway(Protocol):
@@ -67,7 +110,9 @@ class CostRouter:
         chain_for: Callable[[Role], list[str]] | None = None,
         is_local_only: Callable[[uuid.UUID], bool] | None = None,
         local_models: Callable[[], set[str]] | None = None,
+        backoff: RateLimitBackoff | None = None,
     ) -> None:
+        self._backoff = backoff or RateLimitBackoff()
         self._gateway = gateway
         self._budget = budget
         self._role_models = dict(role_models)
@@ -129,24 +174,33 @@ class CostRouter:
     ) -> ChatResult:
         last: Exception | None = None
         failed: list[str] = []
+        ordered = self._backoff.order(candidates)
+        if ordered != candidates:
+            log.info("rate-limited models are tried last for now: %s", candidates)
+            candidates = ordered
         for index, candidate in enumerate(candidates):
             try:
                 if not failed:  # the usual case: the call is exactly what it always was
-                    return self._gateway.chat(
+                    result = self._gateway.chat(
                         candidate, messages, role=role.value, project_id=project_id, task_id=task_id
                     )
-                return self._gateway.chat(
-                    candidate,
-                    messages,
-                    role=role.value,
-                    project_id=project_id,
-                    task_id=task_id,
-                    fallback_from=failed[0],
-                    fallbacks=len(failed),
-                )
+                else:
+                    result = self._gateway.chat(
+                        candidate,
+                        messages,
+                        role=role.value,
+                        project_id=project_id,
+                        task_id=task_id,
+                        fallback_from=failed[0],
+                        fallbacks=len(failed),
+                    )
+                self._backoff.ok(candidate)
+                return result
             except Exception as error:
                 if not can_fall_back(error):
                     raise
+                if isinstance(error, GatewayError) and error.status == 429:
+                    self._backoff.hit(candidate)
                 last = error
                 failed.append(candidate)
                 if index + 1 < len(candidates):

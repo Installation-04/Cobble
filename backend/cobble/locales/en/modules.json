@@ -145,6 +145,15 @@
         "row": "  {name:<30} {quality:>3} %   {speed} tokens/s",
         "best": "Proposed for the worker role: {name} (add --apply to put it first in the route).",
         "none_good": "No model reaches the minimum quality to be proposed for the worker role."
+      },
+      "prices": {
+        "empty": "No price known yet: the model gateway has not reported any.",
+        "header": "{name:<40} {prompt:>12} {completion:>12}   (USD per million tokens)",
+        "row": "{name:<40} {prompt:>12} {completion:>12}  {flags}",
+        "free": "free tier",
+        "changed": "price changed (was {prompt} / {completion})",
+        "warning": "Warning: the price of {count} model(s) changed lately. Your routes were not touched.",
+        "terms": "Free tiers have rate limits and provider terms (some use your prompts for training): check them."
       }
     }
   }

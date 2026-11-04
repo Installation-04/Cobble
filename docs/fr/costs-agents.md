@@ -53,3 +53,19 @@ Les montants sont des chaînes avec 2 à 8 décimales. `ref: null` regroupe les 
 n'y en a pas). `budget_usd` vaut `null` si le budget est illimité.
 
 `GET /costs` liste les projets de l'appelant: `[{"project_id", "name", "spent_usd", "budget_usd", "status"}]`.
+
+`GET /models/prices` (tout utilisateur connecté) : `{"prices": [{"model", "prompt_per_million_usd",
+"completion_per_million_usd", "free", "changed", "previous_prompt_per_million_usd",
+"previous_completion_per_million_usd", "changed_at"}], "change_window_days": 14}`, les modèles dont le
+prix a changé en premier. Il lit les prix de la passerelle et garde le dernier vu: un changement de
+prix d'un fournisseur apparaît comme `changed` pendant 14 jours (ADR 0013). Rien n'est réordonné:
+c'est un avertissement.
+
+Le rapport de coûts a aussi `free_calls` (appels à des modèles de palier gratuit, comptés comme
+gratuits: coût nul), `by_model[].free` et `price_changes` (changements récents parmi les modèles
+utilisés par le projet). **Paliers gratuits** : un modèle à prix nul pour la passerelle, ou un modèle
+`:free` d'OpenRouter. Les modèles locaux ne sont pas des paliers gratuits. Mise en garde: les paliers
+gratuits ont leurs propres limites de débit et conditions (entraînement sur vos requêtes, offre
+modifiable); Cobble ne peut pas les vérifier pour vous, et un projet « local seulement » les évite
+complètement. Sur un 429, le modèle suivant de la route répond et le modèle limité est essayé en
+dernier pendant 30 s (en doublant jusqu'à 10 min).

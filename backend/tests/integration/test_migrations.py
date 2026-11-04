@@ -613,6 +613,32 @@ def test_migration_0013_model_benchmarks_up_and_down(database_url: str) -> None:
     command.upgrade(config, "head")
 
 
+def test_migration_0014_model_prices_up_and_down(database_url: str) -> None:
+    config = alembic_config(database_url)
+    command.downgrade(config, "base")
+    command.upgrade(config, "0013")
+    engine = create_engine(database_url)
+    try:
+        assert "model_prices" not in tables(database_url)
+        command.upgrade(config, "0014")
+        assert "model_prices" in tables(database_url)
+        with engine.begin() as conn:
+            conn.execute(
+                text(
+                    "INSERT INTO model_prices (model, prompt_usd, completion_usd) "
+                    "VALUES ('big', 0.000003, 0.000015)"
+                )
+            )
+            row = conn.execute(text("SELECT free, changed_at, updated_at FROM model_prices")).one()
+            assert row[0] is False and row[1] is None and row[2] is not None
+        command.downgrade(config, "0013")
+        assert "model_prices" not in tables(database_url)
+    finally:
+        engine.dispose()
+    command.downgrade(config, "base")  # leave the shared test database clean
+    command.upgrade(config, "head")
+
+
 def test_the_models_match_the_migrations(migrated_database: str) -> None:
     """No drift: what `Base.metadata` declares is what the migrations created (module tables)."""
     from alembic.autogenerate import compare_metadata

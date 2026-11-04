@@ -16,6 +16,7 @@ from sqlalchemy import ColumnElement, func, select
 from sqlalchemy.orm import Session
 
 from cobble.db import LLMCall, Plan, Project, Task
+from cobble.router import price_table
 from cobble.router.prices import Prices
 from cobble.scheduler.rules import ref_key
 
@@ -155,6 +156,12 @@ def project_costs(
         key=lambda e: (-int(e["calls"]), str(e["model"]), str(e["fallback_from"])),
     )
     estimate = plan_estimate(session, project.id)
+    free = price_table.free_names(session)
+
+    def is_free_model(name: str | None) -> bool:
+        return name is not None and (name in free or price_table.has_free_name(name))
+
+    used = {name for name, _ in models if name}
     return {
         "budget_usd": money(project.budget_usd) if project.budget_usd is not None else None,
         "spent_usd": money(spent),
@@ -170,7 +177,13 @@ def project_costs(
             reference,
         ),
         "by_task": [_entry("ref", name, t) for name, t in tasks],
-        "by_model": [_entry("model", name, t) for name, t in models],
+        "by_model": [
+            {**_entry("model", name, t), "free": is_free_model(name)} for name, t in models
+        ],
+        # Calls to free-tier models: counted as free (zero cost), and shown apart.
+        "free_calls": sum(t.calls for name, t in models if is_free_model(name)),
+        # Models of this project whose price changed lately (a warning, nothing is reordered).
+        "price_changes": [p for p in price_table.table(session, models=used) if p["changed"]],
         "by_role": [_entry("role", name, t) for name, t in roles],
         # Calls answered by another model because the one chosen for the role could not:
         # who answered instead of whom, how often and at what cost.

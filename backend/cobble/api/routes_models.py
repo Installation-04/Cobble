@@ -13,12 +13,14 @@ from pydantic import BaseModel, Field, SecretStr
 from cobble.benchmark import service as benchmarks
 from cobble.benchmark.tasks import VERSION as BENCHMARK_VERSION
 from cobble.db.models import PlatformState
+from cobble.router import price_table
 from cobble.router.gateway import LiteLLMGateway
 from cobble.router.policy import MAX_CHAIN, ROLES, ModelPolicy
 from cobble.router.presets import BY_ID, PRESETS, resolve
 
-from .deps import AdminUser, AppSettings, Db
+from .deps import AdminUser, AppSettings, CurrentUser, Db
 from .errors import ApiError
+from .routes_costs import sync_prices
 from .routes_modules import Manager, _call
 
 router = APIRouter()
@@ -230,6 +232,19 @@ def get_benchmarks(request: Request, _admin: AdminUser) -> dict[str, Any]:
             for r in rows
         ],
         "suggested_worker": benchmarks.best_worker(rows),
+    }
+
+
+@router.get("/models/prices")
+def get_prices(
+    request: Request, _user: CurrentUser, db: Db, settings: AppSettings
+) -> dict[str, Any]:
+    """The last price seen of each model (USD per million tokens), changed ones first, and
+    which models are free tiers. Looking refreshes the table from the gateway (ADR 0013)."""
+    sync_prices(request, settings, db)
+    return {
+        "prices": price_table.table(db),
+        "change_window_days": price_table.CHANGE_WINDOW.days,
     }
 
 
