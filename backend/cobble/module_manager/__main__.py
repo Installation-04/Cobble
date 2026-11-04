@@ -27,6 +27,7 @@ from .llm import LlmGateway, NullGateway, docker_gateway
 from .manager import ModuleManager
 from .redaction import RedactingFilter, Redactor
 from .runner import ComposeRunner
+from .sandbox import DockerSandbox
 from .secret_store import SecretStore
 from .service import OperationController
 from .vault import Vault, VaultError, generate_master_key_file
@@ -122,7 +123,10 @@ def build_app(settings: Settings, redis: Redis) -> tuple[FastAPI, ModuleManager]
         },
     )
     controller.bind(manager)
-    return create_app(controller, settings.module_manager_token, catalog), manager
+    sandbox = (
+        DockerSandbox(settings.module_sandbox_image) if settings.module_sandbox_image else None
+    )
+    return create_app(controller, settings.module_manager_token, catalog, sandbox), manager
 
 
 def main() -> int:

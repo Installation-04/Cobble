@@ -444,9 +444,11 @@ def test_projects_crud(logged: TestClient) -> None:
         "folder_id",
         "created_at",
         "budget_usd",
+        "local_only",
         "status",
         "phase",
     }
+    assert project["local_only"] is False  # ordinary unless asked
     assert project["status"] == "active"
     assert project["budget_usd"] == "5.00"
     assert project["folder_id"] == folder["id"]
@@ -469,6 +471,25 @@ def test_projects_crud(logged: TestClient) -> None:
 
     assert logged.delete(f"{API}/projects/{project['id']}", headers=H).status_code == 204
     assert logged.delete(f"{API}/projects/{project['id']}", headers=H).status_code == 404
+
+
+def test_a_project_can_be_made_local_only_at_creation_or_later_and_back(
+    logged: TestClient,
+) -> None:
+    secret = logged.post(
+        f"{API}/projects", json={"name": "Secret", "local_only": True}, headers=H
+    ).json()
+    assert secret["local_only"] is True
+    loose = logged.post(f"{API}/projects", json={"name": "Open"}, headers=H).json()
+    on = logged.patch(f"{API}/projects/{loose['id']}", json={"local_only": True}, headers=H)
+    assert on.json()["local_only"] is True
+    renamed = logged.patch(f"{API}/projects/{loose['id']}", json={"name": "Renamed"}, headers=H)
+    assert renamed.json()["local_only"] is True, "absent local_only must not change it"
+    off = logged.patch(f"{API}/projects/{loose['id']}", json={"local_only": False}, headers=H)
+    assert off.json()["local_only"] is False
+    assert logged.get(f"{API}/projects").json()[0]["local_only"] is True
+    bad = logged.patch(f"{API}/projects/{loose['id']}", json={"local_only": "maybe"}, headers=H)
+    assert bad.status_code == 422
 
 
 def test_deleting_folder_unfiles_its_projects(logged: TestClient) -> None:

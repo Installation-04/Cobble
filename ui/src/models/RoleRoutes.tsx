@@ -7,6 +7,7 @@ import { Button } from "../components/ui/button";
 import { Select } from "../components/ui/select";
 import { useAsyncAction } from "../project/useAsyncAction";
 import { useFetched } from "../project/useFetched";
+import { Benchmarks } from "./Benchmarks";
 import { Presets } from "./Presets";
 
 const SLOTS = 3; // the chosen model, then up to two fallbacks (the server allows `max_chain`)
@@ -140,6 +141,13 @@ export function RoleRoutes() {
   return (
     <div className="grid gap-6">
       <Presets
+        onApplied={(next) => {
+          setOverride(next);
+          setVersion((v) => v + 1);
+        }}
+      />
+      <Benchmarks
+        routes={data}
         onApplied={(next) => {
           setOverride(next);
           setVersion((v) => v + 1);

@@ -74,6 +74,76 @@ class Routes:
         self.saved = routes
 
 
+class Rig:
+    """A benchmark rig: models answer from a script, the sandbox runs code in this process."""
+
+    def __init__(self, answers: dict[str, str] | None = None) -> None:
+        import subprocess
+        import sys
+
+        from cobble.benchmark.tasks import TASKS
+
+        from .test_benchmark import SOLUTIONS
+
+        self._subprocess, self._sys = subprocess, sys
+        self.answers = answers or {}
+        self.stored: list[Any] = []
+        self.asked: list[str] = []
+        self._tasks = TASKS
+        self._solutions = SOLUTIONS
+        self.broken_sandbox = False
+
+    def chat(self, model: str) -> Any:
+        from decimal import Decimal
+
+        from cobble.capabilities.llm import ChatResult
+
+        def ask(messages: list[dict[str, str]]) -> Any:
+            self.asked.append(model)
+            task = next(t for t in self._tasks if t.prompt in messages[1]["content"])
+            good = self.answers.get(model, "good") == "good"
+            code = (
+                self._solutions[task.id] if good else f"def {task.function}(*a):\n    return None\n"
+            )
+            return ChatResult(f"```python\n{code}\n```", model, 10, 50, Decimal(0), None)
+
+        return ask
+
+    def run_code(self, program: str, timeout_s: float) -> dict[str, Any]:
+        if self.broken_sandbox:
+            raise RuntimeError("down")
+        done = self._subprocess.run(
+            [self._sys.executable, "-I", "-"], input=program, capture_output=True, text=True
+        )
+        return {
+            "exit_code": done.returncode,
+            "stdout": done.stdout,
+            "stderr": "",
+            "timed_out": False,
+        }
+
+    def store(self, result: Any) -> None:
+        self.stored.append(result)
+
+    def latest(self) -> list[Any]:
+        from decimal import Decimal
+        from types import SimpleNamespace
+
+        return sorted(
+            (
+                SimpleNamespace(
+                    model=r.model,
+                    quality=Decimal(str(round(r.quality, 4))),
+                    tokens_per_second=(
+                        Decimal(str(round(r.tokens_per_second, 2))) if r.tokens_per_second else None
+                    ),
+                )
+                for r in self.stored
+            ),
+            key=lambda r: -r.quality,
+        )
+
+
 def go(
     *argv: str,
     api: API | None = None,
@@ -81,6 +151,7 @@ def go(
     answer: str = "n",
     probe_code: str = "ok",
     routes: Routes | None = None,
+    rig: Rig | None = None,
 ):
     api = api or API()
     out, err = io.StringIO(), io.StringIO()
@@ -94,6 +165,7 @@ def go(
         probe=lambda name: (probe_code == "ok", probe_code),
         read_key=lambda _prompt: SECRET,
         routes=routes or Routes(),
+        bench=rig,
     )
     return code, out.getvalue(), err.getvalue(), api
 
@@ -222,3 +294,73 @@ def test_a_preset_that_cannot_work_or_does_not_exist_changes_nothing() -> None:
 
 def test_presets_speak_french() -> None:
     assert "Économique local" in go("preset", api=API(), routes=Routes(), lang="fr")[1]
+
+
+def local_api() -> API:
+    api = API()
+    api.local = [{"name": "coder", "model": "ollama_chat/x", "module": "ollama"}]
+    return api
+
+
+def test_the_benchmark_measures_every_local_model_and_proposes_the_best() -> None:
+    api, rig, store = local_api(), Rig(), Routes()
+    api.local.append({"name": "tiny", "model": "ollama_chat/y", "module": "ollama"})
+    rig.answers = {"tiny": "bad"}
+    code, out, _, _ = go("benchmark", api=api, rig=rig, routes=store)
+    assert code == 0
+    assert [r.model for r in rig.stored] == ["coder", "tiny"] and rig.asked.count("coder") == 8
+    assert "Measuring coder" in out and "100 % of the cases passed" in out
+    assert "Proposed for the worker role: coder" in out
+    assert store.saved == {}  # a proposal is not applied silently
+
+
+def test_apply_puts_the_best_model_first_in_the_worker_route_and_keeps_the_rest() -> None:
+    api, rig, store = local_api(), Rig(), Routes()
+    store.saved = {"worker": ["fake"], "planner": ["fake"]}
+    code, out, _, _ = go("benchmark", "--apply", api=api, rig=rig, routes=store)
+    assert code == 0 and store.saved["worker"] == ["coder", "fake"]
+    assert store.saved["planner"] == ["fake"]  # other roles untouched
+    assert "worker now tries: coder → fake" in out
+
+
+def test_a_model_that_costs_money_needs_an_explicit_yes() -> None:
+    api, rig = local_api(), Rig()
+    go("add", "openai", "gpt-4.1-mini", api=api)
+    code, _, err, _ = go("benchmark", "openai-gpt-4.1-mini", api=api, rig=rig)
+    assert code == 2 and "--allow-paid" in err and rig.stored == []
+    code, _, _, _ = go("benchmark", "openai-gpt-4.1-mini", "--allow-paid", api=api, rig=rig)
+    assert code == 0 and [r.model for r in rig.stored] == ["openai-gpt-4.1-mini"]
+
+
+def test_unknown_models_and_an_empty_machine_are_refused_before_anything_runs() -> None:
+    rig = Rig()
+    code, _, err, _ = go("benchmark", "ghost", api=local_api(), rig=rig)
+    assert code == 2 and "ghost" in err
+    code, _, err, _ = go("benchmark", api=API(), rig=rig)  # nothing is served here
+    assert code == 2 and "no local model" in err and rig.stored == [] and rig.asked == []
+
+
+def test_a_sandbox_that_is_down_is_reported_not_scored_as_a_bad_model() -> None:
+    rig = Rig()
+    rig.broken_sandbox = True
+    code, _, err, _ = go("benchmark", api=local_api(), rig=rig)
+    assert code == 1 and "sandbox" in err
+
+
+def test_no_model_is_proposed_when_none_is_good_enough() -> None:
+    rig = Rig({"coder": "bad"})
+    code, out, _, _ = go("benchmark", api=local_api(), rig=rig, routes=Routes())
+    assert code == 0 and "No model reaches the minimum quality" in out
+
+
+def test_show_reads_the_latest_results_and_runs_nothing() -> None:
+    api, rig = local_api(), Rig()
+    go("benchmark", api=api, rig=rig)
+    asked = len(rig.asked)
+    code, out, _, _ = go("benchmark", "--show", api=api, rig=rig)
+    assert code == 0 and "coder" in out and len(rig.asked) == asked
+
+
+def test_the_benchmark_speaks_french() -> None:
+    out = go("benchmark", api=local_api(), rig=Rig(), lang="fr")[1]
+    assert "Mesure de coder" in out and "des cas réussis" in out

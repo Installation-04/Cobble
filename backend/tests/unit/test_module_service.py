@@ -831,3 +831,65 @@ def test_every_model_endpoint_needs_the_token() -> None:
     ):
         body = {"provider": "openai", "model": "m", "api_key": "k"} if method == "PUT" else None
         assert client.request(method, path, json=body).status_code == 401
+
+
+# --- the sandbox endpoint ----------------------------------------------------------------------
+
+
+def sandbox_client(fake: Any) -> TestClient:
+    svc = Service(Rig())
+    return TestClient(create_app(svc.controller, TOKEN, None, fake))
+
+
+def test_the_sandbox_endpoint_runs_a_program_and_returns_what_it_printed() -> None:
+    from cobble.module_manager.sandbox import FakeSandbox, SandboxResult
+
+    fake = FakeSandbox([SandboxResult(0, "42\n", "", False)])
+    client = sandbox_client(fake)
+    reply = client.post(
+        "/v1/sandbox/run", json={"program": "print(42)", "timeout_s": 5}, headers=AUTH
+    )
+    assert reply.status_code == 200
+    assert reply.json() == {"exit_code": 0, "stdout": "42\n", "stderr": "", "timed_out": False}
+    assert fake.programs == ["print(42)"]
+
+
+def test_the_sandbox_needs_the_token_and_is_off_without_one_configured() -> None:
+    from cobble.module_manager.sandbox import FakeSandbox
+
+    client = sandbox_client(FakeSandbox())
+    assert client.post("/v1/sandbox/run", json={"program": "x"}).status_code == 401
+    off = TestClient(create_app(Service(Rig()).controller, TOKEN))
+    reply = off.post("/v1/sandbox/run", json={"program": "x"}, headers=AUTH)
+    assert reply.status_code == 503 and reply.json()["error"]["code"] == "sandbox_unavailable"
+
+
+@pytest.mark.parametrize(
+    ("body", "status", "code"),
+    [
+        ({"program": ""}, 422, "invalid_request"),
+        ({"program": "x", "timeout_s": 0}, 422, "invalid_request"),
+        ({"program": "x", "timeout_s": 9999}, 422, "invalid_request"),
+        ({"program": "x" * 100_001}, 413, "program_too_large"),
+    ],
+)
+def test_a_bad_sandbox_request_is_refused_before_anything_runs(
+    body: dict[str, Any], status: int, code: str
+) -> None:
+    from cobble.module_manager.sandbox import FakeSandbox
+
+    fake = FakeSandbox()
+    reply = sandbox_client(fake).post("/v1/sandbox/run", json=body, headers=AUTH)
+    assert reply.status_code == status and reply.json()["error"]["code"] == code
+    assert fake.programs == []
+
+
+def test_a_busy_or_unavailable_sandbox_has_its_own_stable_codes() -> None:
+    from cobble.module_manager.sandbox import FakeSandbox, SandboxBusy, SandboxError
+
+    busy = sandbox_client(FakeSandbox(error=SandboxBusy()))
+    reply = busy.post("/v1/sandbox/run", json={"program": "x"}, headers=AUTH)
+    assert reply.status_code == 429 and reply.json()["error"]["code"] == "sandbox_busy"
+    down = sandbox_client(FakeSandbox(error=SandboxError("docker_unavailable")))
+    reply = down.post("/v1/sandbox/run", json={"program": "x"}, headers=AUTH)
+    assert reply.status_code == 503 and reply.json()["error"]["code"] == "docker_unavailable"

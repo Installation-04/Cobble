@@ -21,7 +21,9 @@ USE_DEFAULT: Any = httpx.USE_CLIENT_DEFAULT
 
 # Refusals the module-manager reports with a 5xx status (the manager works; what it asked for
 # failed): they reach the user as such instead of as "the manager is not available".
-SERVER_SIDE_REFUSALS = frozenset({"model_gateway_failed"})
+SERVER_SIDE_REFUSALS = frozenset(
+    {"model_gateway_failed", "sandbox_unavailable", "docker_unavailable"}
+)
 
 
 def _refusal_code(response: httpx.Response) -> str | None:
@@ -100,6 +102,16 @@ class HttpModuleManager:
 
     def catalog(self) -> dict[str, Any]:
         result: dict[str, Any] = self._request("GET", "/v1/catalog")
+        return result
+
+    def sandbox_run(self, program: str, timeout_s: float = 10.0) -> dict[str, Any]:
+        """Run an untrusted Python program in the manager's throwaway container."""
+        result: dict[str, Any] = self._request(
+            "POST",
+            "/v1/sandbox/run",
+            json={"program": program, "timeout_s": timeout_s},
+            timeout=timeout_s + 15.0,
+        )
         return result
 
     def models(self) -> dict[str, Any]:

@@ -17,6 +17,7 @@ from cobble.capabilities import ChatResult, Role
 from cobble.config import Settings
 from cobble.db import Base, make_session_factory
 from cobble.router.budget import BudgetExceeded
+from cobble.router.costs import LocalOnlyUnavailable
 from cobble.router.gateway import GatewayError
 
 from .fakes import CounterRedis
@@ -121,6 +122,15 @@ def test_budget_reached_is_402(client: TestClient, router: FakeRouter) -> None:
     reply = post(client, token())
     assert reply.status_code == 402
     assert reply.json()["error"]["code"] == "budget_reached"
+
+
+def test_a_local_only_project_with_no_local_model_is_409(
+    client: TestClient, router: FakeRouter
+) -> None:
+    router.error = LocalOnlyUnavailable(PROJECT)
+    reply = post(client, token())
+    assert reply.status_code == 409
+    assert reply.json()["error"]["code"] == "local_only_unavailable"
 
 
 def test_gateway_error_is_502(client: TestClient, router: FakeRouter) -> None:

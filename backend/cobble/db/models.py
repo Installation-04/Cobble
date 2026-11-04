@@ -51,6 +51,27 @@ class LLMCall(Base):
     fallbacks: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
 
 
+class ModelBenchmark(Base):
+    """One run of the local model benchmark: how well and how fast a model codes on this machine."""
+
+    __tablename__ = "model_benchmarks"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    model: Mapped[str] = mapped_column(String(200), nullable=False, index=True)
+    version: Mapped[int] = mapped_column(Integer, nullable=False)  # of the task set
+    quality: Mapped[Decimal] = mapped_column(Numeric(5, 4), nullable=False)  # 0..1
+    seconds: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
+    tokens_per_second: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
+    outcomes: Mapped[list[dict[str, Any]]] = mapped_column(JSON, nullable=False)
+    # Set in Python too (microseconds) so two runs in the same second sort in the right order.
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        server_default=func.now(),
+        nullable=False,
+    )
+
+
 def _utcnow() -> datetime:
     return datetime.now(UTC)
 
@@ -134,6 +155,11 @@ class Project(Base):
         String(20), nullable=False, default="active", server_default="active"
     )
     budget_warning_sent: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=false()
+    )
+    # True: no request of this project may reach a model that is not served on this machine
+    # (confidential code). Enforced by the cost router, which fails closed.
+    local_only: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default=false()
     )
     # interview -> spec_review -> plan_review -> ready -> building -> done

@@ -16,6 +16,7 @@ from sqlalchemy import ColumnElement, func, select
 from sqlalchemy.orm import Session
 
 from cobble.db import LLMCall, Plan, Project, Task
+from cobble.router.prices import Prices
 from cobble.scheduler.rules import ref_key
 
 _EIGHT = Decimal("0.00000001")
@@ -85,8 +86,38 @@ def plan_estimate(session: Session, project_id: uuid.UUID) -> Decimal | None:
     return None
 
 
-def project_costs(session: Session, project: Project) -> dict[str, Any]:
-    """The `GET /projects/{id}/costs` body."""
+def savings(
+    prompt_tokens: int,
+    completion_tokens: int,
+    actual: Decimal,
+    reference: tuple[str, Prices] | None,
+) -> dict[str, Any] | None:
+    """What was saved compared with doing every call with the reference (strongest) model.
+
+    `reference_cost` prices the same tokens at the reference model's per-token prices; `saved`
+    is that minus what was really spent. It can be negative (the project cost more than the
+    reference would have): the figure is reported as it is, never hidden. None when there is no
+    reference price or nothing was spent on tokens yet."""
+    if reference is None or prompt_tokens + completion_tokens == 0:
+        return None
+    model, prices = reference
+    reference_cost = prompt_tokens * prices.prompt + completion_tokens * prices.completion
+    saved = reference_cost - actual
+    percent = (saved / reference_cost * 100) if reference_cost > 0 else Decimal(0)
+    return {
+        "reference_model": model,
+        "reference_cost_usd": money(reference_cost),
+        "actual_cost_usd": money(actual),
+        "saved_usd": money(saved) if saved >= 0 else "-" + money(-saved),
+        "saved_percent": int(percent.to_integral_value()),
+    }
+
+
+def project_costs(
+    session: Session, project: Project, reference: tuple[str, Prices] | None = None
+) -> dict[str, Any]:
+    """The `GET /projects/{id}/costs` body. `reference` = (model, prices) of the strongest model,
+    for the savings counter."""
     where = LLMCall.project_id == project.id
     by_task_rows = session.execute(
         select(Task.ref, *_aggregates())
@@ -132,6 +163,12 @@ def project_costs(session: Session, project: Project) -> dict[str, Any]:
             "completion": sum(t.completion_tokens for _, t in models),
         },
         "estimate_usd": money(estimate) if estimate is not None else None,
+        "savings": savings(
+            sum(t.prompt_tokens for _, t in models),
+            sum(t.completion_tokens for _, t in models),
+            spent,
+            reference,
+        ),
         "by_task": [_entry("ref", name, t) for name, t in tasks],
         "by_model": [_entry("model", name, t) for name, t in models],
         "by_role": [_entry("role", name, t) for name, t in roles],

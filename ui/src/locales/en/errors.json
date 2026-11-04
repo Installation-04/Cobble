@@ -60,5 +60,7 @@
   "module_code_internal_error": "An unexpected error occurred. Nothing was left half installed.",
   "module_code_unknown": "The operation failed.",
   "model_unknown": "The model “{{name}}” does not exist.",
-  "model_gateway_failed": "The model service did not accept this connection, so nothing was changed. Check the key, then try again."
+  "model_gateway_failed": "The model service did not accept this connection, so nothing was changed. Check the key, then try again.",
+  "local_only_unavailable": "This project is local-only and no model served on this machine can answer. Install a local model (for example the Ollama module) or turn local-only off.",
+  "job_local_only_unavailable": "This project is local-only and no model served on this machine can answer. Install a local model or turn local-only off in the Costs tab."
 }

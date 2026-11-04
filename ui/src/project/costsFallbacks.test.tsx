@@ -2,9 +2,8 @@ import { screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ProjectCosts } from "../api/types";
 import { setLang } from "../i18n";
-import { ME, mockFetch, renderApp } from "../test/utils";
-import { CostsTab } from "./CostsTab";
-import * as provider from "./ProjectDataProvider";
+import { ME, mockFetch } from "../test/utils";
+import { showCosts } from "./costsTestUtils";
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -21,14 +20,7 @@ function costs(fallbacks?: ProjectCosts["fallbacks"]): ProjectCosts {
   };
 }
 
-async function show(value: ProjectCosts) {
-  vi.spyOn(provider, "useProjectData").mockReturnValue({
-    costs: value,
-    buildError: null,
-    paused: false,
-  } as unknown as ReturnType<typeof provider.useProjectData>);
-  await renderApp(<CostsTab />);
-}
+const show = (value: ProjectCosts) => showCosts(value);
 
 const LINE = { prompt_tokens: 1, completion_tokens: 1 };
 

@@ -15,6 +15,7 @@ export const KNOWN_ERROR_CODES = [
   "project_paused",
   "plan_invalid",
   "llm_error",
+  "local_only_unavailable",
   "budget_reached",
   "wrong_state",
   "queue_unavailable",

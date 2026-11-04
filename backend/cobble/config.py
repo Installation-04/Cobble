@@ -59,6 +59,9 @@ class Settings(BaseSettings):
     module_routes_dir: str = ""
     module_caddyfile: str = "/etc/caddy-main/Caddyfile"
     module_caddy_admin_socket: str = "/run/caddy/admin.sock"
+    # Image of the throwaway containers that run untrusted code (the model benchmark), pinned by
+    # digest. Empty: the sandbox is off and the benchmark cannot run.
+    module_sandbox_image: str = ""
     # Base URL agents use to reach the internal LLM endpoint (seen from the agent network).
     internal_api_url: str = "http://api:8000"
     # --- scheduler (ADR 0006) ---

@@ -548,6 +548,71 @@ def test_migration_0011_llm_call_fallbacks_up_and_down(database_url: str) -> Non
     command.upgrade(config, "head")
 
 
+def test_migration_0012_project_local_only_up_and_down(database_url: str) -> None:
+    config = alembic_config(database_url)
+    command.downgrade(config, "base")
+    command.upgrade(config, "0011")
+    engine = create_engine(database_url)
+    try:
+        with engine.begin() as conn:
+            conn.execute(
+                text(
+                    "INSERT INTO users (id, email, password_hash, role) VALUES "
+                    "('00000000-0000-0000-0000-0000000000a1', 'a@b.co', 'x', 'admin')"
+                )
+            )
+            conn.execute(
+                text(
+                    "INSERT INTO projects (id, owner_id, name) VALUES "
+                    "('00000000-0000-0000-0000-0000000000b1', "
+                    "'00000000-0000-0000-0000-0000000000a1', 'old')"
+                )
+            )
+        command.upgrade(config, "0012")
+        with engine.begin() as conn:
+            # existing projects are not confidential: nothing changes for them
+            assert conn.execute(text("SELECT local_only FROM projects")).scalar_one() is False
+            conn.execute(text("UPDATE projects SET local_only = true"))
+        command.downgrade(config, "0011")
+        columns = {c["name"] for c in inspect(engine).get_columns("projects")}
+        assert "local_only" not in columns
+        with engine.begin() as conn:
+            assert conn.execute(text("SELECT count(*) FROM projects")).scalar_one() == 1
+    finally:
+        engine.dispose()
+    command.downgrade(config, "base")  # leave the shared test database clean
+    command.upgrade(config, "head")
+
+
+def test_migration_0013_model_benchmarks_up_and_down(database_url: str) -> None:
+    config = alembic_config(database_url)
+    command.downgrade(config, "base")
+    command.upgrade(config, "0012")
+    engine = create_engine(database_url)
+    try:
+        assert "model_benchmarks" not in tables(database_url)
+        command.upgrade(config, "0013")
+        assert "model_benchmarks" in tables(database_url)
+        with engine.begin() as conn:
+            conn.execute(
+                text(
+                    "INSERT INTO model_benchmarks (id, model, version, quality, seconds, outcomes) "
+                    "VALUES ('00000000-0000-0000-0000-0000000000c1', 'coder', 1, 0.8750, 12.50, "
+                    "'[]')"
+                )
+            )
+            row = conn.execute(
+                text("SELECT quality, tokens_per_second, created_at FROM model_benchmarks")
+            ).one()
+            assert float(row[0]) == 0.875 and row[1] is None and row[2] is not None
+        command.downgrade(config, "0012")
+        assert "model_benchmarks" not in tables(database_url)
+    finally:
+        engine.dispose()
+    command.downgrade(config, "base")  # leave the shared test database clean
+    command.upgrade(config, "head")
+
+
 def test_the_models_match_the_migrations(migrated_database: str) -> None:
     """No drift: what `Base.metadata` declares is what the migrations created (module tables)."""
     from alembic.autogenerate import compare_metadata

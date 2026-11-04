@@ -87,5 +87,17 @@
     "cancel": "Cancel",
     "confirm": "This replaces the routes of all the jobs.",
     "applied": "Applied."
+  },
+  "benchmark": {
+    "title": "Local benchmark",
+    "description": "Measured on this machine with hidden test cases, run from the command line: cobble models benchmark. Quality is the share of cases passed.",
+    "model": "Model",
+    "quality": "Quality",
+    "speed": "Speed",
+    "suggested": "proposed for the worker",
+    "unknown": "—",
+    "tps": "{{n}} tokens/s",
+    "use": "Use as worker",
+    "percent": "{{n}} %"
   }
 }

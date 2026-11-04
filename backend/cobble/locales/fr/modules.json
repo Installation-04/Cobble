@@ -135,6 +135,16 @@
           "economical-local": "Économique local",
           "balanced": "Équilibré"
         }
+      },
+      "benchmark": {
+        "paid": "Ces modèles coûtent de l'argent par jeton : {names}. Ajoutez --allow-paid pour les mesurer quand même.",
+        "nothing": "Aucun modèle à mesurer : aucun modèle local n'est servi ici. Nommez un modèle, ou installez un moteur local.",
+        "running": "Mesure de {name}…",
+        "sandbox": "Le bac à sable de code n'est pas disponible (le gestionnaire de modules tourne-t-il avec son image de bac à sable ?).",
+        "result": "{name} : {quality} % des cas réussis, {speed} jetons/s",
+        "row": "  {name:<30} {quality:>3} %   {speed} jetons/s",
+        "best": "Proposé pour le rôle de développeur : {name} (ajoutez --apply pour le mettre en premier dans la route).",
+        "none_good": "Aucun modèle n'atteint la qualité minimale pour être proposé comme développeur."
       }
     }
   }

@@ -20,7 +20,10 @@ export interface WorkspaceValue {
   renameFolder: (id: string, name: string) => Promise<void>;
   deleteFolder: (id: string) => Promise<void>;
   createProject: (name: string, folderId: string | null) => Promise<Project>;
-  updateProject: (id: string, body: { name?: string; folder_id?: string | null }) => Promise<void>;
+  updateProject: (
+    id: string,
+    body: { name?: string; folder_id?: string | null; local_only?: boolean },
+  ) => Promise<void>;
   deleteProject: (id: string) => Promise<void>;
   /** Merge server-pushed fields (e.g. the phase) into a project already in memory. */
   patchProject: (id: string, patch: Partial<Project>) => void;

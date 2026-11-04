@@ -32,6 +32,8 @@ export interface Project {
   created_at: string;
   /** Decimal serialized as a string (null = unlimited). */
   budget_usd?: string | null;
+  /** True: no request of this project may reach a model that is not served on this machine. */
+  local_only?: boolean;
   status: "active" | "paused";
   phase: Phase;
 }
@@ -178,6 +180,17 @@ export interface ProjectCosts {
   by_role: CostByRole[];
   /** Calls answered by another model because the one chosen for the role could not. */
   fallbacks?: CostFallbacks;
+  /** Compared with doing every call with the strongest model; null when it cannot be priced. */
+  savings?: CostSavings | null;
+}
+
+export interface CostSavings {
+  reference_model: string;
+  reference_cost_usd: string;
+  actual_cost_usd: string;
+  /** Negative (a leading "-") when the project cost more than the reference model would have. */
+  saved_usd: string;
+  saved_percent: number;
 }
 
 export interface CostFallbackLine extends CostLine {
@@ -381,6 +394,23 @@ export interface RoleRoutes {
   routes: Record<string, string[]>;
   /** What each role really uses now (a route, else the setting, else the default). */
   effective: Record<string, string[]>;
+}
+
+/** One model's latest local benchmark (share of hidden cases passed, speed). */
+export interface BenchmarkResult {
+  model: string;
+  quality: number;
+  seconds: number;
+  tokens_per_second: number | null;
+  created_at: string;
+  failed_tasks: number;
+  tasks: number;
+}
+
+export interface Benchmarks {
+  version: number;
+  results: BenchmarkResult[];
+  suggested_worker: string | null;
 }
 
 /** A model served on this machine by an installed backend: free, no key. */

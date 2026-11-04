@@ -34,6 +34,7 @@ from .connections import ConnectionInvalid, ConnectionUnknown
 from .disk_catalog import DiskCatalog
 from .manager import ManagerBusy
 from .runner import RunnerError
+from .sandbox import MAX_PROGRAM_BYTES, MAX_TIMEOUT_S, Sandbox, SandboxBusy, SandboxError
 from .service import Busy, OperationController, OperationRequest, plan_to_json
 from .vault import SecretValue
 
@@ -93,6 +94,11 @@ class OperationBody(BaseModel):
         )
 
 
+class SandboxBody(BaseModel):
+    program: str = Field(min_length=1)
+    timeout_s: float = Field(default=10.0, gt=0, le=MAX_TIMEOUT_S)
+
+
 class ModelBody(BaseModel):
     provider: str = Field(max_length=20)
     model: str = Field(max_length=100)
@@ -147,7 +153,10 @@ def describe(
 
 
 def create_app(
-    controller: OperationController, token: str, catalog: DiskCatalog | None = None
+    controller: OperationController,
+    token: str,
+    catalog: DiskCatalog | None = None,
+    sandbox: Sandbox | None = None,
 ) -> FastAPI:
     secret = token.encode()
     app = FastAPI(title="Cobble module-manager", docs_url=None, redoc_url=None)
@@ -288,6 +297,26 @@ def create_app(
     @app.post("/v1/models/{name}/default", dependencies=[auth])
     def default_model(name: str) -> dict[str, Any]:
         return model_call(lambda: controller.manager.set_default_model(name))
+
+    @app.post("/v1/sandbox/run", dependencies=[auth])
+    def run_in_sandbox(body: SandboxBody) -> dict[str, Any]:
+        """Run a short Python program in a throwaway, network-less container (the benchmark)."""
+        if sandbox is None:
+            raise ServiceError(503, "sandbox_unavailable")
+        if len(body.program.encode("utf-8")) > MAX_PROGRAM_BYTES:
+            raise ServiceError(413, "program_too_large")
+        try:
+            result = sandbox.run(body.program, body.timeout_s)
+        except SandboxBusy:
+            raise ServiceError(429, "sandbox_busy") from None
+        except SandboxError as exc:
+            raise ServiceError(503, exc.code) from None
+        return {
+            "exit_code": result.exit_code,
+            "stdout": result.stdout,
+            "stderr": result.stderr,
+            "timed_out": result.timed_out,
+        }
 
     @app.post("/v1/plan", dependencies=[auth])
     def post_plan(body: OperationBody) -> dict[str, Any]:
