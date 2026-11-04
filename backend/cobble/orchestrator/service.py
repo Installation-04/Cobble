@@ -8,19 +8,22 @@ the project phase, publish events on the project's stream. `run_job` wraps them 
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import uuid
+from contextvars import ContextVar
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import httpx
 from redis import Redis
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session, sessionmaker
 
 from cobble.capabilities.llm import LLMClient, Role
 from cobble.config import Settings
-from cobble.db import Message, Plan, Project, Spec, User
+from cobble.db import JobCheckpoint, Message, Plan, Project, Spec, User
 from cobble.events import publish_project
 from cobble.router.budget import BudgetExceeded
 from cobble.router.costs import LocalOnlyUnavailable
@@ -34,6 +37,11 @@ from .plan_schema import PlanInvalid, parse_plan_reply
 log = logging.getLogger(__name__)
 
 JOB_KINDS = ("reply", "spec", "plan")
+
+# A checkpoint older than this belongs to a job nobody replayed: it is ignored and purged.
+CHECKPOINT_TTL = timedelta(hours=1)
+# Set while `run_job` runs: LLM steps are only checkpointed inside a job (ADR 0016).
+_in_job: ContextVar[bool] = ContextVar("cobble_planner_in_job", default=False)
 
 
 class JobError(Exception):
@@ -78,6 +86,19 @@ class PlannerService:
     ) -> bool:
         """Run one job. Never raises: failures become a `job.failed` event. True on success."""
         self._emit(project_id, "job.started", {"kind": kind})
+        token = _in_job.set(True)
+        try:
+            ok = self._run_job(kind, project_id, feedback, message_id)
+        finally:
+            _in_job.reset(token)
+        # Only a job that ended (either way) clears its steps; a process killed mid-job leaves
+        # them for the replay.
+        self._clear_checkpoints(project_id)
+        return ok
+
+    def _run_job(
+        self, kind: str, project_id: uuid.UUID, feedback: str | None, message_id: str | None
+    ) -> bool:
         try:
             if kind == "reply":
                 self.reply(project_id, message_id)
@@ -101,6 +122,44 @@ class PlannerService:
             return self._failed(kind, project_id, "internal_error")
         return True
 
+    # --- checkpoints (ADR 0016) ---------------------------------------------------------
+
+    def _chat(
+        self, role: Role, messages: list[dict[str, Any]], project_id: uuid.UUID, step: int = 0
+    ) -> str:
+        """The model's answer; a job replayed after a crash reuses the one it already paid for."""
+        if not _in_job.get():
+            return self._llm.chat(role, messages, project_id=project_id).content
+        key = hashlib.sha256(
+            json.dumps([step, str(role), messages], sort_keys=True, ensure_ascii=False).encode()
+        ).hexdigest()
+        now = datetime.now(UTC)
+        with self._sessions() as db:
+            row = db.get(JobCheckpoint, (project_id, key))
+            if row is not None:
+                created = row.created_at
+                if created.tzinfo is None:
+                    created = created.replace(tzinfo=UTC)
+                if now - created <= CHECKPOINT_TTL:
+                    log.info("job step reused from its checkpoint for project %s", project_id)
+                    return row.content
+                db.delete(row)
+                db.commit()
+        content = self._llm.chat(role, messages, project_id=project_id).content
+        with self._sessions() as db:
+            db.merge(JobCheckpoint(project_id=project_id, key=key, content=content, created_at=now))
+            db.commit()
+        return content
+
+    def _clear_checkpoints(self, project_id: uuid.UUID) -> None:
+        """The job ended (either way): its steps must not leak into the next one."""
+        try:
+            with self._sessions() as db:
+                db.execute(delete(JobCheckpoint).where(JobCheckpoint.project_id == project_id))
+                db.commit()
+        except Exception:
+            log.warning("could not clear the job checkpoints of %s", project_id, exc_info=True)
+
     def _failed(self, kind: str, project_id: uuid.UUID, code: str) -> bool:
         self._emit(project_id, "job.failed", {"kind": kind, "code": code})
         return False
@@ -123,11 +182,9 @@ class PlannerService:
             return  # already answered (a job replayed after a crash)
         if message_id is not None and history[-1]["id"] != message_id:
             return
-        result = self._llm.chat(
-            Role.PLANNER, prompts.interview_messages(history, lang), project_id=project_id
-        )
+        content = self._chat(Role.PLANNER, prompts.interview_messages(history, lang), project_id)
         with self._sessions() as db:
-            message = Message(project_id=project_id, role="assistant", content=result.content)
+            message = Message(project_id=project_id, role="assistant", content=content)
             db.add(message)
             db.commit()
             db.refresh(message)
@@ -145,14 +202,14 @@ class PlannerService:
             lang = _language(db, project)
             previous = _latest(db, Spec, project_id)
             previous_spec = previous.content if previous else None
-        result = self._llm.chat(
+        content = self._chat(
             Role.PLANNER,
             prompts.spec_messages(history, lang, feedback=feedback, previous_spec=previous_spec),
-            project_id=project_id,
+            project_id,
         )
         with self._sessions() as db:
             version = _next_version(db, Spec, project_id)
-            db.add(Spec(project_id=project_id, version=version, content=result.content.strip()))
+            db.add(Spec(project_id=project_id, version=version, content=content.strip()))
             changed = self._set_phase(db, project_id, "spec_review")
             db.commit()
         self._emit(project_id, "spec.updated", {"version": version})
@@ -180,14 +237,14 @@ class PlannerService:
         errors: list[str] = []
         parsed: ParsedPlan | None = None
         for attempt in range(prompts.MAX_PLAN_ATTEMPTS):
-            result = self._llm.chat(Role.PLANNER, messages, project_id=project_id)
+            reply = self._chat(Role.PLANNER, messages, project_id, attempt)
             try:
-                parsed = parse_plan_reply(result.content)
+                parsed = parse_plan_reply(reply)
                 break
             except PlanInvalid as exc:
                 errors = exc.errors
                 log.info("plan rejected (attempt %d): %s", attempt + 1, errors)
-                messages = prompts.retry_messages(base, result.content, errors)
+                messages = prompts.retry_messages(base, reply, errors)
         if parsed is None:
             raise JobError("plan_invalid")
         estimate = estimate_from_settings(parsed, self._settings)
