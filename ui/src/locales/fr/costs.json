@@ -49,5 +49,11 @@
     "none": "Aucune économie par rapport à {{model}}",
     "detail": "Tout faire avec {{model}} aurait coûté environ {{reference}} ; ce projet a coûté {{actual}}.",
     "unavailable": "Pas encore disponible : il faut quelques appels de modèles et un prix connu pour le modèle le plus fort (le modèle d'escalade)."
+  },
+  "localOnly": {
+    "title": "Confidentialité",
+    "label": "Local seulement : ce projet ne peut utiliser que des modèles servis sur cette machine",
+    "onHelp": "Rien de ce projet n'est envoyé à un service de modèles extérieur, pas même en repli ou en escalade. Si aucun modèle local ne peut répondre, le travail s'arrête avec un message clair au lieu de quitter la machine. Les téléchargements de paquets de l'application générée ne sont pas couverts.",
+    "offHelp": "Demande un modèle servi sur cette machine (par exemple le module Ollama). À utiliser pour du code confidentiel."
   }
 }

@@ -10,7 +10,23 @@ from cobble.config import Settings
 from .budget import BudgetService
 from .costs import CostRouter
 from .gateway import LiteLLMGateway
+from .local import LocalModels, project_is_local_only
 from .policy import ModelPolicy
+
+
+def _local_models(settings: Settings) -> LocalModels:
+    def fetch() -> dict[str, object]:
+        from cobble.providers.module_manager import HttpModuleManager
+
+        if not settings.module_manager_token:
+            return {}
+        client = HttpModuleManager.from_settings(settings)
+        try:
+            return client.models()
+        finally:
+            client.close()
+
+    return LocalModels(fetch)
 
 
 def build_cost_router(
@@ -24,4 +40,6 @@ def build_cost_router(
         settings.role_models,
         policy.default,
         chain_for=policy.chain_for,
+        is_local_only=project_is_local_only(sessions),
+        local_models=_local_models(settings),
     )

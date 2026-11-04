@@ -49,6 +49,7 @@ def create_project(body: ProjectIn, user: CurrentUser, db: Db, settings: AppSett
         name=body.name,
         folder_id=body.folder_id,
         budget_usd=settings.default_budget_usd,
+        local_only=body.local_only,
     )
     db.add(project)
     db.commit()
@@ -67,6 +68,8 @@ def update_project(project_id: str, body: ProjectPatch, user: CurrentUser, db: D
         project.folder_id = body.folder_id
     if "budget_usd" in body.model_fields_set:
         apply_budget(db, project, body.budget_usd)
+    if body.local_only is not None:
+        project.local_only = body.local_only
     db.commit()
     return project
 

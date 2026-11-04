@@ -14,6 +14,7 @@ from cobble.db import Message, Plan, Project, Spec
 from cobble.orchestrator.plan_schema import validate_plan
 from cobble.orchestrator.service import PlannerService
 from cobble.router.budget import BudgetExceeded
+from cobble.router.costs import LocalOnlyUnavailable
 from cobble.router.gateway import GatewayError
 
 from .fakes import FakeStreamRedis
@@ -279,6 +280,7 @@ def test_plan_feedback_creates_version_two_from_the_previous_plan(
     ("error", "code"),
     [
         (BudgetExceeded(uuid.uuid4()), "budget_reached"),
+        (LocalOnlyUnavailable(uuid.uuid4()), "local_only_unavailable"),
         (GatewayError(500), "llm_error"),
         (httpx.ConnectError("refused"), "llm_error"),
         (RuntimeError("bug"), "internal_error"),

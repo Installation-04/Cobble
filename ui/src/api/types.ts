@@ -32,6 +32,8 @@ export interface Project {
   created_at: string;
   /** Decimal serialized as a string (null = unlimited). */
   budget_usd?: string | null;
+  /** True: no request of this project may reach a model that is not served on this machine. */
+  local_only?: boolean;
   status: "active" | "paused";
   phase: Phase;
 }

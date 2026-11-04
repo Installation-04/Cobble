@@ -49,5 +49,11 @@
     "none": "No saving compared with {{model}}",
     "detail": "Doing everything with {{model}} would have cost about {{reference}}; this project cost {{actual}}.",
     "unavailable": "Not available yet: it needs some model calls and a known price for the strongest model (the escalation model)."
+  },
+  "localOnly": {
+    "title": "Privacy",
+    "label": "Local only: this project may only use models served on this machine",
+    "onHelp": "Nothing of this project is sent to an outside model service, not even as a fallback or an escalation. If no local model can answer, the work stops with a clear message instead of leaving the machine. Package downloads of the generated app are not covered.",
+    "offHelp": "Needs a model served on this machine (for example the Ollama module). Use it for confidential code."
   }
 }

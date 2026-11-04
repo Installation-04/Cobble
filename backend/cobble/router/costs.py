@@ -22,6 +22,15 @@ from .gateway import GatewayError
 
 log = logging.getLogger(__name__)
 
+
+class LocalOnlyUnavailable(Exception):
+    """The project may only use models served on this machine, and none can answer."""
+
+    def __init__(self, project_id: uuid.UUID) -> None:
+        super().__init__(f"project {project_id} is local-only and no local model is available")
+        self.project_id = project_id
+
+
 # Statuses that mean "this model cannot answer right now", not "this request is wrong".
 FALLBACK_STATUSES = frozenset({401, 402, 403, 404, 408, 429}) | frozenset(range(500, 600))
 
@@ -56,6 +65,8 @@ class CostRouter:
         role_models: Mapping[str, str],
         default_model: str | Callable[[], str],
         chain_for: Callable[[Role], list[str]] | None = None,
+        is_local_only: Callable[[uuid.UUID], bool] | None = None,
+        local_models: Callable[[], set[str]] | None = None,
     ) -> None:
         self._gateway = gateway
         self._budget = budget
@@ -65,6 +76,8 @@ class CostRouter:
             default_model if callable(default_model) else (lambda: default_model)
         )
         self._chain_for = chain_for
+        self._is_local_only = is_local_only
+        self._local_models = local_models
 
     def chain_for(self, role: Role) -> list[str]:
         if self._chain_for is not None:
@@ -90,6 +103,17 @@ class CostRouter:
         candidates = self.chain_for(role)
         if model is not None:
             candidates = [model, *(m for m in candidates if m != model)]
+        if (
+            project_id is not None
+            and self._is_local_only is not None
+            and self._is_local_only(project_id)
+        ):
+            # Confidential project: only models served here, whatever the route or the
+            # escalation asks for. Unknown or unreachable local models mean none: fail closed.
+            local = self._local_models() if self._local_models is not None else set()
+            candidates = [m for m in candidates if m in local]
+            if not candidates:
+                raise LocalOnlyUnavailable(project_id)
         result = self._first_answer(candidates, role, messages, project_id, task_id)
         if project_id is not None:
             self._budget.after_call(project_id)

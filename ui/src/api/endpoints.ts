@@ -47,7 +47,7 @@ export const projectsApi = {
   list: () => api.get<Project[]>("/projects"),
   create: (name: string, folderId: string | null) =>
     api.post<Project>("/projects", folderId ? { name, folder_id: folderId } : { name }),
-  update: (id: string, body: { name?: string; folder_id?: string | null }) =>
+  update: (id: string, body: { name?: string; folder_id?: string | null; local_only?: boolean }) =>
     api.patch<Project>(`/projects/${id}`, body),
   remove: (id: string) => api.delete(`/projects/${id}`),
 };

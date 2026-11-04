@@ -114,6 +114,7 @@ class FolderOut(BaseModel):
 class ProjectIn(BaseModel):
     name: str
     folder_id: uuid.UUID | None = None
+    local_only: bool = False
 
     _check_name = field_validator("name")(_name)
 
@@ -122,6 +123,7 @@ class ProjectPatch(BaseModel):
     name: str | None = None
     folder_id: uuid.UUID | None = None
     budget_usd: Decimal | None = Field(default=None, ge=0, max_digits=14, decimal_places=2)
+    local_only: bool | None = None
 
     @field_validator("name")
     @classmethod
@@ -139,6 +141,7 @@ class ProjectOut(BaseModel):
     folder_id: uuid.UUID | None
     created_at: datetime
     budget_usd: Decimal | None
+    local_only: bool
     status: Literal["active", "paused"]
     phase: Phase
 

@@ -136,6 +136,11 @@ class Project(Base):
     budget_warning_sent: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default=false()
     )
+    # True: no request of this project may reach a model that is not served on this machine
+    # (confidential code). Enforced by the cost router, which fails closed.
+    local_only: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=false()
+    )
     # interview -> spec_review -> plan_review -> ready -> building -> done
     phase: Mapped[str] = mapped_column(
         String(20), nullable=False, default="interview", server_default="interview"

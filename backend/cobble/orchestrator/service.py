@@ -23,6 +23,7 @@ from cobble.config import Settings
 from cobble.db import Message, Plan, Project, Spec, User
 from cobble.events import publish_project
 from cobble.router.budget import BudgetExceeded
+from cobble.router.costs import LocalOnlyUnavailable
 from cobble.router.gateway import GatewayError
 
 from . import prompts
@@ -88,6 +89,8 @@ class PlannerService:
                 raise JobError("unknown_job")
         except BudgetExceeded:
             return self._failed(kind, project_id, "budget_reached")
+        except LocalOnlyUnavailable:
+            return self._failed(kind, project_id, "local_only_unavailable")
         except (GatewayError, httpx.HTTPError):
             log.warning("model gateway error in %s job", kind, exc_info=True)
             return self._failed(kind, project_id, "llm_error")
