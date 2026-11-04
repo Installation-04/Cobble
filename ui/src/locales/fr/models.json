@@ -87,5 +87,17 @@
     "cancel": "Annuler",
     "confirm": "Cela remplace les routes de tous les travaux.",
     "applied": "Appliqué."
+  },
+  "benchmark": {
+    "title": "Banc d'essai local",
+    "description": "Mesuré sur cette machine avec des cas de test cachés, lancé en ligne de commande: cobble models benchmark. La qualité est la part de cas réussis.",
+    "model": "Modèle",
+    "quality": "Qualité",
+    "speed": "Vitesse",
+    "suggested": "proposé pour le développeur",
+    "unknown": "—",
+    "tps": "{{n}} jetons/s",
+    "use": "Utiliser comme développeur",
+    "percent": "{{n}} %"
   }
 }

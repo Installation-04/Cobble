@@ -10,6 +10,8 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, Field, SecretStr
 
+from cobble.benchmark import service as benchmarks
+from cobble.benchmark.tasks import VERSION as BENCHMARK_VERSION
 from cobble.db.models import PlatformState
 from cobble.router.gateway import LiteLLMGateway
 from cobble.router.policy import MAX_CHAIN, ROLES, ModelPolicy
@@ -204,6 +206,31 @@ def apply_preset(
         raise ApiError(422, "preset_unavailable", missing=list(outcome.missing))
     _store_routes(db, outcome.routes)
     return _routes_view(ModelPolicy(request.app.state.session_factory, settings))
+
+
+@router.get("/models/benchmarks")
+def get_benchmarks(request: Request, _admin: AdminUser) -> dict[str, Any]:
+    """The latest benchmark of each model (current task set), best first, and which model the
+    benchmark proposes for the worker role. Runs are started with `cobble models benchmark`."""
+    rows = benchmarks.latest(request.app.state.session_factory, BENCHMARK_VERSION)
+    return {
+        "version": BENCHMARK_VERSION,
+        "results": [
+            {
+                "model": r.model,
+                "quality": float(r.quality),
+                "seconds": float(r.seconds),
+                "tokens_per_second": (
+                    float(r.tokens_per_second) if r.tokens_per_second is not None else None
+                ),
+                "created_at": r.created_at.isoformat(),
+                "failed_tasks": sum(1 for o in r.outcomes if o["passed"] < o["total"]),
+                "tasks": len(r.outcomes),
+            }
+            for r in rows
+        ],
+        "suggested_worker": benchmarks.best_worker(rows),
+    }
 
 
 @router.get("/models")

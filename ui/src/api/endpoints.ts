@@ -9,6 +9,7 @@ import type {
   ModelRequest,
   PresetSlot,
   PresetsData,
+  Benchmarks,
   RoleRoutes,
   ModuleCatalog,
   ModuleOperation,
@@ -131,6 +132,7 @@ export const modelsApi = {
   applyPreset: (id: string, slots: Partial<Record<PresetSlot, string>>) =>
     api.post<RoleRoutes>(`/models/presets/${id}/apply`, slots),
   routes: () => api.get<RoleRoutes>("/models/routes"),
+  benchmarks: () => api.get<Benchmarks>("/models/benchmarks"),
   saveRoutes: (routes: Record<string, string[]>) =>
     api.put<RoleRoutes>("/models/routes", { routes }),
 };

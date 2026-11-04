@@ -231,3 +231,75 @@ def test_failures_of_the_model_and_of_the_sandbox_are_told_apart() -> None:
 def test_an_empty_run_has_no_quality_and_no_speed() -> None:
     result = run_benchmark("m", lambda m: reply(""), run_in_process, tasks=())
     assert result.quality == 0.0 and result.tokens_per_second is None
+
+
+# --- storage and the choice of a worker ---------------------------------------------------------
+
+
+def stored(sessions: Any, model: str, quality: str, speed: str | None, version: int = 1) -> None:
+    from cobble.benchmark.runner import BenchmarkResult, TaskOutcome
+    from cobble.benchmark.service import store
+
+    tokens = 0 if speed is None else int(float(speed) * 10)
+    cases = 10
+    passed = round(float(quality) * cases)
+    outcome = TaskOutcome("t", passed, cases, None, 10.0 if speed else 0.0, tokens)
+    store(sessions, BenchmarkResult(model, version, (outcome,)))
+
+
+@pytest.fixture
+def sessions() -> Any:
+    from sqlalchemy import create_engine
+    from sqlalchemy.pool import StaticPool
+
+    from cobble.db import Base, make_session_factory
+
+    engine = create_engine(
+        "sqlite://", poolclass=StaticPool, connect_args={"check_same_thread": False}
+    )
+    Base.metadata.create_all(engine)
+    yield make_session_factory(engine)
+    engine.dispose()
+
+
+def test_a_result_is_stored_and_the_latest_run_of_each_model_is_listed_best_first(
+    sessions: Any,
+) -> None:
+    from cobble.benchmark.service import latest
+
+    stored(sessions, "small", "0.4", "50")
+    stored(sessions, "big", "0.9", "10")
+    stored(sessions, "small", "0.8", "50")  # a later run replaces the earlier one
+    rows = latest(sessions)
+    assert [(r.model, float(r.quality)) for r in rows] == [("big", 0.9), ("small", 0.8)]
+    assert float(rows[0].tokens_per_second or 0) == pytest.approx(10.0)
+    assert latest(sessions, version=2) == []  # other task sets are not comparable
+
+
+def test_the_best_worker_is_the_fastest_among_the_models_that_are_about_as_good(
+    sessions: Any,
+) -> None:
+    from cobble.benchmark.service import best_worker, latest
+
+    stored(sessions, "careful", "0.9", "5")
+    stored(sessions, "quick", "0.86", "40")  # within the margin of the best: faster wins
+    stored(sessions, "fast-but-bad", "0.6", "200")  # not close to the best: out
+    assert best_worker(latest(sessions)) == "quick"
+
+
+def test_no_worker_is_proposed_when_nothing_is_good_enough_or_nothing_was_run(
+    sessions: Any,
+) -> None:
+    from cobble.benchmark.service import best_worker, latest
+
+    assert best_worker(latest(sessions)) is None
+    stored(sessions, "weak", "0.4", "100")
+    assert best_worker(latest(sessions)) is None
+
+
+def test_a_model_with_no_measured_speed_still_ranks_by_quality(sessions: Any) -> None:
+    from cobble.benchmark.service import best_worker, latest
+
+    stored(sessions, "silent", "0.9", None)
+    stored(sessions, "other", "0.5", "10")
+    assert best_worker(latest(sessions)) == "silent"

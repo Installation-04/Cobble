@@ -30,3 +30,11 @@ module-manager touches Docker.
 The module-manager gains the ability to start containers that are not modules. They carry the
 label `cobble.sandbox=true`, have no network and no data, and live for at most the caller's time
 limit. The first run needs the image (pulled by Docker, once; offline installs must pre-pull it).
+
+## First user: the local model benchmark
+`cobble models benchmark` (v0.3 step 6) sends model-written code to the sandbox. The harness wraps
+each program with a per-run random token for its verdict and silences the generated code's own
+output, so a model cannot fake a pass by printing one. Quality is the mean share of hidden cases
+passed; speed is completion tokens over answer time. The proposed `worker` is the fastest model
+within 0.05 of the best quality, and never one below 0.5. Results are stored in `model_benchmarks`
+(migration 0013) and only the latest run of each model, for the current task set, is shown.

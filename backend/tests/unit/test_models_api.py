@@ -361,3 +361,53 @@ def test_presets_are_for_administrators_only_and_need_csrf(
     b.stack.login(b.api, role="member")
     reply = b.api.request(method, path, json={}, headers=H)
     assert reply.status_code == 403 and reply.json()["error"]["code"] == "forbidden"
+
+
+# --- benchmarks --------------------------------------------------------------------------------
+
+BENCH = f"{API}/benchmarks"
+
+
+def record(
+    built: Built, model: str, passed: int, tokens: int = 100, version: int | None = None
+) -> None:
+    from cobble.benchmark import service
+    from cobble.benchmark.runner import BenchmarkResult, TaskOutcome
+    from cobble.benchmark.tasks import VERSION
+
+    outcomes = (
+        TaskOutcome("a", passed, 4, None, 2.0, tokens),
+        TaskOutcome("b", 4, 4, None, 2.0, tokens),
+    )
+    service.store(
+        built.stack.sessions,
+        BenchmarkResult(model, VERSION if version is None else version, outcomes),
+    )
+
+
+def test_without_any_benchmark_nothing_is_proposed(built: Built) -> None:
+    body = built.api.get(BENCH).json()
+    assert body["results"] == [] and body["suggested_worker"] is None
+
+
+def test_benchmarks_list_the_latest_run_of_each_model_and_propose_the_worker(built: Built) -> None:
+    record(built, "slow", 4, tokens=40)
+    record(built, "fast", 4, tokens=400)
+    record(built, "weak", 1)
+    body = built.api.get(BENCH).json()
+    assert [r["model"] for r in body["results"]] == ["fast", "slow", "weak"]
+    assert body["suggested_worker"] == "fast"
+    weak = body["results"][2]
+    assert weak["failed_tasks"] == 1 and weak["tasks"] == 2 and weak["quality"] == 0.625
+
+
+def test_benchmarks_of_an_older_task_set_are_not_shown(built: Built) -> None:
+    record(built, "old", 4, version=0)
+    assert built.api.get(BENCH).json()["results"] == []
+
+
+def test_benchmarks_are_for_administrators_only(
+    sessions: sessionmaker[Session],
+) -> None:
+    stack = Stack(sessions, Rig(modules=[OLLAMA]))
+    assert stack.api.get(BENCH).status_code in (401, 403)

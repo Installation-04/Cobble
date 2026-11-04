@@ -59,6 +59,15 @@ def add_parser(sub: Any) -> None:
     for name in ("remove", "default", "test"):
         actions.add_parser(name).add_argument("name")
     actions.choices["remove"].add_argument("--yes", action="store_true")
+    bench = actions.add_parser("benchmark", help="measure how well models code on this machine")
+    bench.add_argument("names", nargs="*", help="models to measure (none: every local model)")
+    bench.add_argument("--show", action="store_true", help="show the latest results, run nothing")
+    bench.add_argument(
+        "--allow-paid", action="store_true", help="also measure models that cost money per token"
+    )
+    bench.add_argument(
+        "--apply", action="store_true", help="put the best model first in the worker route"
+    )
     preset = actions.add_parser("preset", help="apply a ready-made set of routes")
     preset.add_argument("id", nargs="?", help="economical-local or balanced (none: list them)")
     for slot in ("local", "cheap", "strong"):
@@ -103,6 +112,7 @@ def run(
     probe: Probe | None = None,
     read_key: Callable[[str], str] = _read_key,
     routes: RoutesStore | None = None,
+    bench: BenchRig | None = None,
 ) -> int:
     lang = settings.lang
     term = term or Terminal()
@@ -127,6 +137,8 @@ def run(
             return 0
         if args.action == "test":
             return _test(args.name, term, lang, settings, probe)
+        if args.action == "benchmark":
+            return _benchmark(args, api, term, lang, settings, routes, bench)
         if args.action == "preset":
             return _preset(args, api, term, lang, settings, routes)
         if args.action == "route":
@@ -138,6 +150,48 @@ def run(
     except ModuleManagerRejected as exc:
         term.warn(_refusal_text(exc, lang))
         return 1
+
+
+class BenchRig(Protocol):
+    """What the benchmark needs from the outside: asking a model, running code, the results."""
+
+    def chat(self, model: str) -> Callable[[list[dict[str, str]]], Any]: ...
+    def run_code(self, program: str, timeout_s: float) -> dict[str, Any]: ...
+    def store(self, result: Any) -> None: ...
+    def latest(self) -> list[Any]: ...
+
+
+class LiveBench:
+    """The real thing: the gateway for the model, the module-manager's sandbox for the code."""
+
+    def __init__(self, settings: Settings, api: Any) -> None:
+        from cobble.db import make_engine, make_session_factory
+        from cobble.router.gateway import LiteLLMGateway
+
+        self._sessions = make_session_factory(make_engine(settings.database_url))
+        self._gateway = LiteLLMGateway(settings.litellm_url, settings.litellm_key, self._sessions)
+        self._api = api
+
+    def chat(self, model: str) -> Callable[[list[dict[str, str]]], Any]:
+        def ask(messages: list[dict[str, str]]) -> Any:
+            return self._gateway.chat(model, list(messages), role="benchmark")
+
+        return ask
+
+    def run_code(self, program: str, timeout_s: float) -> dict[str, Any]:
+        result: dict[str, Any] = self._api.sandbox_run(program, timeout_s)
+        return result
+
+    def store(self, result: Any) -> None:
+        from cobble.benchmark.service import store
+
+        store(self._sessions, result)
+
+    def latest(self) -> list[Any]:
+        from cobble.benchmark.service import latest
+        from cobble.benchmark.tasks import VERSION
+
+        return latest(self._sessions, VERSION)
 
 
 class RoutesStore(Protocol):
@@ -223,6 +277,84 @@ def _preset(
     term.say(t("cli.models.preset.applied", lang, id=args.id))
     for role, chain in outcome.routes.items():
         term.say(f"  {role:<12} {' → '.join(chain)}")
+    return 0
+
+
+def _benchmark(
+    args: argparse.Namespace,
+    api: ModelsAPI,
+    term: Terminal,
+    lang: str,
+    settings: Settings,
+    store: RoutesStore | None,
+    rig: BenchRig | None,
+) -> int:
+    from cobble.benchmark.runner import run_benchmark
+    from cobble.benchmark.service import best_worker
+
+    rig = rig or LiveBench(settings, api)
+    if not args.show:
+        listing = api.models()
+        local = [m["name"] for m in listing.get("local", [])]
+        paid = [m["name"] for m in listing.get("models", [])]
+        known = set(local) | set(paid)
+        wanted = list(dict.fromkeys(args.names)) or local
+        unknown = [n for n in wanted if n not in known]
+        if unknown:
+            term.warn(t("cli.models.route.unknown", lang, names=", ".join(unknown)))
+            return 2
+        costly = [n for n in wanted if n not in local]
+        if costly and not args.allow_paid:
+            term.warn(t("cli.models.benchmark.paid", lang, names=", ".join(costly)))
+            return 2
+        if not wanted:
+            term.warn(t("cli.models.benchmark.nothing", lang))
+            return 2
+        for name in wanted:
+            term.say(t("cli.models.benchmark.running", lang, name=name))
+            result = run_benchmark(name, rig.chat(name), rig.run_code)
+            rig.store(result)
+            failed = [o for o in result.outcomes if o.error in ("sandbox_error",)]
+            if failed:
+                term.warn(t("cli.models.benchmark.sandbox", lang))
+                return 1
+            speed = (
+                f"{result.tokens_per_second:.1f}" if result.tokens_per_second is not None else "-"
+            )
+            term.say(
+                t(
+                    "cli.models.benchmark.result",
+                    lang,
+                    name=name,
+                    quality=f"{result.quality * 100:.0f}",
+                    speed=speed,
+                )
+            )
+    rows = rig.latest()
+    for row in rows:
+        speed = f"{row.tokens_per_second:.1f}" if row.tokens_per_second is not None else "-"
+        term.say(
+            t(
+                "cli.models.benchmark.row",
+                lang,
+                name=row.model,
+                quality=f"{row.quality * 100:.0f}",
+                speed=speed,
+            )
+        )
+    best = best_worker(rows)
+    if best is None:
+        term.say(t("cli.models.benchmark.none_good", lang))
+        return 0
+    term.say(t("cli.models.benchmark.best", lang, name=best))
+    if args.apply:
+        from cobble.router.policy import MAX_CHAIN
+
+        routes = store or DbRoutes(settings)
+        current = routes.get()
+        chain = list(dict.fromkeys([best, *current.get("worker", [])]))[:MAX_CHAIN]
+        routes.put({**current, "worker": chain})
+        term.say(t("cli.models.route.set", lang, role="worker", chain=" → ".join(chain)))
     return 0
 
 

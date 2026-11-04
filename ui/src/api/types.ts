@@ -396,6 +396,23 @@ export interface RoleRoutes {
   effective: Record<string, string[]>;
 }
 
+/** One model's latest local benchmark (share of hidden cases passed, speed). */
+export interface BenchmarkResult {
+  model: string;
+  quality: number;
+  seconds: number;
+  tokens_per_second: number | null;
+  created_at: string;
+  failed_tasks: number;
+  tasks: number;
+}
+
+export interface Benchmarks {
+  version: number;
+  results: BenchmarkResult[];
+  suggested_worker: string | null;
+}
+
 /** A model served on this machine by an installed backend: free, no key. */
 export interface LocalModel {
   name: string;
