@@ -19,6 +19,7 @@ export const KNOWN_ERROR_CODES = [
   "budget_reached",
   "wrong_state",
   "queue_unavailable",
+  "explain_mode_off",
   "agent_unavailable",
   "git_unavailable",
   "forbidden",

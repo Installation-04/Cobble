@@ -12,6 +12,9 @@
       "hours": "{hours} h {minutes} min",
       "minutes": "{minutes} min"
     },
+    "explain": {
+      "title": "Expliqué en mots simples"
+    },
     "built": {
       "title": "Ce qui a été construit",
       "summary": "{validated} jalons validés sur {milestones}. Tâches : {done} réussies sur {total}, {failed} en échec, {escalated} escaladées vers un modèle plus fort."

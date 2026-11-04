@@ -21,6 +21,8 @@
   "job_unknown": "La tâche a échoué pour une raison inconnue. Réessayez.",
   "wrong_state": "Cette action n'est pas possible dans l'état actuel.",
   "queue_unavailable": "La file de tâches est indisponible. Réessayez dans un instant.",
+  "explain_mode_off": "Le mode « Explique-moi » est désactivé pour ce projet. Activez-le d'abord.",
+  "job_empty_explanation": "L'assistant a renvoyé une explication vide. Réessayez.",
   "job_repo_error": "Le dépôt du projet n'a pas pu être créé. Réessayez.",
   "job_ci_error": "La CI n'a pas pu être configurée pour le projet. Réessayez.",
   "job_no_plan": "Il n'y a aucun plan approuvé à construire.",

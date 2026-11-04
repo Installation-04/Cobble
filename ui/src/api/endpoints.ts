@@ -50,8 +50,15 @@ export const projectsApi = {
   list: () => api.get<Project[]>("/projects"),
   create: (name: string, folderId: string | null) =>
     api.post<Project>("/projects", folderId ? { name, folder_id: folderId } : { name }),
-  update: (id: string, body: { name?: string; folder_id?: string | null; local_only?: boolean }) =>
-    api.patch<Project>(`/projects/${id}`, body),
+  update: (
+    id: string,
+    body: {
+      name?: string;
+      folder_id?: string | null;
+      local_only?: boolean;
+      explain_mode?: boolean;
+    },
+  ) => api.patch<Project>(`/projects/${id}`, body),
   remove: (id: string) => api.delete(`/projects/${id}`),
 };
 
@@ -99,6 +106,8 @@ export const demoApi = {
     api.post<unknown>(`/projects/${id}/milestones/${ref}/comments`, { content }),
   revert: (id: string, ref: string) =>
     api.post<unknown>(`/projects/${id}/milestones/${ref}/revert`),
+  explain: (id: string, ref: string) =>
+    api.post<unknown>(`/projects/${id}/milestones/${ref}/explain`),
 };
 
 export const costsApi = {

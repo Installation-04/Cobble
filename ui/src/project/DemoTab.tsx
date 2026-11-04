@@ -1,4 +1,12 @@
-import { CheckCircle2, ExternalLink, MessageSquarePlus, MonitorPlay, Undo2, X } from "lucide-react";
+import {
+  CheckCircle2,
+  ExternalLink,
+  GraduationCap,
+  MessageSquarePlus,
+  MonitorPlay,
+  Undo2,
+  X,
+} from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
@@ -20,6 +28,7 @@ import { Label } from "../components/ui/label";
 import { Textarea } from "../components/ui/textarea";
 import { FailureBanner } from "./FailureBanner";
 import { useProjectData } from "./ProjectDataProvider";
+import { useWorkspace } from "../workspace/WorkspaceProvider";
 import { useAsyncAction } from "./useAsyncAction";
 
 export const COMMENT_MAX = 2000;
@@ -113,6 +122,103 @@ function CommentDialog({
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** "Explique-moi": a plain-language summary at each milestone, opt-in because it costs tokens. */
+function ExplainToggle() {
+  const { t } = useTranslation(["demo", "errors"]);
+  const { project } = useProjectData();
+  const { updateProject } = useWorkspace();
+  const action = useAsyncAction();
+  const on = project.explain_mode === true;
+  return (
+    <section
+      aria-labelledby="explain-mode-title"
+      data-testid="explain-mode"
+      data-state={on ? "on" : "off"}
+      className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 text-card-foreground"
+    >
+      <h3 id="explain-mode-title" className="flex items-center gap-2 text-sm font-semibold">
+        <GraduationCap className="h-4 w-4" aria-hidden="true" />
+        {t("explain.title")}
+      </h3>
+      <label className="flex items-start gap-2 text-sm">
+        <input
+          type="checkbox"
+          className="mt-1"
+          checked={on}
+          disabled={action.busy}
+          data-testid="explain-mode-toggle"
+          onChange={(e) =>
+            void action.run(() => updateProject(project.id, { explain_mode: e.target.checked }))
+          }
+        />
+        <span>{t("explain.toggleLabel")}</span>
+      </label>
+      <p className="text-xs text-muted-foreground">
+        {on ? t("explain.onHelp") : t("explain.offHelp")}
+      </p>
+      {action.error && (
+        <p role="alert" className="text-sm text-destructive" data-testid="explain-mode-error">
+          {action.error}
+        </p>
+      )}
+    </section>
+  );
+}
+
+function Explanation({ milestone }: { milestone: Milestone }) {
+  const { t } = useTranslation("demo");
+  const { project } = useProjectData();
+  const ask = useAsyncAction();
+  const [queued, setQueued] = useState(false);
+  const text = milestone.explanation;
+  if (!text && project.explain_mode !== true) return null;
+  return (
+    <div
+      data-testid={`milestone-explanation-${milestone.ref}`}
+      className="flex flex-col gap-2 rounded-md border border-border bg-muted p-3 text-sm text-foreground"
+    >
+      <p className="flex items-center gap-2 font-medium">
+        <GraduationCap className="h-4 w-4" aria-hidden="true" />
+        {t("explain.title")}
+      </p>
+      {text ? (
+        <p className="whitespace-pre-line">{text}</p>
+      ) : (
+        <p className="text-muted-foreground">{t("explain.writing")}</p>
+      )}
+      {project.explain_mode === true && (
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={ask.busy}
+            data-testid={`milestone-explain-${milestone.ref}`}
+            onClick={() =>
+              void ask
+                .run(async () => {
+                  await demoApi.explain(project.id, milestone.ref);
+                })
+                .then((ok) => ok && setQueued(true))
+            }
+          >
+            {text ? t("explain.regenerate") : t("explain.generate")}
+          </Button>
+          {queued && (
+            <span role="status" className="text-xs text-muted-foreground">
+              {t("explain.queued")}
+            </span>
+          )}
+        </div>
+      )}
+      {ask.error && (
+        <p role="alert" className="text-sm text-destructive" data-testid="explain-error">
+          {ask.error}
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -223,6 +329,7 @@ function MilestoneCard({
           </Button>
         </div>
       )}
+      {live && <Explanation milestone={milestone} />}
       {validate.error && (
         <p role="alert" data-testid="milestone-error" className="text-sm text-destructive">
           {validate.error}
@@ -263,7 +370,8 @@ export function DemoTab() {
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-4 overflow-y-auto p-4" data-testid="demo-tab">
-      <FailureBanner kinds={["start"]} />
+      <FailureBanner kinds={["start", "explain"]} />
+      <ExplainToggle />
       {notice && (
         <div
           role="status"

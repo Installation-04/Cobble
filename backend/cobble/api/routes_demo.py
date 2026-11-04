@@ -36,6 +36,8 @@ class MilestoneOut(BaseModel):
     preview_state: str | None
     built_at: datetime | None
     validated_at: datetime | None
+    # "Explique-moi" summary (ADR 0017); null until written, or when the mode is off.
+    explanation: str | None
 
 
 class CommentIn(BaseModel):
@@ -74,6 +76,24 @@ def validate_milestone(ref: str, project: OwnedProject, db: Db, redis: RedisDep)
     except DemoError as exc:
         raise _raise(exc) from None
     return {"milestone": milestone}
+
+
+@router.post("/projects/{project_id}/milestones/{ref}/explain", status_code=202)
+def explain_milestone(ref: str, project: OwnedProject, db: Db, redis: RedisDep) -> dict[str, Any]:
+    """(Re)write the plain-language summary of a built milestone (explain mode only)."""
+    if not project.explain_mode:
+        raise ApiError(409, "explain_mode_off")
+    try:
+        milestone = demo.get_milestone(db, project.id, ref)
+    except DemoError as exc:
+        raise _raise(exc) from None
+    if milestone.status == demo.PENDING:
+        raise ApiError(409, "wrong_state")
+    try:
+        enqueue_job(redis, "explain", project.id, ref=ref, force=True)
+    except RedisError:
+        raise ApiError(503, "queue_unavailable") from None
+    return {}
 
 
 @router.post(

@@ -21,6 +21,8 @@
   "job_unknown": "The task failed for an unknown reason. Please try again.",
   "wrong_state": "This action is not possible in the current state.",
   "queue_unavailable": "The job queue is unavailable. Try again in a moment.",
+  "explain_mode_off": "Explain mode is off for this project. Turn it on first.",
+  "job_empty_explanation": "The assistant returned an empty explanation. Try again.",
   "job_repo_error": "The project repository could not be created. Try again.",
   "job_ci_error": "The CI could not be set up for the project. Try again.",
   "job_no_plan": "There is no approved plan to build from.",

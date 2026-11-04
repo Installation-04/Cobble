@@ -15,6 +15,7 @@ const KNOWN_CODES = [
   "wrong_phase",
   "internal_error",
   "scheduler_unavailable",
+  "empty_explanation",
 ];
 
 /** Last failed job (job.failed), with its translated error code. */

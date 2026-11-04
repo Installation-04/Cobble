@@ -6,6 +6,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 ## [Unreleased]
 
 ### Added
+- v0.3: **"Explain me" mode** (ADR 0017). A project can turn on, in the Demo tab (or `explain_mode` on the projects API), a plain-language summary written at each milestone: what was built and why, in your language, shown on the milestone card and included in the Markdown report. Off by default because each summary costs a few tokens: it goes through the cost router with the `reviewer` role and is counted in the project costs. `POST /api/v1/projects/{id}/milestones/{ref}/explain` writes or rewrites one on demand. Migration `0016`. Docs in `docs/{fr,en}/demo.md`.
 - v0.3: **local package cache** (ADR 0015). Two optional catalogue modules, `verdaccio` (npm) and `devpi` (PyPI), each a read-through cache with no web page, a data volume, resource limits and a health check, providing `package-cache` plus `npm-cache` / `pypi-cache`. They are in no starter pack and are covered by the install/uninstall matrix test. They are not wired to the agent runners yet (needs optional links in the resolver and the agents' proxy allow-list: described in the ADR). Docs in `docs/{fr,en}/modules.md`.
 
 ### Changed

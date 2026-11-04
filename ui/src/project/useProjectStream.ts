@@ -9,7 +9,13 @@ export interface JobFailure {
 
 export type JobsInFlight = Record<JobKind, boolean>;
 
-const NO_JOBS: JobsInFlight = { reply: false, spec: false, plan: false, start: false };
+const NO_JOBS: JobsInFlight = {
+  reply: false,
+  spec: false,
+  plan: false,
+  start: false,
+  explain: false,
+};
 
 export interface StreamHandlers {
   onMessage?: (message: ChatMessage) => void;
@@ -26,7 +32,7 @@ export interface StreamHandlers {
   onResync?: () => void;
 }
 
-const JOB_KINDS: readonly JobKind[] = ["reply", "spec", "plan", "start"];
+const JOB_KINDS: readonly JobKind[] = ["reply", "spec", "plan", "start", "explain"];
 
 function isKind(value: unknown): value is JobKind {
   return typeof value === "string" && (JOB_KINDS as readonly string[]).includes(value);

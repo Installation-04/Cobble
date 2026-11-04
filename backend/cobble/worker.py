@@ -142,6 +142,11 @@ def make_job_handler(
             except SchedulerUnavailable:
                 unavailable("revert", project_id)
             return
+        if kind == "explain":
+            planner.run_job(
+                kind, project_id, ref=str(job.get("ref", "")), force=bool(job.get("force"))
+            )
+            return
         planner.run_job(
             kind, project_id, feedback=job.get("feedback"), message_id=job.get("message_id")
         )

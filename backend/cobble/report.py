@@ -97,6 +97,7 @@ def project_report(
                 "tasks_total": found["total"],
                 "tasks_done": found["done"],
                 "tasks_failed": found["failed"],
+                "explanation": m.explanation,  # explain mode (ADR 0017), else null
             }
         )
 
@@ -233,6 +234,13 @@ def render_markdown(report: dict[str, Any], lang: str) -> str:
                 for m in build["milestones"]
             ],
         )
+
+    explained = [m for m in build["milestones"] if m["explanation"]]
+    if explained:
+        out += ["", f"## {t('report.explain.title', lang)}", ""]
+        for m in explained:
+            out += [f"### {m['ref']} {m['title']}", "", m["explanation"], ""]
+        out.pop()
 
     out += ["", f"## {t('report.time.title', lang)}", ""]
     out.append(f"- {t('report.time.started', lang)}: {span['started_at'] or na}")

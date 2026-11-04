@@ -23,7 +23,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from cobble.capabilities.llm import LLMClient, Role
 from cobble.config import Settings
-from cobble.db import JobCheckpoint, Message, Plan, Project, Spec, User
+from cobble.db import JobCheckpoint, Message, Milestone, Plan, Project, Spec, Task, User
 from cobble.events import publish_project
 from cobble.router.budget import BudgetExceeded
 from cobble.router.costs import LocalOnlyUnavailable
@@ -36,7 +36,8 @@ from .plan_schema import PlanInvalid, parse_plan_reply
 
 log = logging.getLogger(__name__)
 
-JOB_KINDS = ("reply", "spec", "plan")
+JOB_KINDS = ("reply", "spec", "plan", "explain")
+EXPLAIN_ROLE = Role.REVIEWER  # reads what was built and describes it (ADR 0017)
 
 # A checkpoint older than this belongs to a job nobody replayed: it is ignored and purged.
 CHECKPOINT_TTL = timedelta(hours=1)
@@ -83,12 +84,14 @@ class PlannerService:
         *,
         feedback: str | None = None,
         message_id: str | None = None,
+        ref: str | None = None,
+        force: bool = False,
     ) -> bool:
         """Run one job. Never raises: failures become a `job.failed` event. True on success."""
         self._emit(project_id, "job.started", {"kind": kind})
         token = _in_job.set(True)
         try:
-            ok = self._run_job(kind, project_id, feedback, message_id)
+            ok = self._run_job(kind, project_id, feedback, message_id, ref, force)
         finally:
             _in_job.reset(token)
         # Only a job that ended (either way) clears its steps; a process killed mid-job leaves
@@ -97,7 +100,13 @@ class PlannerService:
         return ok
 
     def _run_job(
-        self, kind: str, project_id: uuid.UUID, feedback: str | None, message_id: str | None
+        self,
+        kind: str,
+        project_id: uuid.UUID,
+        feedback: str | None,
+        message_id: str | None,
+        ref: str | None = None,
+        force: bool = False,
     ) -> bool:
         try:
             if kind == "reply":
@@ -106,6 +115,8 @@ class PlannerService:
                 self.generate_spec(project_id, feedback)
             elif kind == "plan":
                 self.generate_plan(project_id, feedback)
+            elif kind == "explain":
+                self.explain_milestone(project_id, ref or "", force=force)
             else:
                 raise JobError("unknown_job")
         except BudgetExceeded:
@@ -263,6 +274,57 @@ class PlannerService:
         self._emit(project_id, "plan.updated", {"version": version})
         if changed:
             self._emit(project_id, "phase.changed", {"phase": "plan_review"})
+
+    # --- explain mode (ADR 0017) --------------------------------------------------------
+
+    def explain_milestone(self, project_id: uuid.UUID, ref: str, *, force: bool = False) -> None:
+        """Write the plain-language summary of a built milestone, in the user's language.
+
+        A no-op (so a replayed or duplicated job costs nothing) when the mode is off, the
+        milestone is not built, or it already has its summary and `force` is not set.
+        """
+        with self._sessions() as db:
+            project = db.get(Project, project_id)
+            if project is None or not project.explain_mode:
+                return
+            milestone = db.scalars(
+                select(Milestone).where(Milestone.project_id == project_id, Milestone.ref == ref)
+            ).first()
+            if milestone is None or milestone.status == "pending":
+                return
+            if milestone.explanation and not force:
+                return
+            lang = _language(db, project)
+            tasks = [
+                (t.title, list(t.acceptance or []))
+                for t in db.scalars(
+                    select(Task)
+                    .where(
+                        Task.project_id == project_id,
+                        Task.milestone == ref,
+                        Task.kind != "revert",
+                    )
+                    .order_by(Task.ref)
+                )
+            ]
+            messages = prompts.explain_messages(
+                project.name, (milestone.ref, milestone.title), tasks, lang
+            )
+        text = self._chat(EXPLAIN_ROLE, messages, project_id).strip()
+        if not text:
+            raise JobError("empty_explanation")
+        with self._sessions() as db:
+            milestone = db.scalars(
+                select(Milestone).where(Milestone.project_id == project_id, Milestone.ref == ref)
+            ).first()
+            if milestone is None or milestone.status == "pending":
+                return  # re-opened while the model was answering: the summary would be stale
+            milestone.explanation = text
+            status = milestone.status
+            db.commit()
+        self._emit(
+            project_id, "milestone.updated", {"ref": ref, "status": status, "explained": True}
+        )
 
     # --- shared -------------------------------------------------------------------------
 
