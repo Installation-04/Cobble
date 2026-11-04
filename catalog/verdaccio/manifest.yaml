@@ -1,0 +1,28 @@
+# Verdaccio: a local cache of the npm registry (capabilities `package-cache` and `npm-cache`).
+# It fetches a package from the public registry once and serves it from disk afterwards.
+# Nothing publishes to it and it has no web page: it is reachable on the platform network only.
+id: verdaccio
+name: Verdaccio (npm cache)
+version: 6.9.3
+category: cache
+description:
+  en: Keeps a local copy of the npm packages your projects download, so installs are faster, work offline once cached and use less bandwidth.
+  fr: "Garde une copie locale des paquets npm que vos projets téléchargent: installations plus rapides, utilisables hors ligne une fois en cache, moins de bande passante."
+license: MIT
+provides: [package-cache, npm-cache]
+images:
+  - verdaccio/verdaccio:6.9.3@sha256:3b0591ab7612f3ed232fe5bb5888b9418ac9f34d712db781a03bd8dad43b4aa8
+compose: compose.yml
+hardware:
+  min_ram_mb: 1024
+# Reachable by the other modules (the address they get is the service name and this port), never
+# published on the reverse proxy: there is no page to show.
+web_ui:
+  service: verdaccio
+  port: 4873
+  path: /npm-cache
+  public: false
+healthcheck:
+  http: /-/ping
+backup:
+  volumes: [verdaccio_storage]

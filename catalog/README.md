@@ -5,7 +5,8 @@ file and its hooks. The module-manager reads this directory; it is mounted read-
 absolute path as on the host (see `core/compose.yml`).
 
 The official modules (`docs/en/modules.md`): `forgejo` (`git`), `woodpecker` (`ci`), `ollama`
-(`llm-backend`), `aider` (`agent-runner`) and `preview` (`preview`). Do not put anything here that
+(`llm-backend`), `aider` (`agent-runner`), `preview` (`preview`), and the optional package caches
+`verdaccio` and `devpi` (`package-cache`; ADR 0015). Do not put anything here that
 is not a module or a starter pack. The images of `aider` and `preview` are built by CI
 (`.github/workflows/images.yml`) and pinned here with `scripts/pin_images.py`.
 

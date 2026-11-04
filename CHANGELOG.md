@@ -5,6 +5,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 
 ## [Unreleased]
 
+### Added
+- v0.3: **local package cache** (ADR 0015). Two optional catalogue modules, `verdaccio` (npm) and `devpi` (PyPI), each a read-through cache with no web page, a data volume, resource limits and a health check, providing `package-cache` plus `npm-cache` / `pypi-cache`. They are in no starter pack and are covered by the install/uninstall matrix test. They are not wired to the agent runners yet (needs optional links in the resolver and the agents' proxy allow-list: described in the ADR). Docs in `docs/{fr,en}/modules.md`.
+
 ### Changed
 - v0.3: **up-to-date prices and free tiers** (ADR 0013). The last price seen of each model is remembered (migration `0014`, `model_prices`; the gateway stays the only source) and a change is shown as a warning for 14 days in Settings → Models → Prices and in the Costs tab, without ever reordering your routes; `GET /api/v1/models/prices` and `cobble models prices`. Free tiers (zero price, or OpenRouter `:free` models; local models excluded) get a "free" badge and their calls are counted as free in the costs report (`free_calls`). A model that answers 429 is now tried after the others for 30 s, doubling up to 10 min. Provider terms and rate limits are documented as the owner's responsibility.
 - v0.3: **end-of-project report** (ADR 0014). New "Report" tab in the project and `GET /api/v1/projects/{id}/report`: what was built (milestones, tasks done / failed / escalated), time span, real cost against budget and plan estimate, the savings counter, cost per model and role, fallbacks and tokens. `?format=md` (or the "Download as Markdown" button) gives it as a Markdown file in the user's language (fr/en). Computed when read, nothing stored, no schema change.

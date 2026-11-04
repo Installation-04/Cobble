@@ -23,7 +23,7 @@ backend/migrations/    # Alembic
 backend/tests/         # unit/, integration/
 ui/                    # React; ui/src/locales/{fr,en}/*.json
 core/compose.yml       # noyau: postgres, redis, litellm, caddy, api, worker, ui
-catalog/               # modules officiels (forgejo, woodpecker, ollama, aider, preview) et packs de départ
+catalog/               # modules officiels (forgejo, woodpecker, ollama, aider, preview, verdaccio, devpi) et packs de départ
 services/              # sources des images publiées par la CI: agent-service, agent-proxy, preview-service
 runners/aider/         # image du runner d'agents
 providers/fake-llm/    # faux fournisseur LLM + cassettes enregistrées

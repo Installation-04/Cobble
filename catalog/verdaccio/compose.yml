@@ -1,0 +1,26 @@
+# Verdaccio for Cobble. No published port and no web page: the other modules reach it on the
+# platform network. The platform rewrites this file (names, networks, limits).
+services:
+  verdaccio:
+    image: verdaccio/verdaccio:6.9.3@sha256:3b0591ab7612f3ed232fe5bb5888b9418ac9f34d712db781a03bd8dad43b4aa8
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    restart: unless-stopped
+    read_only: true
+    tmpfs: ["/tmp:size=64m,uid=10001,mode=700"]
+    environment:
+      VERDACCIO_PORT: "4873"
+    volumes:
+      - ./config.yaml:/verdaccio/conf/config.yaml:ro
+      - verdaccio_storage:/verdaccio/storage
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:4873/-/ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    mem_limit: 512m
+    cpus: 1
+    pids_limit: 128
+
+volumes:
+  verdaccio_storage: {}
