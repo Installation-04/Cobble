@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import uuid
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import httpx
@@ -10,9 +11,9 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
 from cobble.config import Settings
-from cobble.db import Message, Plan, Project, Spec
+from cobble.db import JobCheckpoint, Message, Plan, Project, Spec
 from cobble.orchestrator.plan_schema import validate_plan
-from cobble.orchestrator.service import PlannerService
+from cobble.orchestrator.service import CHECKPOINT_TTL, PlannerService
 from cobble.router.budget import BudgetExceeded
 from cobble.router.costs import LocalOnlyUnavailable
 from cobble.router.gateway import GatewayError
@@ -334,3 +335,118 @@ def test_message_payload_is_json_serialisable(sessions: sessionmaker[Session]) -
     service(sessions, ScriptedLLM("hi"), redis).reply(pid)
     payload: dict[str, Any] = events_of(redis, pid)[0][1]["message"]
     assert set(payload) == {"id", "role", "content", "created_at"}
+
+
+# --- crash recovery (ADR 0016) ---------------------------------------------------------------
+
+
+class Crash(BaseException):
+    """Not an Exception: `run_job` does not catch it, like a SIGKILL it skips every handler."""
+
+
+def _checkpoints(sessions: sessionmaker[Session]) -> int:
+    with sessions() as db:
+        return len(list(db.scalars(select(JobCheckpoint))))
+
+
+def _crash_on_phase_change(svc: PlannerService) -> Any:
+    original = svc._set_phase
+
+    def die(db: Session, project_id: uuid.UUID, phase: str) -> bool:
+        raise Crash
+
+    svc._set_phase = die  # type: ignore[method-assign]
+    return original
+
+
+def test_replayed_spec_job_reuses_the_answer_it_already_paid_for(
+    sessions: sessionmaker[Session],
+) -> None:
+    pid = make_project(sessions)
+    add_message(sessions, pid, "user", "I want a to-do app")
+    llm = ScriptedLLM("# Spec v1")
+    svc = service(sessions, llm)
+    original = _crash_on_phase_change(svc)
+    with pytest.raises(Crash):
+        svc.run_job("spec", pid)
+    assert len(llm.calls) == 1
+    assert _checkpoints(sessions) == 1  # the paid answer survived the crash
+
+    svc._set_phase = original  # type: ignore[method-assign]
+    assert svc.run_job("spec", pid) is True  # the replay: no second call is scripted
+    assert len(llm.calls) == 1
+    with sessions() as db:
+        assert [s.content for s in db.scalars(select(Spec))] == ["# Spec v1"]
+    assert phase_of(sessions, pid) == "spec_review"
+    assert _checkpoints(sessions) == 0  # cleared once the job ended
+
+
+def test_replayed_plan_job_resumes_at_the_retry_it_had_reached(
+    sessions: sessionmaker[Session],
+) -> None:
+    pid = make_project(sessions, phase="spec_review")
+    add_spec(sessions, pid)
+    llm = ScriptedLLM(INVALID_PLAN, VALID_PLAN)
+    svc = service(sessions, llm)
+    original = _crash_on_phase_change(svc)
+    with pytest.raises(Crash):
+        svc.run_job("plan", pid)
+    assert len(llm.calls) == 2
+    assert _checkpoints(sessions) == 2
+
+    svc._set_phase = original  # type: ignore[method-assign]
+    assert svc.run_job("plan", pid) is True
+    assert len(llm.calls) == 2  # both attempts came from the checkpoints
+    assert phase_of(sessions, pid) == "plan_review"
+
+
+def test_a_finished_job_leaves_nothing_for_the_next_identical_request(
+    sessions: sessionmaker[Session],
+) -> None:
+    pid = make_project(sessions)
+    add_message(sessions, pid, "user", "I want a to-do app")
+    llm = ScriptedLLM("# Spec v1", "# Spec v2")
+    svc = service(sessions, llm)
+    assert svc.run_job("spec", pid) is True
+    assert _checkpoints(sessions) == 0
+    with sessions() as db:
+        project = db.get(Project, pid)
+        assert project is not None
+        project.phase = "interview"
+        db.commit()
+    assert svc.run_job("spec", pid) is True  # same prompt, but a fresh job: a fresh call
+    assert len(llm.calls) == 2
+
+
+def test_a_failed_job_clears_its_checkpoints(sessions: sessionmaker[Session]) -> None:
+    pid = make_project(sessions, phase="spec_review")
+    add_spec(sessions, pid)
+    llm = ScriptedLLM(*([INVALID_PLAN] * 5))
+    assert service(sessions, llm).run_job("plan", pid) is False
+    assert _checkpoints(sessions) == 0
+
+
+def test_steps_outside_a_job_are_not_checkpointed(sessions: sessionmaker[Session]) -> None:
+    pid = make_project(sessions, phase="spec_review")
+    add_spec(sessions, pid)
+    service(sessions, ScriptedLLM(VALID_PLAN)).generate_plan(pid)
+    assert _checkpoints(sessions) == 0
+
+
+def test_a_stale_checkpoint_is_ignored(sessions: sessionmaker[Session]) -> None:
+    pid = make_project(sessions)
+    add_message(sessions, pid, "user", "I want a to-do app")
+    llm = ScriptedLLM("# Spec v1", "# Spec fresh")
+    svc = service(sessions, llm)
+    original = _crash_on_phase_change(svc)
+    with pytest.raises(Crash):
+        svc.run_job("spec", pid)
+    with sessions() as db:
+        row = db.scalars(select(JobCheckpoint)).one()
+        row.created_at = datetime.now(UTC) - CHECKPOINT_TTL - timedelta(minutes=1)
+        db.commit()
+    svc._set_phase = original  # type: ignore[method-assign]
+    assert svc.run_job("spec", pid) is True
+    assert len(llm.calls) == 2
+    with sessions() as db:
+        assert [s.content for s in db.scalars(select(Spec))] == ["# Spec fresh"]

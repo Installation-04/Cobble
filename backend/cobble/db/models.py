@@ -70,6 +70,22 @@ class ModelPrice(Base):
     changed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
+class JobCheckpoint(Base):
+    """The stored answer of one LLM step of a running planner job (ADR 0016).
+
+    Keyed by a digest of the request, so a job replayed after a crash reuses the answer it
+    already paid for instead of calling the model again. Rows live only while the job runs.
+    """
+
+    __tablename__ = "job_checkpoints"
+
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("projects.id", ondelete="CASCADE"), primary_key=True
+    )
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 
 

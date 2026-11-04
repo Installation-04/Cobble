@@ -674,3 +674,24 @@ def _tables_of(diff_entry: object) -> set[str]:
                     if isinstance(name, str):
                         names.add(name)
     return names
+
+
+def test_migration_0015_job_checkpoints_up_and_down(database_url: str) -> None:
+    config = alembic_config(database_url)
+    command.downgrade(config, "base")
+    command.upgrade(config, "0014")
+    assert "job_checkpoints" not in tables(database_url)
+
+    command.upgrade(config, "0015")
+    engine = create_engine(database_url)
+    try:
+        assert {"project_id", "key", "content", "created_at"} <= {
+            c["name"] for c in inspect(engine).get_columns("job_checkpoints")
+        }
+    finally:
+        engine.dispose()
+
+    command.downgrade(config, "0014")
+    assert "job_checkpoints" not in tables(database_url)
+    command.upgrade(config, "head")
+    assert "job_checkpoints" in tables(database_url)
