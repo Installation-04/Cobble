@@ -53,3 +53,17 @@ Money is a string with 2 to 8 decimals. `ref: null` groups the calls without a t
 when unlimited.
 
 `GET /costs` lists the caller's projects: `[{"project_id", "name", "spent_usd", "budget_usd", "status"}]`.
+
+`GET /models/prices` (any signed-in user): `{"prices": [{"model", "prompt_per_million_usd",
+"completion_per_million_usd", "free", "changed", "previous_prompt_per_million_usd",
+"previous_completion_per_million_usd", "changed_at"}], "change_window_days": 14}`, changed models first.
+It reads the gateway's prices and remembers the last one seen, so a provider's price change shows up
+as `changed` for 14 days (ADR 0013). Nothing is reordered: it is a warning.
+
+The costs report also has `free_calls` (calls to free-tier models, counted as free: zero cost),
+`by_model[].free`, and `price_changes` (recent changes among the models the project used). **Free
+tiers**: a model priced at zero by the gateway, or an OpenRouter `:free` model. Local models are not
+free tiers. Provider caveat: free tiers have their own rate limits and terms (training on your
+requests, offer changes); Cobble cannot check them for you, and a `local only` project avoids them
+altogether. On a 429 the next model of the route answers and the limited one is tried last for 30 s
+(doubling up to 10 min).

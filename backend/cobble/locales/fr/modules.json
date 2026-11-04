@@ -145,6 +145,15 @@
         "row": "  {name:<30} {quality:>3} %   {speed} jetons/s",
         "best": "Proposé pour le rôle de développeur : {name} (ajoutez --apply pour le mettre en premier dans la route).",
         "none_good": "Aucun modèle n'atteint la qualité minimale pour être proposé comme développeur."
+      },
+      "prices": {
+        "empty": "Aucun prix connu pour l'instant : la passerelle de modèles n'en a pas communiqué.",
+        "header": "{name:<40} {prompt:>12} {completion:>12}   (USD par million de jetons)",
+        "row": "{name:<40} {prompt:>12} {completion:>12}  {flags}",
+        "free": "palier gratuit",
+        "changed": "prix modifié (avant : {prompt} / {completion})",
+        "warning": "Attention : le prix de {count} modèle(s) a changé récemment. Vos routes n'ont pas été modifiées.",
+        "terms": "Les paliers gratuits ont des limites de débit et des conditions propres au fournisseur (certains utilisent vos requêtes pour s'entraîner) : vérifiez-les."
       }
     }
   }

@@ -99,5 +99,16 @@
     "tps": "{{n}} tokens/s",
     "use": "Use as worker",
     "percent": "{{n}} %"
+  },
+  "prices": {
+    "title": "Prices",
+    "model": "Model",
+    "input": "Input",
+    "output": "Output",
+    "unit": "USD per million tokens, as the model gateway reports them. Cobble never reorders your routes because of a price: it only warns you.",
+    "free": "free",
+    "changed": "The price of these models changed in the last {{days}} days. Check your routes and budgets:",
+    "change": "{{model}}: input {{oldIn}} → {{newIn}}, output {{oldOut}} → {{newOut}} (USD per million tokens)",
+    "terms": "Free tiers have low rate limits (when one refuses, the next model of the route answers) and terms set by each provider: some use your requests to train their models and may change or stop the offer. Check them before sending confidential code."
   }
 }

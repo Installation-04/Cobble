@@ -51,6 +51,28 @@ class LLMCall(Base):
     fallbacks: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
 
 
+class ModelPrice(Base):
+    """The last price seen for a model, to notice when a provider changes it (ADR 0013).
+
+    `previous_*` and `changed_at` are set only when a later look found a different price."""
+
+    __tablename__ = "model_prices"
+
+    model: Mapped[str] = mapped_column(String(200), primary_key=True)
+    upstream: Mapped[str | None] = mapped_column(String(200))  # the provider's own model name
+    prompt_usd: Mapped[Decimal] = mapped_column(Numeric(20, 12), nullable=False)  # per token
+    completion_usd: Mapped[Decimal] = mapped_column(Numeric(20, 12), nullable=False)
+    free: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=false()
+    )
+    previous_prompt_usd: Mapped[Decimal | None] = mapped_column(Numeric(20, 12))
+    previous_completion_usd: Mapped[Decimal | None] = mapped_column(Numeric(20, 12))
+    changed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
+    )
+
+
 class ModelBenchmark(Base):
     """One run of the local model benchmark: how well and how fast a model codes on this machine."""
 

@@ -1,7 +1,9 @@
 import { AlertTriangle, Coins } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { errorMessage } from "../api/errors";
-import type { CostFallbacks, CostLine, CostSavings } from "../api/types";
+import type { ReactNode } from "react";
+import type { CostFallbacks, CostLine, CostSavings, ModelPriceLine } from "../api/types";
+import { FreeBadge, PriceChange } from "../models/Prices";
 import { cn } from "../lib";
 import { useWorkspace } from "../workspace/WorkspaceProvider";
 import { formatCost, formatTokens } from "./format";
@@ -44,7 +46,7 @@ function CostTable({
   testId: string;
   caption: string;
   firstColumn: string;
-  rows: { key: string; label: string; line: CostLine }[];
+  rows: { key: string; label: ReactNode; line: CostLine }[];
   lang: string;
 }) {
   const { t } = useTranslation("costs");
@@ -100,6 +102,47 @@ function CostTable({
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+    </section>
+  );
+}
+
+/** Free-tier calls (counted as free) and models of this project whose price changed lately. */
+function PricesCard({ freeCalls, changes }: { freeCalls: number; changes: ModelPriceLine[] }) {
+  const { t } = useTranslation("costs");
+  if (freeCalls === 0 && changes.length === 0) return null;
+  return (
+    <section
+      aria-labelledby="prices-title"
+      data-testid="costs-prices"
+      className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 text-card-foreground"
+    >
+      <h3 id="prices-title" className="text-sm font-semibold">
+        {t("prices.title")}
+      </h3>
+      {freeCalls > 0 && (
+        <p className="text-sm text-muted-foreground" data-testid="costs-free-calls">
+          {t("prices.freeCalls", { count: freeCalls })}
+        </p>
+      )}
+      {changes.length > 0 && (
+        <div
+          role="status"
+          data-testid="costs-price-changes"
+          className="flex items-start gap-2 text-sm font-medium text-warning"
+        >
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+          <div>
+            <p>{t("prices.changed")}</p>
+            <ul className="font-normal">
+              {changes.map((c) => (
+                <li key={c.model}>
+                  <PriceChange line={c} />
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
       )}
     </section>
@@ -366,6 +409,7 @@ export function CostsTab() {
       </section>
 
       <SavingsCard savings={costs.savings ?? null} lang={lang} />
+      <PricesCard freeCalls={costs.free_calls ?? 0} changes={costs.price_changes ?? []} />
       <LocalOnlyCard />
 
       <dl className="grid gap-3 sm:grid-cols-3" data-testid="costs-totals">
@@ -418,7 +462,12 @@ export function CostsTab() {
         lang={lang}
         rows={costs.by_model.map((row) => ({
           key: row.model ?? "unknown",
-          label: row.model ?? t("table.unknown"),
+          label: (
+            <>
+              {row.model ?? t("table.unknown")}
+              {row.free === true && <FreeBadge />}
+            </>
+          ),
           line: row,
         }))}
       />

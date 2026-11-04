@@ -55,5 +55,11 @@
     "label": "Local only: this project may only use models served on this machine",
     "onHelp": "Nothing of this project is sent to an outside model service, not even as a fallback or an escalation. If no local model can answer, the work stops with a clear message instead of leaving the machine. Package downloads of the generated app are not covered.",
     "offHelp": "Needs a model served on this machine (for example the Ollama module). Use it for confidential code."
+  },
+  "prices": {
+    "title": "Prices and free tiers",
+    "freeCalls_one": "{{count}} call went to a free-tier model and is counted as free.",
+    "freeCalls_other": "{{count}} calls went to free-tier models and are counted as free.",
+    "changed": "The price of models this project uses changed lately:"
   }
 }

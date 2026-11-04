@@ -116,6 +116,8 @@ def test_project_costs_shape_and_numbers(sessions: sessionmaker[Session], pid: u
         "by_model",
         "by_role",
         "fallbacks",
+        "free_calls",
+        "price_changes",
         "savings",
     }
     assert body["budget_usd"] == "5.00"
@@ -145,6 +147,7 @@ def test_project_costs_shape_and_numbers(sessions: sessionmaker[Session], pid: u
             "prompt_tokens": 1500,
             "completion_tokens": 630,
             "calls": 3,
+            "free": False,
         },
         {
             "model": "cheap",
@@ -152,6 +155,7 @@ def test_project_costs_shape_and_numbers(sessions: sessionmaker[Session], pid: u
             "prompt_tokens": 211,
             "completion_tokens": 78,
             "calls": 5,
+            "free": False,
         },
     ]
     roles = {r["role"]: r for r in body["by_role"]}
@@ -176,6 +180,8 @@ def test_a_project_with_no_calls(sessions: sessionmaker[Session], pid: uuid.UUID
         "by_role": [],
         "fallbacks": {"calls": 0, "total_calls": 0, "by_model": []},
         "savings": None,
+        "free_calls": 0,
+        "price_changes": [],
     }
 
 

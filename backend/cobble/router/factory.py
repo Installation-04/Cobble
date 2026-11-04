@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from cobble.config import Settings
 
 from .budget import BudgetService
-from .costs import CostRouter
+from .costs import SHARED_BACKOFF, CostRouter
 from .gateway import LiteLLMGateway
 from .local import LocalModels, project_is_local_only
 from .policy import ModelPolicy
@@ -42,4 +42,5 @@ def build_cost_router(
         chain_for=policy.chain_for,
         is_local_only=project_is_local_only(sessions),
         local_models=_local_models(settings),
+        backoff=SHARED_BACKOFF,
     )

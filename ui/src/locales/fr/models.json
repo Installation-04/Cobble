@@ -99,5 +99,16 @@
     "tps": "{{n}} jetons/s",
     "use": "Utiliser comme développeur",
     "percent": "{{n}} %"
+  },
+  "prices": {
+    "title": "Prix",
+    "model": "Modèle",
+    "input": "Entrée",
+    "output": "Sortie",
+    "unit": "USD par million de jetons, tels que la passerelle de modèles les communique. Cobble ne réordonne jamais vos routes à cause d'un prix: il vous avertit seulement.",
+    "free": "gratuit",
+    "changed": "Le prix de ces modèles a changé ces {{days}} derniers jours. Vérifiez vos routes et vos budgets:",
+    "change": "{{model}}: entrée {{oldIn}} → {{newIn}}, sortie {{oldOut}} → {{newOut}} (USD par million de jetons)",
+    "terms": "Les paliers gratuits ont des limites de débit basses (quand l'un refuse, le modèle suivant de la route répond) et des conditions propres à chaque fournisseur: certains utilisent vos requêtes pour entraîner leurs modèles et peuvent changer ou arrêter l'offre. Vérifiez-les avant d'envoyer du code confidentiel."
   }
 }

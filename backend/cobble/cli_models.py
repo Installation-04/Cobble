@@ -68,6 +68,7 @@ def add_parser(sub: Any) -> None:
     bench.add_argument(
         "--apply", action="store_true", help="put the best model first in the worker route"
     )
+    actions.add_parser("prices", help="the last price seen of each model, and free tiers")
     preset = actions.add_parser("preset", help="apply a ready-made set of routes")
     preset.add_argument("id", nargs="?", help="economical-local or balanced (none: list them)")
     for slot in ("local", "cheap", "strong"):
@@ -113,6 +114,7 @@ def run(
     read_key: Callable[[str], str] = _read_key,
     routes: RoutesStore | None = None,
     bench: BenchRig | None = None,
+    prices: PriceRig | None = None,
 ) -> int:
     lang = settings.lang
     term = term or Terminal()
@@ -139,6 +141,8 @@ def run(
             return _test(args.name, term, lang, settings, probe)
         if args.action == "benchmark":
             return _benchmark(args, api, term, lang, settings, routes, bench)
+        if args.action == "prices":
+            return _prices(term, lang, prices or LivePrices(settings, api))
         if args.action == "preset":
             return _preset(args, api, term, lang, settings, routes)
         if args.action == "route":
@@ -192,6 +196,76 @@ class LiveBench:
         from cobble.benchmark.tasks import VERSION
 
         return latest(self._sessions, VERSION)
+
+
+class PriceRig(Protocol):
+    def table(self) -> list[dict[str, Any]]: ...
+
+
+class LivePrices:
+    """Looks at the gateway's prices, remembers them (so changes are noticed), reads the table."""
+
+    def __init__(self, settings: Settings, api: Any) -> None:
+        self._settings = settings
+        self._api = api
+
+    def table(self) -> list[dict[str, Any]]:
+        import httpx
+
+        from cobble.db import make_engine, make_session_factory
+        from cobble.router import price_table
+        from cobble.router.prices import PriceBook
+
+        settings = self._settings
+        headers = (
+            {"Authorization": f"Bearer {settings.litellm_key}"} if settings.litellm_key else {}
+        )
+        client = httpx.Client(base_url=settings.litellm_url.rstrip("/"), headers=headers)
+        sessions = make_session_factory(make_engine(settings.database_url))
+        try:
+            local = {m["name"] for m in self._api.models().get("local", [])}
+            with sessions() as db:
+                price_table.sync(db, PriceBook(client).listed(), local=local)
+                return price_table.table(db)
+        finally:
+            client.close()
+
+
+def _prices(term: Terminal, lang: str, rig: PriceRig) -> int:
+    rows = rig.table()
+    if not rows:
+        term.say(t("cli.models.prices.empty", lang))
+        return 0
+    term.say(t("cli.models.prices.header", lang, name="", prompt="in", completion="out").rstrip())
+    for r in rows:
+        flags = []
+        if r["free"]:
+            flags.append(t("cli.models.prices.free", lang))
+        if r["changed"]:
+            flags.append(
+                t(
+                    "cli.models.prices.changed",
+                    lang,
+                    prompt=r["previous_prompt_per_million_usd"],
+                    completion=r["previous_completion_per_million_usd"],
+                )
+            )
+        term.say(
+            t(
+                "cli.models.prices.row",
+                lang,
+                name=r["model"],
+                prompt=r["prompt_per_million_usd"],
+                completion=r["completion_per_million_usd"],
+                flags=", ".join(flags),
+            ).rstrip()
+        )
+    changed = sum(1 for r in rows if r["changed"])
+    if changed:
+        term.warn(t("cli.models.prices.warning", lang, count=changed))
+    if any(r["free"] for r in rows):
+        term.say(t("cli.models.prices.terms", lang))
+    return 0
 
 
 class RoutesStore(Protocol):

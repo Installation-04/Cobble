@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 import httpx
@@ -9,11 +10,14 @@ from fastapi import APIRouter, Request
 
 from cobble import costs
 from cobble.capabilities.llm import Role
+from cobble.router import price_table
+from cobble.router.factory import _local_models
 from cobble.router.policy import ModelPolicy
 from cobble.router.prices import PriceBook, Prices
 
 from .deps import AppSettings, CurrentUser, Db, OwnedProject
 
+log = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -30,6 +34,22 @@ def price_book(request: Request, settings: Any) -> PriceBook:
     return book
 
 
+def sync_prices(request: Request, settings: Any, db: Any) -> None:
+    """Remember the prices the gateway reports now (cached a few minutes) and notice changes.
+    Best effort: a gateway or a database that fails must not break a report."""
+    try:
+        state = request.app.state
+        local = getattr(state, "local_models", None)
+        if local is None:
+            local = state.local_models = _local_models(settings)
+        listed = getattr(price_book(request, settings), "listed", None)
+        if listed is not None:
+            price_table.sync(db, listed(), local=local())
+    except Exception:
+        db.rollback()
+        log.warning("cannot update the table of model prices", exc_info=True)
+
+
 def reference(request: Request, settings: Any) -> tuple[str, Prices] | None:
     """The strongest model the owner configured (first of the escalation chain) and its prices."""
     model = ModelPolicy(request.app.state.session_factory, settings).chain_for(Role.ESCALATION)[0]
@@ -41,6 +61,7 @@ def reference(request: Request, settings: Any) -> tuple[str, Prices] | None:
 def project_costs(
     request: Request, project: OwnedProject, db: Db, settings: AppSettings
 ) -> dict[str, Any]:
+    sync_prices(request, settings, db)
     return costs.project_costs(db, project, reference(request, settings))
 
 

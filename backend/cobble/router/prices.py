@@ -65,6 +65,36 @@ def parse_model_info(body: Any, model: str) -> Prices | None:
     return None
 
 
+@dataclass(frozen=True)
+class Listed:
+    """A model of the gateway: its name, its price if it has one, the provider's own name."""
+
+    name: str
+    prices: Prices | None
+    upstream: str | None
+
+
+def parse_all(body: Any) -> list[Listed]:
+    """Every model of a `/model/info` body (the first entry of a name wins)."""
+    entries = body.get("data") if isinstance(body, dict) else None
+    if not isinstance(entries, list):
+        return []
+    seen: dict[str, Listed] = {}
+    for entry in entries:
+        if not isinstance(entry, dict) or not isinstance(entry.get("model_name"), str):
+            continue
+        name = entry["model_name"]
+        if name in seen:
+            continue
+        upstream = _mapping(entry.get("litellm_params")).get("model")
+        seen[name] = Listed(
+            name,
+            parse_model_info({"data": [entry]}, name),
+            upstream if isinstance(upstream, str) else None,
+        )
+    return list(seen.values())
+
+
 class PriceBook:
     """Asks the gateway for prices and remembers the answer for a few minutes."""
 
@@ -95,3 +125,6 @@ class PriceBook:
 
     def prices(self, model: str) -> Prices | None:
         return parse_model_info(self._info(), model)
+
+    def listed(self) -> list[Listed]:
+        return parse_all(self._info())

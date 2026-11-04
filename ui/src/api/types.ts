@@ -165,6 +165,25 @@ export interface CostByTask extends CostLine {
 }
 export interface CostByModel extends CostLine {
   model: string | null;
+  /** A free-tier model: its calls are counted as free. */
+  free?: boolean;
+}
+
+/** The last price seen of a model (USD per million tokens) and whether it changed lately. */
+export interface ModelPriceLine {
+  model: string;
+  prompt_per_million_usd: string | null;
+  completion_per_million_usd: string | null;
+  free: boolean;
+  changed: boolean;
+  previous_prompt_per_million_usd: string | null;
+  previous_completion_per_million_usd: string | null;
+  changed_at: string | null;
+}
+
+export interface ModelPrices {
+  prices: ModelPriceLine[];
+  change_window_days: number;
 }
 export interface CostByRole extends CostLine {
   role: string | null;
@@ -178,6 +197,10 @@ export interface ProjectCosts {
   by_task: CostByTask[];
   by_model: CostByModel[];
   by_role: CostByRole[];
+  /** Calls to free-tier models (counted as free). */
+  free_calls?: number;
+  /** Models used by this project whose price changed lately. */
+  price_changes?: ModelPriceLine[];
   /** Calls answered by another model because the one chosen for the role could not. */
   fallbacks?: CostFallbacks;
   /** Compared with doing every call with the strongest model; null when it cannot be priced. */
