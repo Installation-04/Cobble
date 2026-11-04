@@ -8,8 +8,9 @@ import { CostsTab } from "../project/CostsTab";
 import { DemoTab } from "../project/DemoTab";
 import { PlanTab } from "../project/PlanTab";
 import { ProjectDataProvider } from "../project/ProjectDataProvider";
+import { ReportTab } from "../project/ReportTab";
 
-const SECTIONS = ["chat", "plan", "agents", "demo", "costs"] as const;
+const SECTIONS = ["chat", "plan", "agents", "demo", "costs", "report"] as const;
 type Section = (typeof SECTIONS)[number];
 const isSection = (value: string | null): value is Section =>
   (SECTIONS as readonly (string | null)[]).includes(value);
@@ -66,6 +67,9 @@ export function ProjectPage() {
           </TabsContent>
           <TabsContent value="costs" className="min-h-0 flex-1">
             <CostsTab />
+          </TabsContent>
+          <TabsContent value="report" className="min-h-0 flex-1">
+            <ReportTab />
           </TabsContent>
         </Tabs>
       </ProjectDataProvider>

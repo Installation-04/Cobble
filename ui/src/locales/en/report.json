@@ -1,0 +1,52 @@
+{
+  "title": "Report: {{name}}",
+  "download": "Download as Markdown",
+  "na": "n/a",
+  "unknown": "unknown",
+  "state": {
+    "finished": "This project is finished.",
+    "ongoing": "This project is not finished yet: the figures are those of today."
+  },
+  "duration": {
+    "days": "{{days}} d {{hours}} h",
+    "hours": "{{hours}} h {{minutes}} min",
+    "minutes": "{{minutes}} min"
+  },
+  "built": {
+    "title": "What was built",
+    "summary": "{{validated}} of {{milestones}} milestones validated. Tasks: {{done}} done out of {{total}}, {{failed}} failed, {{escalated}} escalated to a stronger model."
+  },
+  "milestoneStatus": {
+    "pending": "pending",
+    "built": "built",
+    "validated": "validated"
+  },
+  "time": {
+    "started": "Started",
+    "ended": "Last activity",
+    "duration": "Duration"
+  },
+  "costs": {
+    "spent": "Spent",
+    "budget": "Budget",
+    "noBudget": "none",
+    "estimate": "Plan estimate",
+    "tokens": "Tokens: {{prompt}} in, {{completion}} out"
+  },
+  "fallbacks": {
+    "title": "Fallbacks",
+    "summary": "{{calls}} of {{total}} calls were answered by a fallback model."
+  },
+  "byModel": { "title": "Cost per model" },
+  "byRole": { "title": "Cost per role" },
+  "col": {
+    "milestone": "Milestone",
+    "status": "Status",
+    "tasks": "Tasks done",
+    "failed": "Failed",
+    "model": "Model",
+    "role": "Role",
+    "calls": "Calls",
+    "cost": "Cost"
+  }
+}

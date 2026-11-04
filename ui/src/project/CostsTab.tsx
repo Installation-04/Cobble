@@ -192,7 +192,7 @@ function LocalOnlyCard() {
 }
 
 /** What the cheaper models saved compared with the strongest one doing everything. */
-function SavingsCard({ savings, lang }: { savings: CostSavings | null; lang: string }) {
+export function SavingsCard({ savings, lang }: { savings: CostSavings | null; lang: string }) {
   const { t } = useTranslation("costs");
   const saved = savings !== null && !savings.saved_usd.startsWith("-") && savings.saved_percent > 0;
   return (

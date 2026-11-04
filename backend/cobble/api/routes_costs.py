@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import Annotated, Any, Literal
 
 import httpx
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Query, Request, Response
 
-from cobble import costs
+from cobble import costs, report
 from cobble.capabilities.llm import Role
 from cobble.router import price_table
 from cobble.router.factory import _local_models
@@ -68,3 +68,26 @@ def project_costs(
 @router.get("/costs")
 def all_costs(user: CurrentUser, db: Db) -> list[dict[str, Any]]:
     return costs.global_costs(db, user.id)
+
+
+@router.get("/projects/{project_id}/report", response_model=None)
+def project_report(
+    request: Request,
+    project: OwnedProject,
+    user: CurrentUser,
+    db: Db,
+    settings: AppSettings,
+    format: Annotated[Literal["json", "md"], Query()] = "json",
+) -> Any:
+    """End-of-project report (ADR 0014): JSON, or a Markdown download in the user's language."""
+    body = report.project_report(db, project, reference(request, settings))
+    if format == "json":
+        return body
+    return Response(
+        report.render_markdown(body, user.lang),
+        media_type="text/markdown; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="{report.filename(project.name)}"',
+            "Cache-Control": "no-store",
+        },
+    )

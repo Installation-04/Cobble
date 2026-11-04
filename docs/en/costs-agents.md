@@ -67,3 +67,33 @@ free tiers. Provider caveat: free tiers have their own rate limits and terms (tr
 requests, offer changes); Cobble cannot check them for you, and a `local only` project avoids them
 altogether. On a 429 the next model of the route answers and the limited one is tried last for 30 s
 (doubling up to 10 min).
+## End-of-project report
+
+`GET /projects/{id}/report` (the project's "Report" tab) summarises the project. It also works
+before the end: `project.finished` is then false and the figures are those of the moment.
+
+```json
+{
+  "project": {"id": "…", "name": "Todo", "phase": "done", "status": "active", "finished": true},
+  "span": {"started_at": "…", "ended_at": "…", "duration_seconds": 11100},
+  "build": {
+    "milestones": [{"ref": "M1", "title": "…", "status": "validated", "validated_at": "…",
+                    "tasks_total": 4, "tasks_done": 3, "tasks_failed": 1}],
+    "milestones_validated": 1,
+    "tasks": {"total": 4, "done": 3, "failed": 1, "escalated": 2, "attempts": 6}
+  },
+  "costs": {
+    "spent_usd": "0.17", "budget_usd": "5.00", "estimate_usd": "1.50",
+    "budget_used_percent": 3, "estimate_delta_percent": -89,
+    "tokens": {"prompt": 1711, "completion": 708},
+    "savings": {"reference_model": "…", "saved_usd": "…", "saved_percent": 92, "…": "…"},
+    "by_model": [], "by_role": [], "fallbacks": {"calls": 0, "total_calls": 0, "by_model": []}
+  }
+}
+```
+
+`span.ended_at` is the last activity (last task changed or last milestone validated).
+`costs.savings` is the Costs tab's savings counter (`null` when the strongest model has no
+price). `GET /projects/{id}/report?format=md` returns the same report as a Markdown download
+(`Content-Disposition: attachment`) in the user's language (`fr` or `en`). Any other `format`
+gives `422`. The report costs a fixed number of SQL queries.

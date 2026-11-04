@@ -69,3 +69,33 @@ gratuits ont leurs propres limites de débit et conditions (entraînement sur vo
 modifiable); Cobble ne peut pas les vérifier pour vous, et un projet « local seulement » les évite
 complètement. Sur un 429, le modèle suivant de la route répond et le modèle limité est essayé en
 dernier pendant 30 s (en doublant jusqu'à 10 min).
+## Rapport de fin de projet
+
+`GET /projects/{id}/report` (onglet « Rapport » du projet) résume le projet. Il marche aussi
+avant la fin: `project.finished` vaut alors faux et les chiffres sont ceux du moment.
+
+```json
+{
+  "project": {"id": "…", "name": "Todo", "phase": "done", "status": "active", "finished": true},
+  "span": {"started_at": "…", "ended_at": "…", "duration_seconds": 11100},
+  "build": {
+    "milestones": [{"ref": "M1", "title": "…", "status": "validated", "validated_at": "…",
+                    "tasks_total": 4, "tasks_done": 3, "tasks_failed": 1}],
+    "milestones_validated": 1,
+    "tasks": {"total": 4, "done": 3, "failed": 1, "escalated": 2, "attempts": 6}
+  },
+  "costs": {
+    "spent_usd": "0.17", "budget_usd": "5.00", "estimate_usd": "1.50",
+    "budget_used_percent": 3, "estimate_delta_percent": -89,
+    "tokens": {"prompt": 1711, "completion": 708},
+    "savings": {"reference_model": "…", "saved_usd": "…", "saved_percent": 92, "…": "…"},
+    "by_model": [], "by_role": [], "fallbacks": {"calls": 0, "total_calls": 0, "by_model": []}
+  }
+}
+```
+
+`span.ended_at` est la dernière activité (dernière tâche modifiée ou dernier jalon validé).
+`costs.savings` est le compteur d'économies de l'onglet Coûts (`null` si le modèle le plus fort
+n'a pas de prix). `GET /projects/{id}/report?format=md` renvoie le même rapport en Markdown, à
+télécharger (`Content-Disposition: attachment`), dans la langue de l'utilisateur (`fr` ou `en`).
+Un autre `format` donne `422`. Le rapport coûte un nombre fixe de requêtes SQL.
