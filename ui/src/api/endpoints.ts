@@ -1,7 +1,6 @@
 import { API_BASE, api, requestText, type TextChunk } from "./client";
 import type {
   ChatMessage,
-  CostSettings,
   Folder,
   GlobalCostRow,
   Milestone,
