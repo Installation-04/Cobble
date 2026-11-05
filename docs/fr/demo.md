@@ -34,6 +34,23 @@ et revenir exigent `built` ou `validated`; revenir sur `M2` exige aussi `M1` con
 Sans service d'aperçu (pas de `COBBLE_PREVIEW_SERVICE_TOKEN`) le déroulement des démos est désactivé et le
 projet est `done` dès que toutes les tâches sont fusionnées, comme avant.
 
+## Mode « Explique-moi »
+
+Pour apprendre en chemin : dans l'onglet Démo, cochez **Explique-moi**. Quand un jalon est construit,
+un assistant écrit un court résumé en mots simples (dans votre langue) : ce qui a été construit,
+pourquoi c'est construit ainsi, et une chose à retenir. Il apparaît sur la carte du jalon, sous les
+boutons de la démo.
+
+- **Désactivé par défaut** : chaque résumé utilise quelques jetons, comptés dans les coûts du projet
+  (rôle `reviewer` : il suit le modèle choisi pour les revues, et respecte « local seulement »).
+- Il est écrit une fois par construction. Si vous commentez un jalon ou l'annulez, le résumé est
+  supprimé et réécrit quand le jalon est reconstruit.
+- Activé après la construction d'un jalon ? Cliquez sur **Expliquer ce jalon** sur sa carte.
+  **La réécrire** remplace un résumé existant.
+- Les résumés sont inclus dans le rapport Markdown (« Expliqué en mots simples »).
+- API : `explain_mode` sur `POST`/`PATCH /api/v1/projects`, `explanation` sur chaque jalon,
+  `POST /api/v1/projects/{id}/milestones/{ref}/explain`.
+
 ## Composants
 
 | Composant | Rôle |

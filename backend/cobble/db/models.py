@@ -203,6 +203,10 @@ class Project(Base):
     local_only: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default=false()
     )
+    # True: a plain-language summary is written at each milestone (ADR 0017). Costs tokens.
+    explain_mode: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=false()
+    )
     # interview -> spec_review -> plan_review -> ready -> building -> done
     phase: Mapped[str] = mapped_column(
         String(20), nullable=False, default="interview", server_default="interview"
@@ -354,6 +358,8 @@ class Milestone(Base):
     revision: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     built_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     validated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # "Explique-moi" summary in the user's language (ADR 0017); cleared when re-opened.
+    explanation: Mapped[str | None] = mapped_column(Text)
 
 
 class Module(Base):

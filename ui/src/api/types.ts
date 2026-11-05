@@ -34,6 +34,8 @@ export interface Project {
   budget_usd?: string | null;
   /** True: no request of this project may reach a model that is not served on this machine. */
   local_only?: boolean;
+  /** True: a plain-language summary is written at each milestone ("Explique-moi"). */
+  explain_mode?: boolean;
   status: "active" | "paused";
   phase: Phase;
 }
@@ -89,7 +91,7 @@ export interface Plan {
   created_at: string;
 }
 
-export type JobKind = "reply" | "spec" | "plan" | "start";
+export type JobKind = "reply" | "spec" | "plan" | "start" | "explain";
 
 /** Scheduler task states (ADR 0006). */
 export const TASK_STATES = [
@@ -150,6 +152,8 @@ export interface Milestone {
   preview_path: string | null;
   built_at: string | null;
   validated_at: string | null;
+  /** Plain-language summary of what was built (explain mode), else null. */
+  explanation?: string | null;
 }
 
 /** Decimals travel as strings. */

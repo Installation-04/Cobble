@@ -58,7 +58,7 @@ from cobble.capabilities.preview import (
 )
 from cobble.config import Settings
 from cobble.db import Milestone, Project, Task, TaskRun
-from cobble.events import publish_project
+from cobble.events import enqueue_job, publish_project
 
 from . import control, demo, prompts, rules
 from .materialize import NoApprovedPlan, materialize_tasks
@@ -827,6 +827,16 @@ class Scheduler:
         milestone.preview_state = state
         session.commit()
         demo.emit_milestone(self._emit, project.id, milestone)
+        self._queue_explanation(project, milestone)
+
+    def _queue_explanation(self, project: Project, milestone: Milestone) -> None:
+        """Explain mode (ADR 0017): ask the worker for the summary of the milestone just built."""
+        if not project.explain_mode or self._redis is None:
+            return
+        try:
+            enqueue_job(self._redis, "explain", project.id, ref=milestone.ref)
+        except Exception:  # a summary is a bonus: never hold the build back for it
+            log.warning("could not queue the explanation of %s", milestone.ref, exc_info=True)
 
     def _follow_preview(self, session: Session, project: Project, milestone: Milestone) -> None:
         if self._preview is None:

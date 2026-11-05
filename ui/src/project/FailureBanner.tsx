@@ -17,6 +17,7 @@ const KNOWN_CODES = [
   "scheduler_unavailable",
   // The job crashed on every try and was set aside by the worker (ADR 0016)
   "crashed",
+  "empty_explanation",
 ];
 
 /** Last failed job (job.failed), with its translated error code. */

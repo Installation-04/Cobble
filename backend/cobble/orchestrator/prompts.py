@@ -71,6 +71,21 @@ PLAN_SYSTEM = (
 )
 
 
+EXPLAIN_SYSTEM = (
+    "You are the teacher of Cobble, a platform that turns an idea into a working application. "
+    "A milestone of the project has just been built by coding agents. Explain to a complete "
+    "beginner what was built and why.\n"
+    "Rules:\n"
+    "- Write in {language}, the user's language.\n"
+    "- Plain words, no jargon; when a technical word is unavoidable, explain it in one phrase.\n"
+    "- Cover what was built (what the user can now do or see), why it is built this way, and "
+    "one thing worth learning from it.\n"
+    "- At most 200 words. Reply with the text only, with no title and no code."
+)
+
+EXPLAIN_MAX_TASKS = 30  # a prompt stays small whatever the size of the milestone
+
+
 def language_name(lang: str) -> str:
     return LANGUAGES.get(lang, "English")
 
@@ -147,4 +162,24 @@ def retry_messages(
                 "Return the corrected JSON plan only."
             ),
         },
+    ]
+
+
+def explain_messages(
+    project_name: str,
+    milestone: tuple[str, str],
+    tasks: Sequence[tuple[str, Sequence[str]]],
+    lang: str,
+) -> list[Message]:
+    """Prompt for the plain-language summary of a milestone: `(ref, title)` and the
+    `(title, acceptance criteria)` of its tasks."""
+    ref, title = milestone
+    lines = [f"Project: {project_name}", f"Milestone {ref}: {title}", "", "Tasks that were done:"]
+    for task_title, acceptance in tasks[:EXPLAIN_MAX_TASKS]:
+        lines.append(f"- {task_title}")
+        lines.extend(f"    * {item}" for item in acceptance[:4])
+    lines += ["", "Explain this milestone now."]
+    return [
+        {"role": "system", "content": _fill(EXPLAIN_SYSTEM, lang)},
+        {"role": "user", "content": "\n".join(lines)},
     ]

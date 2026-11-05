@@ -695,3 +695,38 @@ def test_migration_0015_job_checkpoints_up_and_down(database_url: str) -> None:
     assert "job_checkpoints" not in tables(database_url)
     command.upgrade(config, "head")
     assert "job_checkpoints" in tables(database_url)
+
+
+def test_migration_0016_explain_mode_up_and_down(database_url: str) -> None:
+    config = alembic_config(database_url)
+    command.downgrade(config, "base")
+    command.upgrade(config, "0015")
+    engine = create_engine(database_url)
+    try:
+        assert "explain_mode" not in {c["name"] for c in inspect(engine).get_columns("projects")}
+        command.upgrade(config, "0016")
+        assert "explain_mode" in {c["name"] for c in inspect(engine).get_columns("projects")}
+        assert "explanation" in {c["name"] for c in inspect(engine).get_columns("milestones")}
+        command.downgrade(config, "0015")
+        assert "explain_mode" not in {c["name"] for c in inspect(engine).get_columns("projects")}
+        assert "explanation" not in {c["name"] for c in inspect(engine).get_columns("milestones")}
+    finally:
+        engine.dispose()
+    command.upgrade(config, "head")
+
+
+def test_the_explain_columns_match_the_models(migrated_database: str) -> None:
+    """No drift on the two columns of migration 0016 (the module-table check ignores them)."""
+    from alembic.autogenerate import compare_metadata
+    from alembic.migration import MigrationContext
+
+    from cobble.db.base import Base
+
+    engine = create_engine(migrated_database)
+    try:
+        with engine.connect() as conn:
+            context = MigrationContext.configure(conn, opts={"compare_type": True})
+            diff = compare_metadata(context, Base.metadata)
+    finally:
+        engine.dispose()
+    assert [d for d in diff if {"projects", "milestones"} & _tables_of(d)] == []

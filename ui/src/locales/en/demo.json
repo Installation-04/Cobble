@@ -14,6 +14,16 @@
   "validate": "Validate",
   "validating": "Validating…",
   "done": "Every milestone is validated: the project is done.",
+  "explain": {
+    "toggleLabel": "Explain me: write a plain-language summary at each milestone",
+    "onHelp": "When a milestone is built, an assistant explains what was built and why, in simple words. It uses a few extra tokens per milestone.",
+    "offHelp": "Off by default, because each summary costs a few tokens. Turn it on to learn as the project grows.",
+    "title": "Explained in plain words",
+    "writing": "The explanation is being written…",
+    "regenerate": "Write it again",
+    "generate": "Explain this milestone",
+    "queued": "Explanation requested. It appears here shortly."
+  },
   "empty": {
     "title": "No demo yet",
     "notStarted": "Demos appear here once the plan is approved and the build has started.",
