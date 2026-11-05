@@ -32,6 +32,17 @@ COMPOSE = {
 }
 
 
+class _ComposeLoader(yaml.SafeLoader):
+    """`safe_load` plus Compose's `!reset` tag, which the generated override uses."""
+
+
+_ComposeLoader.add_constructor("!reset", lambda loader, node: "!reset")
+
+
+def load_compose(text: str) -> dict[str, object]:
+    return yaml.load(text, Loader=_ComposeLoader)  # noqa: S506 - SafeLoader subclass
+
+
 def digests(*names: str) -> dict[str, str]:
     return dict.fromkeys(names, f"sha256:{D}")
 
@@ -40,10 +51,11 @@ def test_every_built_service_is_pinned_sorted_and_lower_cased() -> None:
     text = mrc.generate(
         COMPOSE, "Installation-04", "v1.2.3", digests("api", "worker", "module-manager")
     )
-    parsed = yaml.safe_load(text)
+    parsed = load_compose(text)
     assert list(parsed["services"]) == ["api", "module-manager", "worker"]
     assert parsed["services"]["api"] == {
         "image": f"ghcr.io/installation-04/cobble-api:1.2.3@sha256:{D}",
+        "build": "!reset",
         "pull_policy": "always",
     }
     assert "postgres" not in parsed["services"]  # no build: left alone
@@ -83,14 +95,14 @@ def test_bad_digest_arguments_are_refused(item: str) -> None:
 
 def test_the_real_compose_file(tmp_path: Path) -> None:
     """Every service that builds in core/compose.yml needs a digest; fake-llm is one of them."""
-    services = mrc.built_services(yaml.safe_load((REPO / "core/compose.yml").read_text("utf-8")))
+    services = mrc.built_services(load_compose((REPO / "core/compose.yml").read_text("utf-8")))
     assert set(services) == {"api", "fake-llm", "module-manager", "ui", "worker"}
     out = tmp_path / "compose.release.yml"
     args = ["--compose", str(REPO / "core/compose.yml"), "--owner", "Owner", "--version", "v0.3.0"]
     for name in services:
         args += ["--digest", f"{name}=sha256:{D}"]
     assert mrc.main([*args, "--output", str(out)]) == 0
-    assert set(yaml.safe_load(out.read_text("utf-8"))["services"]) == set(services)
+    assert set(load_compose(out.read_text("utf-8"))["services"]) == set(services)
     # A missing digest exits 1 and writes nothing.
     broken = tmp_path / "broken.yml"
     assert mrc.main([*args[:-2], "--output", str(broken)]) == 1

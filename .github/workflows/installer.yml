@@ -18,7 +18,7 @@ jobs:
         run: |
           shellcheck -x -s bash installer/install.sh installer/cobble installer/lib.sh \
             installer/messages.en.sh installer/messages.fr.sh \
-            installer/tests/run.sh installer/tests/ci_vm.sh installer/tests/stubs/*
+            installer/tests/run.sh installer/tests/download_tests.sh installer/tests/ci_vm.sh installer/tests/stubs/*
       - name: Installer unit tests (no root, no Docker)
         run: installer/tests/run.sh
 

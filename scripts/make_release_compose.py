@@ -6,8 +6,9 @@
         --output core/compose.release.yml
 
 Every service of `compose.yml` that has a `build:` section gets
-`image: ghcr.io/<owner>/cobble-<service>:<version>@sha256:<digest>` (and `pull_policy: always`, so
-Compose pulls that exact image instead of building the service). The profile of a service does not
+`image: ghcr.io/<owner>/cobble-<service>:<version>@sha256:<digest>`, its `build:` cleared with
+`!reset null` (Compose 2.24+) and `pull_policy: always`, so Compose pulls that exact image instead
+of building the service. The profile of a service does not
 matter: a service of an inactive profile (the module-manager) is still pinned. The output is
 deterministic (services sorted by name, no timestamp). Exit code 1 when a built service has no
 digest, when a digest is given for a service that does not build, or when an argument is invalid.
@@ -83,6 +84,7 @@ def generate(compose: Any, owner: str, version: str, digests: dict[str, str]) ->
         lines += [
             f"  {name}:",
             f"    image: ghcr.io/{owner}/cobble-{name}:{version}@{digests[name]}",
+            "    build: !reset null",
             "    pull_policy: always",
         ]
     return "\n".join(lines) + "\n"
