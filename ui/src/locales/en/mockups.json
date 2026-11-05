@@ -1,0 +1,13 @@
+{
+  "title": "Mockup variants",
+  "label": "Compare mockups before planning",
+  "onHelp": "The assistant proposes 2 or 3 different mockups for a few cents. Pick one before the plan is generated; the plan follows it.",
+  "offHelp": "Off: the plan is generated straight from the spec.",
+  "generate": "Propose mockups",
+  "regenerate": "Propose other mockups",
+  "generating": "Drawing mockups…",
+  "pickHint": "Choose a mockup to continue to the plan.",
+  "choose": "Choose this one",
+  "chosen": "Chosen",
+  "wireframe": "Wireframe of {{title}}"
+}

@@ -158,8 +158,13 @@ def make_job_handler(
                 kind, project_id, ref=str(job.get("ref", "")), force=bool(job.get("force"))
             )
             return
+        extra = {"count": int(job["count"])} if job.get("count") is not None else {}
         planner.run_job(
-            kind, project_id, feedback=job.get("feedback"), message_id=job.get("message_id")
+            kind,
+            project_id,
+            feedback=job.get("feedback"),
+            message_id=job.get("message_id"),
+            **extra,
         )
 
     return handler

@@ -1,6 +1,7 @@
 import { API_BASE, api, requestText, type TextChunk } from "./client";
 import type {
   ChatMessage,
+  CostSettings,
   Folder,
   GlobalCostRow,
   Milestone,
@@ -16,6 +17,7 @@ import type {
   ModuleOperation,
   ModuleOperationRequest,
   ModulePacks,
+  MockupVariant,
   ModulePlan,
   Plan,
   Project,
@@ -57,6 +59,7 @@ export const projectsApi = {
       folder_id?: string | null;
       local_only?: boolean;
       explain_mode?: boolean;
+      mockups_enabled?: boolean;
     },
   ) => api.patch<Project>(`/projects/${id}`, body),
   remove: (id: string) => api.delete(`/projects/${id}`),
@@ -75,6 +78,11 @@ export const flowApi = {
   generatePlan: (id: string, feedback?: string) =>
     api.post<void>(`/projects/${id}/plan/generate`, feedback ? { feedback } : {}),
   approvePlan: (id: string) => api.post<Plan>(`/projects/${id}/plan/approve`),
+  mockups: (id: string) => api.get<MockupVariant[]>(`/projects/${id}/mockups`),
+  generateMockups: (id: string, body: { feedback?: string; count?: number } = {}) =>
+    api.post<void>(`/projects/${id}/mockups/generate`, body),
+  chooseMockup: (id: string, variantId: string) =>
+    api.post<MockupVariant[]>(`/projects/${id}/mockups/${variantId}/choose`),
 };
 
 /** The answer of an action is either the object itself or wrapped under `key` (ADR 0007). */

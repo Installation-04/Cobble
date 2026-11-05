@@ -27,6 +27,7 @@ export interface WorkspaceValue {
       folder_id?: string | null;
       local_only?: boolean;
       explain_mode?: boolean;
+      mockups_enabled?: boolean;
     },
   ) => Promise<void>;
   deleteProject: (id: string) => Promise<void>;

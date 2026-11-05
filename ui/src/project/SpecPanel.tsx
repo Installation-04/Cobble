@@ -10,7 +10,8 @@ import { useAsyncAction } from "./useAsyncAction";
 
 export function SpecPanel() {
   const { t } = useTranslation("spec");
-  const { spec, phase, paused, jobs, approveSpec, generateSpec, generatePlan } = useProjectData();
+  const { project, spec, phase, paused, jobs, mockups, approveSpec, generateSpec, generatePlan } =
+    useProjectData();
   const approve = useAsyncAction();
   const feedback = useAsyncAction();
   const plan = useAsyncAction();
@@ -104,10 +105,19 @@ export function SpecPanel() {
           <p className="text-sm text-muted-foreground" data-testid="spec-approved-note">
             {t("approvedNote")}
           </p>
+          {project.mockups_enabled === true && !mockups.some((m) => m.chosen) && (
+            <p className="text-sm text-muted-foreground" data-testid="spec-mockup-hint">
+              {t("mockupHint")}
+            </p>
+          )}
           <div>
             <Button
               data-testid="plan-generate"
-              disabled={planning || paused}
+              disabled={
+                planning ||
+                paused ||
+                (project.mockups_enabled === true && !mockups.some((m) => m.chosen))
+              }
               onClick={() => void plan.run(() => generatePlan())}
             >
               {planning && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}

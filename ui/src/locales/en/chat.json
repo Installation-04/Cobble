@@ -36,7 +36,8 @@
       "spec": "Spec generation",
       "plan": "Plan generation",
       "start": "Build start",
-      "explain": "Milestone explanation"
+      "explain": "Milestone explanation",
+      "mockups": "Mockup generation"
     }
   }
 }

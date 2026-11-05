@@ -73,6 +73,8 @@ def update_project(project_id: str, body: ProjectPatch, user: CurrentUser, db: D
         project.local_only = body.local_only
     if body.explain_mode is not None:
         project.explain_mode = body.explain_mode
+    if body.mockups_enabled is not None:
+        project.mockups_enabled = body.mockups_enabled
     db.commit()
     return project
 

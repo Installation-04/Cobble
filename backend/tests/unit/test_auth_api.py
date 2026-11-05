@@ -446,6 +446,7 @@ def test_projects_crud(logged: TestClient) -> None:
         "budget_usd",
         "local_only",
         "explain_mode",
+        "mockups_enabled",
         "status",
         "phase",
     }

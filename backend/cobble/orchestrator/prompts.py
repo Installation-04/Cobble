@@ -132,8 +132,14 @@ def plan_messages(
     *,
     feedback: str | None = None,
     previous_plan: str | None = None,
+    mockup: str | None = None,
 ) -> list[Message]:
     parts = ["Approved specification:\n\n" + spec]
+    if mockup:
+        parts.append(
+            "The user chose this mockup for the main screen. The front end tasks must "
+            "follow its layout:\n\n" + mockup
+        )
     if feedback and previous_plan:
         parts.append("Previous plan:\n\n" + previous_plan)
         parts.append("The user asks for these changes:\n\n" + feedback)

@@ -23,20 +23,30 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from cobble.capabilities.llm import LLMClient, Role
 from cobble.config import Settings
-from cobble.db import JobCheckpoint, Message, Milestone, Plan, Project, Spec, Task, User
+from cobble.db import (
+    JobCheckpoint,
+    Message,
+    Milestone,
+    MockupVariant,
+    Plan,
+    Project,
+    Spec,
+    Task,
+    User,
+)
 from cobble.events import publish_project
 from cobble.router.budget import BudgetExceeded
 from cobble.router.costs import LocalOnlyUnavailable
 from cobble.router.gateway import GatewayError
 
-from . import prompts
+from . import mockups, prompts
 from .estimate import estimate_from_settings
 from .plan_schema import Plan as ParsedPlan
 from .plan_schema import PlanInvalid, parse_plan_reply
 
 log = logging.getLogger(__name__)
 
-JOB_KINDS = ("reply", "spec", "plan", "explain")
+JOB_KINDS = ("reply", "spec", "plan", "explain", "mockups")
 EXPLAIN_ROLE = Role.REVIEWER  # reads what was built and describes it (ADR 0017)
 
 # A checkpoint older than this belongs to a job nobody replayed: it is ignored and purged.
@@ -86,12 +96,13 @@ class PlannerService:
         message_id: str | None = None,
         ref: str | None = None,
         force: bool = False,
+        count: int | None = None,
     ) -> bool:
         """Run one job. Never raises: failures become a `job.failed` event. True on success."""
         self._emit(project_id, "job.started", {"kind": kind})
         token = _in_job.set(True)
         try:
-            ok = self._run_job(kind, project_id, feedback, message_id, ref, force)
+            ok = self._run_job(kind, project_id, feedback, message_id, ref, force, count)
         finally:
             _in_job.reset(token)
         # Only a job that ended (either way) clears its steps; a process killed mid-job leaves
@@ -107,6 +118,7 @@ class PlannerService:
         message_id: str | None,
         ref: str | None = None,
         force: bool = False,
+        count: int | None = None,
     ) -> bool:
         try:
             if kind == "reply":
@@ -117,6 +129,8 @@ class PlannerService:
                 self.generate_plan(project_id, feedback)
             elif kind == "explain":
                 self.explain_milestone(project_id, ref or "", force=force)
+            elif kind == "mockups":
+                self.generate_mockups(project_id, feedback, count)
             else:
                 raise JobError("unknown_job")
         except BudgetExceeded:
@@ -241,8 +255,9 @@ class PlannerService:
             previous = _latest(db, Plan, project_id)
             previous_plan = _plan_text(previous.plan) if previous else None
             spec_text = spec.content
+            mockup = _chosen_mockup(db, project)
         base = prompts.plan_messages(
-            spec_text, lang, feedback=feedback, previous_plan=previous_plan
+            spec_text, lang, feedback=feedback, previous_plan=previous_plan, mockup=mockup
         )
         messages = base
         errors: list[str] = []
@@ -326,6 +341,51 @@ class PlannerService:
             project_id, "milestone.updated", {"ref": ref, "status": status, "explained": True}
         )
 
+    # --- mockup variants (ADR 0018) -----------------------------------------------------
+
+    def generate_mockups(
+        self, project_id: uuid.UUID, feedback: str | None = None, count: int | None = None
+    ) -> None:
+        """Ask the planner for 2-3 mockups of the approved spec and store them as text."""
+        with self._sessions() as db:
+            project = db.get(Project, project_id)
+            if project is None or project.phase not in ("spec_review", "plan_review"):
+                return
+            spec = _latest(db, Spec, project_id)
+            if spec is None or spec.status != "approved":
+                return
+            lang = _language(db, project)
+            spec_text = spec.content
+        wanted = max(mockups.MIN_VARIANTS, min(mockups.MAX_VARIANTS, count or mockups.MAX_VARIANTS))
+        base = mockups.mockup_messages(spec_text, lang, wanted, feedback=feedback)
+        messages = base
+        parsed: list[mockups.ParsedVariant] | None = None
+        for attempt in range(mockups.MAX_MOCKUP_ATTEMPTS):
+            reply = self._chat(Role.PLANNER, messages, project_id, attempt)
+            try:
+                parsed = mockups.parse_mockups(reply, wanted)
+                break
+            except mockups.MockupsInvalid as exc:
+                log.info("mockups rejected (attempt %d): %s", attempt + 1, exc.errors)
+                messages = mockups.mockup_retry_messages(base, reply, exc.errors)
+        if parsed is None:
+            raise JobError("mockups_invalid")
+        with self._sessions() as db:
+            # A new batch replaces the previous one, and with it the previous choice.
+            db.execute(delete(MockupVariant).where(MockupVariant.project_id == project_id))
+            for position, variant in enumerate(parsed, start=1):
+                db.add(
+                    MockupVariant(
+                        project_id=project_id,
+                        position=position,
+                        title=variant.title,
+                        summary=variant.summary,
+                        wireframe=variant.wireframe,
+                    )
+                )
+            db.commit()
+        self._emit(project_id, "mockups.updated", {"count": len(parsed)})
+
     # --- shared -------------------------------------------------------------------------
 
     @staticmethod
@@ -359,6 +419,20 @@ def _latest(db: Session, model: type[Spec] | type[Plan], project_id: uuid.UUID) 
 def _next_version(db: Session, model: type[Spec] | type[Plan], project_id: uuid.UUID) -> int:
     top = db.scalar(select(func.max(model.version)).where(model.project_id == project_id))
     return (top or 0) + 1
+
+
+def _chosen_mockup(db: Session, project: Project) -> str | None:
+    """The mockup the user picked, as plan context (only when the project uses mockups)."""
+    if not project.mockups_enabled:
+        return None
+    row = db.scalars(
+        select(MockupVariant).where(
+            MockupVariant.project_id == project.id, MockupVariant.chosen.is_(True)
+        )
+    ).first()
+    if row is None:
+        return None
+    return mockups.mockup_context(row.title, row.summary, row.wireframe)
 
 
 def _plan_text(plan: dict[str, Any]) -> str:

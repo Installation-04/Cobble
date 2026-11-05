@@ -36,7 +36,8 @@
       "spec": "Génération de la spécification",
       "plan": "Génération du plan",
       "start": "Démarrage de la construction",
-      "explain": "Explication du jalon"
+      "explain": "Explication du jalon",
+      "mockups": "Génération des maquettes"
     }
   }
 }
