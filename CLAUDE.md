@@ -52,10 +52,12 @@ make test         # tests unitaires backend + frontend
 make lint         # ruff, mypy, eslint, vérification des clés i18n
 make e2e          # Playwright sur l'UI, pile neuve (efface les volumes de dev); boucle complète avec cassettes à venir
 make e2e-full       # chaîne réelle complète (Forgejo, Woodpecker, Aider...), manuel, long
-make bench        # banc d'essai des agents (vrais modèles, coûte des tokens: ne pas lancer en CI)
+make bench        # banc d'essai des agents sur 5 projets de référence (vrais modèles, COÛTE DE L'ARGENT: refuse sans ARGS="--yes-real-models", identifiants et connexion à un vrai modèle; jamais en CI)
+make bench-dry-run  # le même exécuteur contre un simulateur (aucun modèle, aucun coût)
+make bench-check  # tests cachés contre les solutions de référence et leurs mutations (aucun modèle)
 ```
 
-Les cibles `lint-backend`, `lint-ui`, `test-backend` et `test-ui` existent aussi (utilisées par la CI). `make bench` échoue avec un message tant que leur étape n'est pas livrée.
+Les cibles `lint-backend`, `lint-ui`, `test-backend` et `test-ui` existent aussi (utilisées par la CI). `make bench` : voir `docs/fr/bench.md`; les résultats (`reference-projects/results/`) ne sont pas versionnés.
 
 `COMPOSE_FLAGS="-f autre.yml"` ajoute des fichiers compose (voir `docs/fr/dev.md`).
 

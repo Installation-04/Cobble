@@ -1,0 +1,19 @@
+[
+  {"name": "greeting matches inside words", "file": "app/main.py", "old": "GREETING = re.compile(r\"\\b(hello|hi|bonjour|salut)\\b\", re.IGNORECASE)", "new": "GREETING = re.compile(r\"(hello|hi|bonjour|salut)\", re.IGNORECASE)"},
+  {"name": "rules match inside words", "file": "app/main.py", "old": "rf\"\\b{re.escape(rule['keyword'])}\\b\"", "new": "rf\"{re.escape(rule['keyword'])}\""},
+  {"name": "rules are case sensitive", "file": "app/main.py", "old": "text, re.IGNORECASE):\n            return str(rule", "new": "text):\n            return str(rule"},
+  {"name": "last rule wins", "file": "app/main.py", "old": "\"SELECT * FROM rules ORDER BY id\"):\n        if re.search", "new": "\"SELECT * FROM rules ORDER BY id DESC\"):\n        if re.search"},
+  {"name": "greeting before rules", "file": "app/main.py", "old": "    for rule in conn.execute(\"SELECT * FROM rules ORDER BY id\"):", "new": "    if GREETING.search(text):\n        return f\"Hello {user}!\"\n    for rule in conn.execute(\"SELECT * FROM rules ORDER BY id\"):"},
+  {"name": "calc uses eval", "file": "app/main.py", "old": "            return number(calculate(rest))", "new": "            return number(Decimal(str(eval(rest))))  # noqa: S307"},
+  {"name": "calc has no precedence", "file": "app/main.py", "old": "        value = atom()\n        while peek() in (\"*\", \"/\"):", "new": "        value = atom()\n        while peek() in (\"*\", \"/\", \"+\", \"-\"):"},
+  {"name": "calc division by zero crashes", "file": "app/main.py", "old": "        except (DivisionByZero, ZeroDivisionError):\n            return \"Error: division by zero\"", "new": "        except (DivisionByZero, ZeroDivisionError):\n            return \"Error: invalid expression\""},
+  {"name": "calc result with trailing zeros", "file": "app/main.py", "old": "text = f\"{value.quantize(Decimal('0.000001')):f}\".rstrip(\"0\").rstrip(\".\")", "new": "text = f\"{value.quantize(Decimal('0.01')):f}\""},
+  {"name": "count shared between users", "file": "app/main.py", "old": "FROM history WHERE user = ?\", (user,))", "new": "FROM history WHERE ? = ?\", (user, user))"},
+  {"name": "count has no plural", "file": "app/main.py", "old": "{'' if total == 1 else 's'}", "new": ""},
+  {"name": "echo changes case", "file": "app/main.py", "old": "return rest if rest.strip() else \"Usage: /echo <text>\"", "new": "return rest.lower() if rest.strip() else \"Usage: /echo <text>\""},
+  {"name": "commands are case sensitive", "file": "app/main.py", "old": "    name = name.lower()\n", "new": ""},
+  {"name": "history newest first", "file": "app/main.py", "old": "        for r in reversed(rows)", "new": "        for r in rows"},
+  {"name": "duplicate keywords accepted", "file": "app/main.py", "old": "raise HTTPException(409, \"A rule already uses this keyword\")", "new": "pass"},
+  {"name": "help forgets a command", "file": "app/main.py", "old": "COMMANDS = (\"/help\", \"/echo\", \"/calc\", \"/count\")", "new": "COMMANDS = (\"/help\", \"/echo\", \"/calc\")"},
+  {"name": "data not persisted", "file": "app/main.py", "old": "sqlite3.connect(folder / \"bot.db\")", "new": "sqlite3.connect(\":memory:\")"}
+]

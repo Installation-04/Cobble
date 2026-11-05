@@ -1,0 +1,13 @@
+{
+  "title": {"fr": "Blogue personnel", "en": "Personal blog"},
+  "idea": {
+    "fr": "Je veux un petit blogue pour publier mes articles. Les visiteurs peuvent lire et laisser des commentaires. Je garde des brouillons avant de publier.",
+    "en": "I want a small blog to publish my posts. Visitors can read and leave comments. I keep drafts before publishing."
+  },
+  "budget_usd": 1.5,
+  "timeout_s": 4500,
+  "measures": {
+    "fr": "Règles de détail à respecter à la lettre: génération de slugs (accents, doublons), brouillons contre articles publiés, filtre par étiquette, cascade de suppression.",
+    "en": "Fine print followed to the letter: slug generation (accents, duplicates), drafts versus published posts, tag filter, delete cascade."
+  }
+}

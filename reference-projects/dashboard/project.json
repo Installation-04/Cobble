@@ -1,0 +1,13 @@
+{
+  "title": {"fr": "Tableau de bord de métriques", "en": "Metrics dashboard"},
+  "idea": {
+    "fr": "Je veux un tableau de bord où mes petits services envoient des mesures (visites, temps de réponse, ventes) et où je vois les totaux, les moyennes et l'évolution par heure ou par jour.",
+    "en": "I want a dashboard where my small services send measurements (visits, response times, sales) and where I see the totals, the averages and the evolution by hour or by day."
+  },
+  "budget_usd": 2.0,
+  "timeout_s": 5400,
+  "measures": {
+    "fr": "Agrégation et dates: fuseaux horaires, intervalles semi-ouverts, regroupement par heure et par jour, arrondis, cas vides.",
+    "en": "Aggregation and dates: time zones, half-open ranges, grouping by hour and by day, rounding, empty cases."
+  }
+}
