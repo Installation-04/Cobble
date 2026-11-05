@@ -16,6 +16,7 @@ from __future__ import annotations
 import logging
 import re
 import time
+import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
 
@@ -131,6 +132,9 @@ class SimulatedAgentRunner:
 
     def stop(self, run_id: str) -> None:
         _parse(run_id)
+
+    def find(self, marker: str, task_id: uuid.UUID) -> str | None:
+        return None  # stateless: nothing outlives a restart to adopt
 
     def logs(self, run_id: str, offset: int = 0) -> tuple[str, int]:
         text = self._text(_parse(run_id))

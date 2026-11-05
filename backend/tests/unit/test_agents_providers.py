@@ -183,3 +183,56 @@ def test_diff_errors_are_provider_errors() -> None:
     git = ForgejoGit(pack_settings(), transport=httpx.MockTransport(boom))
     with pytest.raises(ProviderUnavailable):
         git.diff(REPO, "main", "feat", request_number=1)
+
+
+# --- find (crash recovery, ADR 0016) -------------------------------------------------------
+
+
+def test_http_find_asks_by_task_and_marker_and_takes_the_newest() -> None:
+    seen: list[httpx.Request] = []
+    task_id = uuid.uuid4()
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(200, json=[{"run_id": "new"}, {"run_id": "old"}])
+
+    assert http_runner(handler).find("[cobble-task:T-1:worker:1]", task_id) == "new"
+    request = seen[0]
+    assert (request.method, request.url.path) == ("GET", "/v1/runs")
+    assert request.url.params["task_id"] == str(task_id)
+    assert request.url.params["marker"] == "[cobble-task:T-1:worker:1]"
+
+
+def test_http_find_answers() -> None:
+    task_id = uuid.uuid4()
+    assert http_runner(lambda _r: httpx.Response(200, json=[])).find("m", task_id) is None
+    # An older service without the lookup: behave as before (nothing to adopt).
+    assert http_runner(lambda _r: httpx.Response(405)).find("m", task_id) is None
+    assert http_runner(lambda _r: httpx.Response(404)).find("m", task_id) is None
+    with pytest.raises(AgentUnavailable):
+        http_runner(lambda _r: httpx.Response(503)).find("m", task_id)
+    with pytest.raises(AgentUnavailable):
+        http_runner(lambda _r: httpx.Response(200, json={"x": 1})).find("m", task_id)
+
+    def down(_request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("down")
+
+    with pytest.raises(AgentUnavailable):
+        http_runner(down).find("m", task_id)
+
+
+def test_fake_find_returns_the_newest_matching_run() -> None:
+    runner = FakeAgentRunner()
+    task_id = uuid.uuid4()
+
+    def task(marker: str, tid: uuid.UUID = task_id) -> AgentTask:
+        return AgentTask(tid, tid, "u", "b", Role.WORKER, "i", marker=marker)
+
+    runner.start(task("m1"))
+    runner.start(task("m1"))
+    runner.start(task("m1", uuid.uuid4()))
+    assert runner.find("m1", task_id) == "run-2"
+    assert runner.find("other", task_id) is None
+    runner.unavailable = True
+    with pytest.raises(AgentUnavailable):
+        runner.find("m1", task_id)

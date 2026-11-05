@@ -18,6 +18,7 @@ Status: accepted (v0.1, step 7)
 | Method + path | Body | Success |
 |---|---|---|
 | `POST /v1/runs` | `{task_id, project_id, repo_clone_url, base_branch, branch, role, model, instructions, files: [..], test_command, limits: {max_iterations, max_seconds, cpu, memory_mb, pids}, run_token, marker}` | `202 {run_id}` |
+| `GET /v1/runs?task_id=&marker=` | — | `200 [status, ...]` runs started for that task with that marker, newest first (crash recovery, ADR 0016) |
 | `GET /v1/runs/{run_id}` | — | `200 {state, iterations, exit_code, head_sha, log_tail}` with `state` ∈ `running`, `done`, `failed`, `timeout`, `loop_detected`, `stopped` |
 | `GET /v1/runs/{run_id}/logs?offset=N` | — | `200 text/plain` chunk + header `X-Next-Offset` |
 | `POST /v1/runs/{run_id}/stop` | — | `204` |

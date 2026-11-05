@@ -15,6 +15,8 @@ const KNOWN_CODES = [
   "wrong_phase",
   "internal_error",
   "scheduler_unavailable",
+  // The job crashed on every try and was set aside by the worker (ADR 0016)
+  "crashed",
 ];
 
 /** Last failed job (job.failed), with its translated error code. */

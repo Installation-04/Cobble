@@ -196,6 +196,15 @@ class FakeAgentRunner:
     def stop(self, run_id: str) -> None:
         self.stopped.append(run_id)
 
+    def find(self, marker: str, task_id: uuid.UUID) -> str | None:
+        if self.unavailable:
+            raise AgentUnavailable("fake agent service is down")
+        for index in range(len(self.runs) - 1, -1, -1):
+            task = self.runs[index]
+            if task.marker == marker and task.task_id == task_id:
+                return f"run-{index + 1}"
+        return None
+
     def logs(self, run_id: str, offset: int = 0) -> tuple[str, int]:
         """Deterministic log lines; the first line is the one `poll` reports as the log."""
         if self.unavailable:

@@ -729,6 +729,100 @@ def test_resume_after_crash_between_run_row_and_service_call(
     assert h.tasks(pid)["T-001"].attempts == 1  # the lost run used no attempt
 
 
+def crash_around_start(h: Harness, pid: uuid.UUID, *, service_got_it: bool) -> Task:
+    """The database holds a `pending` run; the agent service did (or did not) accept the start."""
+    from cobble.capabilities.llm import Role
+    from cobble.scheduler import prompts
+
+    task = h.tasks(pid)["T-001"]
+    with h.sessions() as db:
+        db.add(
+            TaskRun(
+                task_id=task.id,
+                kind="test-writer",
+                attempt=1,
+                model="cheap",
+                state="pending",
+                started_at=h.clock(),
+            )
+        )
+        db.commit()
+    if service_got_it:
+        h.agents.start(
+            AgentTask(
+                task_id=task.id,
+                project_id=pid,
+                repo_clone_url="http://git/x.git",
+                branch="task/t-001",
+                role=Role.TEST_WRITER,
+                instructions="x",
+                marker=prompts.marker("T-001", "test-writer", 1),
+            )
+        )
+    return task
+
+
+def test_a_pending_run_whose_container_exists_is_adopted_not_duplicated(
+    sessions: sessionmaker[Session], pid: uuid.UUID
+) -> None:
+    h = Harness(sessions, agents=FakeAgentRunner(polls_before_done=5))
+    h.start(pid)
+    crash_around_start(h, pid, service_got_it=True)
+    report = h.new_scheduler().reconcile()
+    assert report.lost == 0
+    runs = h.runs("T-001", pid)
+    assert [(r.kind, r.state, r.agent_run_id) for r in runs] == [
+        ("test-writer", "running", "run-1")
+    ]
+    assert h.tasks(pid)["T-001"].state == "writing_tests"
+    assert len(h.agents.runs) == 1  # no second container was started
+    h.run_until(pid)
+    assert [(r.kind, r.state) for r in h.runs("T-001", pid)] == [
+        ("test-writer", "done"),
+        ("worker", "done"),
+    ]
+    writers = [t for t in h.agents.runs if t.marker.startswith("[cobble-task:T-001:test-writer")]
+    assert len(writers) == 1
+
+
+def test_a_pending_run_matching_only_an_older_recorded_run_is_lost(
+    sessions: sessionmaker[Session], pid: uuid.UUID
+) -> None:
+    """A retried test-writer reuses its marker: the older run must not be adopted twice."""
+    h = Harness(sessions)
+    h.start(pid)
+    task = crash_around_start(h, pid, service_got_it=True)
+    with sessions() as db:  # the service's run belongs to an earlier, finished row
+        old = db.scalars(select(TaskRun).where(TaskRun.task_id == task.id)).one()
+        old.agent_run_id, old.state = "run-1", "failed"
+        db.add(
+            TaskRun(task_id=task.id, kind="test-writer", attempt=1, model="cheap", state="pending")
+        )
+        db.commit()
+    assert h.new_scheduler().reconcile().lost == 1
+    assert [r.state for r in h.runs("T-001", pid)][-1] == "lost"
+    assert not h.agents.stopped
+
+
+def test_pending_run_is_retried_on_ticks_while_the_service_is_unreachable(
+    sessions: sessionmaker[Session], pid: uuid.UUID
+) -> None:
+    h = Harness(sessions, agents=FakeAgentRunner(polls_before_done=5))
+    h.start(pid)
+    crash_around_start(h, pid, service_got_it=True)
+    h.agents.unavailable = True
+    scheduler = h.new_scheduler()
+    assert scheduler.reconcile().lost == 0
+    assert [r.state for r in h.runs("T-001", pid)] == ["pending"]  # undecided, not lost
+    h.agents.unavailable = False
+    scheduler.tick()  # too young to tell from a start in flight
+    assert [r.state for r in h.runs("T-001", pid)] == ["pending"]
+    h.clock.advance(300)
+    scheduler.tick()
+    assert [(r.state, r.agent_run_id) for r in h.runs("T-001", pid)] == [("running", "run-1")]
+    assert len(h.agents.runs) == 1
+
+
 def test_a_task_with_an_active_run_never_gets_a_second_one(
     sessions: sessionmaker[Session], pid: uuid.UUID
 ) -> None:

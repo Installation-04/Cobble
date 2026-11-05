@@ -27,6 +27,7 @@
   "job_wrong_phase": "Le projet n'est pas prêt à être construit.",
   "job_internal_error": "Une erreur interne a empêché le démarrage de la construction. Réessayez.",
   "job_scheduler_unavailable": "Le service de construction n'est pas disponible sur cette installation.",
+  "job_crashed": "Une erreur interne a interrompu cette tâche plusieurs fois, elle a donc été mise de côté. Réessayez, et demandez à l'administrateur de consulter les tâches en échec si cela se répète.",
   "agent_unavailable": "Le service d'agents est indisponible : l'exécution n'a pas pu être arrêtée. Rien n'a été modifié.",
   "git_unavailable": "Le serveur git est indisponible. Réessayez dans un instant.",
   "forbidden": "Seul un administrateur peut faire cela.",
