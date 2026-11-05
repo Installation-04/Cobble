@@ -1,12 +1,15 @@
 #!/usr/bin/env bash
 # Cobble installer (Ubuntu 24.04/26.04, Debian 12/13, amd64). Run as root:
-#   curl -fsSL https://<domain>/install.sh | sudo bash
+#   curl -fsSL https://raw.githubusercontent.com/Installation-04/Cobble/main/installer/install.sh | sudo bash
 # Idempotent: re-running repairs or completes the install without destroying data.
 # Keep this script short: heavy logic belongs in the backend, not here.
 set -euo pipefail
 
-# PLACEHOLDER: replace with the real release tarball URL once releases are published.
-DEFAULT_TARBALL_URL="https://example.invalid/cobble/releases/latest/cobble.tar.gz"
+# Where Cobble is downloaded from. COBBLE_REPO=owner/name selects a fork; the two base URLs
+# are overridable so that the tests can serve fixtures from a local server.
+COBBLE_REPO="${COBBLE_REPO:-Installation-04/Cobble}"
+GITHUB_URL="${COBBLE_GITHUB_URL:-https://github.com}"
+CODELOAD_URL="${COBBLE_CODELOAD_URL:-https://codeload.github.com}"
 
 ORIG_ARGS=("$@")
 SCRIPT_PATH="${BASH_SOURCE[0]:-}"
@@ -16,6 +19,110 @@ if [ -n "$SCRIPT_PATH" ] && [ -f "$SCRIPT_PATH" ]; then
 fi
 
 # --- source handling (runs before the message catalogs are available) -------------------
+# Messages here are bilingual on purpose: the catalogs ship inside the tree being downloaded.
+
+# fail EN FR: print both languages on stderr and stop.
+fail() {
+  printf 'ERROR: %s\nERREUR : %s\n' "$1" "$2" >&2
+  exit 1
+}
+
+NO_VERIFY=0 # --no-verify: skip the SHA-256 check of a downloaded tarball (unsafe)
+REF_MODE=0  # the source is a GitHub branch/tag/sha archive: no checksum exists for it
+
+# source_url KIND [VALUE]: tarball URL of the latest release, of one release (vX.Y.Z) or of a ref.
+source_url() {
+  [[ "$COBBLE_REPO" =~ ^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$ ]] ||
+    fail "Invalid COBBLE_REPO: $COBBLE_REPO (expected owner/name)" "COBBLE_REPO invalide : $COBBLE_REPO (owner/nom attendu)"
+  case "$1" in
+    latest) echo "$GITHUB_URL/$COBBLE_REPO/releases/latest/download/cobble.tar.gz" ;;
+    version)
+      local v="$2"
+      case "$v" in v*) ;; *) v="v$v" ;; esac
+      [[ "$v" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([-+.][0-9A-Za-z.-]+)?$ ]] ||
+        fail "Invalid --version: $2 (expected vX.Y.Z)" "Valeur de --version invalide : $2 (vX.Y.Z attendu)"
+      echo "$GITHUB_URL/$COBBLE_REPO/releases/download/$v/cobble.tar.gz"
+      ;;
+    ref)
+      { [[ "$2" =~ ^[A-Za-z0-9._/-]+$ ]] && [[ "$2" != -* ]]; } ||
+        fail "Invalid --ref: $2" "Valeur de --ref invalide : $2"
+      echo "$CODELOAD_URL/$COBBLE_REPO/tar.gz/$2"
+      ;;
+  esac
+}
+
+# pick_source SOURCE VERSION REF: print the source to use (empty when none was asked for).
+# Sets REF_MODE when the source is a ref archive. At most one of the three may be given.
+pick_source() {
+  local n=0
+  [ -z "$1" ] || n=$((n + 1))
+  [ -z "$2" ] || n=$((n + 1))
+  [ -z "$3" ] || n=$((n + 1))
+  [ "$n" -le 1 ] || fail "Use only one of --source, --version, --ref" "Utilisez un seul parmi --source, --version, --ref"
+  if [ -n "$2" ]; then
+    source_url version "$2"
+  elif [ -n "$3" ]; then
+    source_url ref "$3"
+  else
+    echo "$1"
+  fi
+}
+
+sha256_of() {
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$1" | awk '{print $1}'
+  else
+    shasum -a 256 "$1" | awk '{print $1}'
+  fi
+}
+
+# fetch_tarball URL DEST: download to a temp file, verify its SHA-256 (<URL>.sha256), extract.
+# Never streams a download into tar: nothing is unpacked before the checksum matched.
+fetch_tarball() {
+  local url="$1" dest="$2" tmp code rc=0 expected actual
+  tmp="$(mktemp -d)"
+  code="$(curl -fsSL -o "$tmp/cobble.tar.gz" -w '%{http_code}' "$url")" || rc=$?
+  if [ "$rc" -ne 0 ]; then
+    rm -rf "$tmp"
+    if [ "$code" = 404 ] && [[ "$url" == */releases/latest/download/* ]]; then
+      fail "No Cobble release is published yet ($url). Install from the main branch instead (not a verified release): install.sh --ref main" \
+        "Aucune version de Cobble n’est encore publiée ($url). Installez plutôt depuis la branche main (version non vérifiée) : install.sh --ref main"
+    elif [ "$code" = 404 ]; then
+      fail "Not found (404): $url. Check the version or the repository name." \
+        "Introuvable (404) : $url. Vérifiez la version ou le nom du dépôt."
+    fi
+    fail "Download failed: $url" "Échec du téléchargement : $url"
+  fi
+  if [ "$REF_MODE" = 1 ]; then
+    printf 'WARNING: %s is NOT a verified release: nothing guarantees its content and the images are built from source (slow). Prefer a release.\nAVERTISSEMENT : %s n'\''est PAS une version vérifiée : rien ne garantit son contenu et les images sont construites depuis les sources (lent). Préférez une version publiée.\n' "$url" "$url" >&2
+  elif [ "$NO_VERIFY" = 1 ]; then
+    printf 'WARNING: --no-verify: the SHA-256 of %s is NOT checked (unsafe).\nAVERTISSEMENT : --no-verify : le SHA-256 de %s n'\''est PAS vérifié (risqué).\n' "$url" "$url" >&2
+  else
+    rc=0
+    curl -fsSL -o "$tmp/cobble.tar.gz.sha256" "$url.sha256" || rc=$?
+    if [ "$rc" -ne 0 ]; then
+      rm -rf "$tmp"
+      fail "Checksum file not found: $url.sha256. Refusing to install an unverified download (--no-verify only if you accept the risk)." \
+        "Fichier de somme de contrôle introuvable : $url.sha256. Refus d’installer un téléchargement non vérifié (--no-verify seulement si vous acceptez le risque)."
+    fi
+    expected="$(awk 'NR==1 {print tolower($1)}' "$tmp/cobble.tar.gz.sha256")"
+    if ! [[ "$expected" =~ ^[0-9a-f]{64}$ ]]; then
+      rm -rf "$tmp"
+      fail "Malformed checksum file: $url.sha256" "Fichier de somme de contrôle illisible : $url.sha256"
+    fi
+    actual="$(sha256_of "$tmp/cobble.tar.gz")"
+    if [ "$actual" != "$expected" ]; then
+      rm -rf "$tmp"
+      fail "SHA-256 mismatch for $url (expected $expected, got $actual). The download is corrupt or was tampered with; nothing was installed." \
+        "SHA-256 différent pour $url (attendu $expected, obtenu $actual). Le téléchargement est corrompu ou altéré; rien n’a été installé."
+    fi
+  fi
+  if ! tar -xzf "$tmp/cobble.tar.gz" --strip-components=1 -C "$dest"; then
+    rm -rf "$tmp"
+    fail "Could not extract $url" "Impossible d’extraire $url"
+  fi
+  rm -rf "$tmp"
+}
 
 # fetch_source SRC DEST: SRC is a directory, a git URL or a tarball (URL or file).
 fetch_source() {
@@ -31,7 +138,7 @@ fetch_source() {
         git clone --depth 1 "${src#git+}" "$dest" && rm -rf "$dest/.git"
         ;;
       http://* | https://*)
-        curl -fsSL "$src" | tar -xz --strip-components=1 -C "$dest"
+        fetch_tarball "$src" "$dest"
         ;;
       *)
         tar -xzf "$src" --strip-components=1 -C "$dest"
@@ -43,32 +150,46 @@ fetch_source() {
 default_source() {
   if [ -n "$SCRIPT_DIR" ] && [ -f "$SCRIPT_DIR/../core/compose.yml" ]; then
     (cd "$SCRIPT_DIR/.." && pwd)
+  elif [ -n "${COBBLE_TARBALL_URL:-}" ]; then
+    echo "$COBBLE_TARBALL_URL"
   else
-    echo "${COBBLE_TARBALL_URL:-$DEFAULT_TARBALL_URL}"
+    source_url latest
   fi
 }
 
 # Piped (curl | bash) or copied alone: fetch the source first, then continue from it,
 # because the message catalogs and lib.sh ship with the source tree.
 if [ -z "$SCRIPT_DIR" ] || [ ! -f "$SCRIPT_DIR/lib.sh" ]; then
-  boot_src=""
+  boot_src="" boot_version="" boot_ref="" boot_args=()
   for ((i = 0; i < ${#ORIG_ARGS[@]}; i++)); do
-    case "${ORIG_ARGS[$i]}" in
-      --source=*) boot_src="${ORIG_ARGS[$i]#--source=}" ;;
-      --source) boot_src="${ORIG_ARGS[$((i + 1))]:-}" ;;
+    a="${ORIG_ARGS[$i]}"
+    case "$a" in
+      --source=*) boot_src="${a#--source=}" ;;
+      --version=*) boot_version="${a#--version=}" ;;
+      --ref=*) boot_ref="${a#--ref=}" ;;
+      --source | --version | --ref)
+        [ "$((i + 1))" -lt "${#ORIG_ARGS[@]}" ] || fail "Option $a needs a value" "L’option $a attend une valeur"
+        case "$a" in
+          --source) boot_src="${ORIG_ARGS[$((i + 1))]}" ;;
+          --version) boot_version="${ORIG_ARGS[$((i + 1))]}" ;;
+          --ref) boot_ref="${ORIG_ARGS[$((i + 1))]}" ;;
+        esac
+        i=$((i + 1))
+        ;;
+      --no-verify)
+        NO_VERIFY=1
+        boot_args+=("$a")
+        ;;
+      *) boot_args+=("$a") ;;
     esac
   done
+  [ -z "$boot_ref" ] || REF_MODE=1
+  boot_src="$(pick_source "$boot_src" "$boot_version" "$boot_ref")"
   [ -n "$boot_src" ] || boot_src="$(default_source)"
   boot_dir="$(mktemp -d)"
-  fetch_source "$boot_src" "$boot_dir/src" || {
-    echo "Download failed / Echec du telechargement: $boot_src" >&2
-    exit 1
-  }
-  [ -f "$boot_dir/src/installer/install.sh" ] || {
-    echo "Invalid source / Source invalide: $boot_src" >&2
-    exit 1
-  }
-  exec bash "$boot_dir/src/installer/install.sh" "${ORIG_ARGS[@]}" --source "$boot_dir/src"
+  fetch_source "$boot_src" "$boot_dir/src" || fail "Download failed: $boot_src" "Échec du téléchargement : $boot_src"
+  [ -f "$boot_dir/src/installer/install.sh" ] || fail "Invalid source: $boot_src" "Source invalide : $boot_src"
+  exec bash "$boot_dir/src/installer/install.sh" "${boot_args[@]}" --source "$boot_dir/src"
 fi
 
 # shellcheck source=lib.sh
@@ -78,6 +199,9 @@ fi
 
 DIR="${COBBLE_DIR:-/opt/cobble}"
 SOURCE=""
+VERSION_ARG=""
+REF_ARG=""
+LATEST_ARG=0
 GPU_MODE="auto"
 LANG_ARG=""
 ASSUME_YES=0
@@ -104,12 +228,16 @@ while [ $# -gt 0 ]; do
       ;;
     -y | --yes) ASSUME_YES=1 ;;
     --skip-checks) SKIP_CHECKS=1 ;;
-    --dir | --lang | --source | --gpu)
+    --no-verify) NO_VERIFY=1 ;;
+    --latest) LATEST_ARG=1 ;;
+    --dir | --lang | --source | --version | --ref | --gpu)
       [ $# -ge 2 ] || die usage_error "$1"
       case "$1" in
         --dir) DIR="$2" ;;
         --lang) LANG_ARG="$2" ;;
         --source) SOURCE="$2" ;;
+        --version) VERSION_ARG="$2" ;;
+        --ref) REF_ARG="$2" ;;
         --gpu) GPU_MODE="$2" ;;
       esac
       shift
@@ -137,6 +265,12 @@ else
   LANG_CODE="$(detect_lang "" "$DIR/.env")"
 fi
 load_messages "$SCRIPT_DIR" "$LANG_CODE"
+if [ "$LATEST_ARG" = 1 ]; then
+  [ -z "$SOURCE" ] || fail "Use only one of --source, --version, --ref, --latest" "Utilisez un seul parmi --source, --version, --ref, --latest"
+  SOURCE="$(source_url latest)"
+fi
+[ -z "$REF_ARG" ] || REF_MODE=1
+SOURCE="$(pick_source "$SOURCE" "$VERSION_ARG" "$REF_ARG")"
 [ -n "$SOURCE" ] || SOURCE="$(default_source)"
 
 # --- logging -----------------------------------------------------------------------------
@@ -456,7 +590,10 @@ EOF
 start_core() {
   set_compose "$DIR"
   info core_starting
-  "${COMPOSE[@]}" up -d --build --wait || {
+  # Release trees carry compose.release.yml: published images are pulled, nothing is built.
+  local build=(--build)
+  if release_override "$DIR"; then build=(); fi
+  "${COMPOSE[@]}" up -d "${build[@]}" --wait || {
     warn core_failed
     "${COMPOSE[@]}" ps || true
     exit 1
@@ -472,7 +609,9 @@ install_unit() {
   local cmd
   cmd="$(command -v docker) compose"
   if [ -n "${COBBLE_COMPOSE_PROJECT:-}" ]; then cmd="$cmd -p $COBBLE_COMPOSE_PROJECT"; fi
-  cmd="$cmd --env-file $DIR/.env -f $DIR/src/core/compose.yml -f $DIR/compose.install.yml"
+  cmd="$cmd --env-file $DIR/.env -f $DIR/src/core/compose.yml"
+  if release_override "$DIR"; then cmd="$cmd -f $DIR/src/core/compose.release.yml"; fi
+  cmd="$cmd -f $DIR/compose.install.yml"
   cat >"$UNIT_DIR/cobble.service" <<EOF
 [Unit]
 Description=Cobble

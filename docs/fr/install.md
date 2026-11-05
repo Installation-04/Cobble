@@ -7,26 +7,42 @@ jamais vos données.
 ## Installation rapide
 
 ```bash
-curl -fsSL https://<votre-domaine>/install.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/Installation-04/Cobble/main/installer/install.sh | sudo bash
 ```
 
-> `<votre-domaine>` est un espace réservé : l'adresse officielle de téléchargement n'est pas
-> encore publiée. D'ici là, installez depuis une copie du dépôt (voir « Depuis un dépôt »).
+Le script télécharge la **dernière version publiée** sur GitHub (`Installation-04/Cobble`),
+vérifie son SHA-256, puis l'installe. Une version utilise les images publiées, épinglées par
+empreinte : rien n'est construit sur votre machine. Si aucune version n'est encore publiée,
+l'installateur le dit et suggère `--ref main` (voir plus bas).
+
+Pour installer une version précise ou une autre branche :
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Installation-04/Cobble/main/installer/install.sh | sudo bash -s -- --version v0.3.0
+curl -fsSL https://raw.githubusercontent.com/Installation-04/Cobble/main/installer/install.sh | sudo bash -s -- --ref main     # PAS une version vérifiée, construite depuis les sources
+```
 
 À la fin, l'installateur affiche l'adresse de votre Cobble et un **lien d'activation à usage
 unique**. Ouvrez-le dans un navigateur pour créer le compte admin.
 
 ## La voie prudente
 
-Télécharger, vérifier, lire, puis exécuter :
+Télécharger, vérifier, lire, puis exécuter, avec les fichiers joints à la version :
 
 ```bash
-curl -fsSLO https://<votre-domaine>/install.sh
-curl -fsSLO https://<votre-domaine>/install.sh.sha256
+curl -fsSLO https://github.com/Installation-04/Cobble/releases/latest/download/install.sh
+curl -fsSLO https://github.com/Installation-04/Cobble/releases/latest/download/install.sh.sha256
 sha256sum -c install.sh.sha256      # doit afficher : install.sh: OK
 less install.sh                     # le lire
 sudo bash install.sh
 ```
+
+Le `install.sh` d'une version télécharge ensuite le `cobble.tar.gz` de la même version et son
+`cobble.tar.gz.sha256`, compare le SHA-256 et **s'arrête sans rien installer** si le fichier de
+somme est absent, illisible ou différent. Rien n'est décompressé avant que la vérification passe.
+Pour faire aussi cette étape à la main : téléchargez `cobble.tar.gz` et `cobble.tar.gz.sha256`
+depuis la page de la version, lancez `sha256sum -c cobble.tar.gz.sha256`, puis
+`sudo bash install.sh --source ./cobble.tar.gz` (un fichier local est utilisé tel quel).
 
 ## Depuis un dépôt
 
@@ -56,7 +72,11 @@ Une VM est recommandée. Dans un LXC Proxmox, le conteneur doit être privilégi
 | Option | Rôle |
 |---|---|
 | `--dir <chemin>` | répertoire d'installation (défaut `/opt/cobble`) |
-| `--source <src>` | sources : dossier, archive (fichier ou URL) ou URL git. Défaut : le dépôt d'où le script est lancé, sinon `$COBBLE_TARBALL_URL` |
+| `--source <src>` | sources : dossier, archive (fichier ou URL) ou URL git. Défaut : le dépôt d'où le script est lancé, sinon la dernière version GitHub. Une URL d'archive exige un fichier `<URL>.sha256` à côté |
+| `--version vX.Y.Z` | installer cette version (`cobble.tar.gz` de sa version GitHub, SHA-256 vérifié) |
+| `--ref <branche\|tag\|sha>` | installer l'archive GitHub de cette réf (`codeload.github.com`), construite depuis les sources. **Pas une version vérifiée** (aucune somme n'existe) : un avertissement s'affiche. Pour tester et développer |
+| `--no-verify` | ne pas vérifier le SHA-256 d'une archive téléchargée. **Risqué** : seulement pour des tests ou un miroir hors ligne de confiance |
+| `COBBLE_REPO=owner/nom` | variable d'environnement : télécharger depuis un autre dépôt GitHub (un fork). Défaut `Installation-04/Cobble` |
 | `--lang fr\|en` | langue de l'installateur, de la CLI et de l'application (défaut : selon `$LANG`) |
 | `--gpu auto\|nvidia\|amd\|none` | gestion du GPU (défaut `auto`). En v0.1 le GPU est seulement détecté et noté |
 | `--yes`, `-y` | aucune confirmation (mode non interactif) |
@@ -65,11 +85,26 @@ Une VM est recommandée. Dans un LXC Proxmox, le conteneur doit être privilégi
 
 Exemple : `sudo bash install.sh --yes --lang fr --dir /opt/cobble`.
 
+## Images publiées et mises à jour
+
+L'archive d'une version contient `core/compose.release.yml`, un fichier qui remplace le
+`build:` local des services du noyau par `image: ghcr.io/installation-04/cobble-<service>@sha256:<empreinte>`.
+Quand ce fichier est présent dans `/opt/cobble/src/core/`, l'installateur, l'unité systemd et la
+commande `cobble` l'ajoutent à chaque appel de `docker compose` : les images sont **téléchargées**
+et rien n'est construit. Une arborescence sans lui (un dépôt cloné, `--ref`) est construite
+depuis les sources comme avant.
+
+Pour mettre à jour : `sudo cobble update --latest` (ou `--version vX.Y.Z`). La nouvelle
+arborescence remplace `/opt/cobble/src`, votre `.env` et vos données restent (une copie datée de
+`.env` est gardée), les nouvelles images sont téléchargées et la pile redémarre. `sudo cobble update`
+seul redémarre la version installée. Passer d'une version à `--ref` (ou l'inverse) est permis :
+la méthode de construction suit l'arborescence installée.
+
 ## Ce qui est installé
 
 | Chemin | Contenu |
 |---|---|
-| `/opt/cobble/src` | copie des sources; les images sont construites depuis elle |
+| `/opt/cobble/src` | copie des sources; les images sont construites depuis elle (ou téléchargées, pour une version) |
 | `/opt/cobble/.env` | secrets et réglages, mode 0600, générés une fois et **jamais écrasés** |
 | `/opt/cobble/compose.install.yml` | surcharge générée qui donne à l'API son URL publique |
 | `/opt/cobble/state.json` | version installée, date, système, GPU, langue |
@@ -88,7 +123,7 @@ version 24 ou plus. Si `ufw` est actif, les ports 80 et 443 sont ouverts; SSH n'
 |---|---|
 | `cobble status` | conteneurs et santé web |
 | `cobble logs [service]` | suivre les journaux |
-| `cobble update [--source S]` | sauvegarde `.env`, puis reconstruit et redémarre (ou installe la source `S`) |
+| `cobble update [--latest\|--version V\|--ref R\|--source S]` | sauvegarde `.env`, puis reconstruit (ou télécharge les images publiées) et redémarre; avec une option, récupère d'abord cette source (`--latest` : la dernière version) avec la même vérification SHA-256 que l'installateur |
 | `cobble doctor` | vérifie Docker, conteneurs, santé HTTP, disque, port, mode de `.env`, unité systemd, GPU; chaque échec est accompagné d'un correctif; code de sortie 1 si une vérification échoue |
 | `cobble reset-admin [--yes]` | déconnecte l'admin et affiche un lien à usage unique pour définir un nouveau courriel et mot de passe (projets et données conservés) |
 | `cobble modules list` / `status <id>` | le catalogue avec l'état de chaque module et s'il convient à cette machine; le détail d'un module (quels secrets sont définis, jamais leurs valeurs) |
@@ -168,5 +203,5 @@ Commencez par `sudo cobble doctor`. Échecs typiques :
   bloquer l'installation.
 - amd64 seulement.
 - Pas encore de `backup` / `restore`. Copiez `/opt/cobble/.env` et exportez la base vous-même.
-- L'URL de téléchargement, les sommes de contrôle et les signatures des fichiers de version
-  sont des espaces réservés jusqu'à la première version.
+- Les fichiers d'une version portent une somme SHA-256, pas encore une signature : la vérification
+  protège d'un téléchargement corrompu ou remplacé, et s'appuie sur GitHub et TLS pour savoir qui l'a publié.

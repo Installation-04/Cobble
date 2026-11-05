@@ -58,10 +58,10 @@ Open `http://localhost:8080`. See [`docs/en/dev.md`](docs/en/dev.md).
 ### Install on a server (Ubuntu 24.04/26.04, Debian 12/13)
 
 ```bash
-curl -fsSL <install.sh URL> | sudo bash
+curl -fsSL https://raw.githubusercontent.com/Installation-04/Cobble/main/installer/install.sh | sudo bash
 ```
 
-The script installs Docker (official repository), the core in `/opt/cobble`, a systemd service and the `cobble` CLI, then prints the activation link. It is idempotent. See [`docs/en/install.md`](docs/en/install.md). CLI: `cobble status | logs | update | doctor | reset-admin | uninstall`.
+The script installs Docker (official repository), the core in `/opt/cobble`, a systemd service and the `cobble` CLI, then prints the activation link. It installs the latest GitHub release (SHA-256 verified); `--version vX.Y.Z` and `--ref <branch>` pick another. It is idempotent. See [`docs/en/install.md`](docs/en/install.md). CLI: `cobble status | logs | update | doctor | reset-admin | uninstall`.
 
 ## How it is built
 
@@ -118,7 +118,7 @@ make dev                # lance tout avec un faux fournisseur de modèles (aucun
 make activation-link    # lien à usage unique pour créer le compte admin
 ```
 
-Ouvrir `http://localhost:8080` ([`docs/fr/dev.md`](docs/fr/dev.md)). Pour installer sur un serveur (Ubuntu 24.04/26.04, Debian 12/13): `curl -fsSL <URL de install.sh> | sudo bash` ([`docs/fr/install.md`](docs/fr/install.md)).
+Ouvrir `http://localhost:8080` ([`docs/fr/dev.md`](docs/fr/dev.md)). Pour installer sur un serveur (Ubuntu 24.04/26.04, Debian 12/13): `curl -fsSL https://raw.githubusercontent.com/Installation-04/Cobble/main/installer/install.sh | sudo bash` ([`docs/fr/install.md`](docs/fr/install.md)).
 
 ### Comment c'est construit
 

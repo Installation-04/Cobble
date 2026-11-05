@@ -90,25 +90,33 @@ cmd_logs() {
 
 cmd_update() {
   need_install
-  local source=""
+  local pass=() a
   while [ $# -gt 0 ]; do
-    case "$1" in
-      --source) source="${2:-}" ;;
-      --source=*) source="${1#--source=}" ;;
-      *) die usage_error "$1" ;;
+    a="$1"
+    case "$a" in
+      --source | --version | --ref)
+        [ $# -ge 2 ] || die usage_error "$a"
+        pass+=("$a" "$2")
+        shift
+        ;;
+      --source=* | --version=* | --ref=*) pass+=("${a%%=*}" "${a#*=}") ;;
+      --latest | --no-verify) pass+=("$a") ;;
+      *) die usage_error "$a" ;;
     esac
-    [ "$1" = --source ] && shift
     shift
   done
   local backup
   backup="$DIR/.env.bak-$(date -u +%Y%m%dT%H%M%SZ)"
   (umask 077 && cp -p "$DIR/.env" "$backup")
   info update_backup "$backup"
-  if [ -n "$source" ]; then
-    exec bash "$DIR/src/installer/install.sh" --yes --skip-checks --dir "$DIR" --source "$source"
+  if [ "${#pass[@]}" -gt 0 ]; then
+    exec bash "$DIR/src/installer/install.sh" --yes --skip-checks --dir "$DIR" "${pass[@]}"
   fi
   info update_rebuild
-  "${COMPOSE[@]}" up -d --build --wait
+  # A release tree pulls its published images; any other tree is built from source.
+  local build=(--build)
+  if release_override "$DIR"; then build=(); fi
+  "${COMPOSE[@]}" up -d "${build[@]}" --wait
 }
 
 cmd_uninstall() {

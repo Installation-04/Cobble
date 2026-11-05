@@ -1,0 +1,179 @@
+name: Release
+
+# Publishes a self-contained release (ADR 0023): the core images on GHCR, pinned by digest in
+# core/compose.release.yml, and the GitHub release with its four assets (cobble.tar.gz,
+# cobble.tar.gz.sha256, install.sh, install.sh.sha256) that the installer downloads.
+#
+# Push a v* tag to release. workflow_dispatch with a tag name is a dry run: it builds every image
+# (nothing is pushed), generates the override with placeholder digests, builds the assets and keeps
+# them as a workflow artifact. It never creates a release.
+# The module images (agent-service, ...) are NOT built here: their digests are pinned in the
+# catalogue manifests BEFORE tagging (images.yml + scripts/pin_images.py), so the tag carries them.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag name for a dry run, e.g. v0.0.0-dryrun. Nothing is pushed or released."
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.event_name == 'push' && github.ref_name || inputs.tag }}
+  cancel-in-progress: false
+
+env:
+  TAG: ${{ github.event_name == 'push' && github.ref_name || inputs.tag }}
+  DRY_RUN: ${{ github.event_name != 'push' }}
+
+jobs:
+  images:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          # One image for the API and the worker (same Dockerfile target): it is published under
+          # both names, with the same digest, so every service has its own cobble-<service>.
+          - services: "api worker"
+            context: backend
+            target: backend
+            build-contexts: sdk=sdk
+          - services: "module-manager"
+            context: backend
+            target: module-manager
+            build-contexts: sdk=sdk
+          - services: "ui"
+            context: ui
+          # Required by the default stack: litellm waits for it (the fake model answers until a
+          # real model connection is added).
+          - services: "fake-llm"
+            context: providers/fake-llm
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - id: v
+        name: Version and image names
+        run: |
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$ ]] || { echo "bad tag: $TAG" >&2; exit 1; }
+          owner="${GITHUB_REPOSITORY_OWNER,,}" # registry names are lower case
+          {
+            echo "version=${TAG#v}"
+            echo "owner=$owner"
+            echo "tags<<EOF"
+            for s in $SERVICES; do echo "ghcr.io/${owner}/cobble-${s}:${TAG#v}"; done
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+        env:
+          SERVICES: ${{ matrix.services }}
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - if: env.DRY_RUN == 'false'
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: ${{ matrix.context }}
+          target: ${{ matrix.target }}
+          build-contexts: ${{ matrix.build-contexts }}
+          push: ${{ env.DRY_RUN == 'false' }}
+          provenance: false # a plain image manifest: its digest is the one `docker pull` resolves
+          tags: ${{ steps.v.outputs.tags }}
+          # The source label is what links the package to this repository on GHCR.
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ steps.v.outputs.version }}
+            org.opencontainers.image.licenses=AGPL-3.0-only
+            org.opencontainers.image.vendor=Cobble
+      - name: Digests
+        run: |
+          mkdir -p digests
+          if [ "$DRY_RUN" = "true" ]; then
+            digest="sha256:$(printf '0%.0s' {1..64})" # placeholder: nothing was pushed
+          else
+            digest="$DIGEST"
+          fi
+          [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "no digest from the build" >&2; exit 1; }
+          for s in $SERVICES; do
+            echo "${s}=${digest}" | tee -a "$GITHUB_STEP_SUMMARY" > "digests/${s}.txt"
+          done
+        env:
+          SERVICES: ${{ matrix.services }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: digest-${{ strategy.job-index }}
+          path: digests/*.txt
+
+  release:
+    needs: images
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write # create the release
+      packages: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: digest-*
+          merge-multiple: true
+          path: digests
+      - name: Generate core/compose.release.yml
+        run: |
+          args=()
+          for f in digests/*.txt; do args+=(--digest "$(cat "$f")"); done
+          python3 scripts/make_release_compose.py --compose core/compose.yml \
+            --owner "$GITHUB_REPOSITORY_OWNER" --version "$TAG" "${args[@]}" \
+            --output core/compose.release.yml
+          cat core/compose.release.yml
+      - name: The override is valid for Compose and names the published images
+        run: |
+          # Unset secrets only produce warnings: this checks the merged file, nothing starts.
+          docker compose -f core/compose.yml -f core/compose.release.yml config --images > images.raw 2> /dev/null
+          sort -u images.raw | tee images.txt
+          grep -q "^ghcr.io/.*/cobble-api:" images.txt
+          if grep -q "^cobble-" images.txt; then echo "a service is still built locally" >&2; exit 1; fi
+      - if: env.DRY_RUN == 'false'
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Every pinned image exists in the registry
+        if: env.DRY_RUN == 'false'
+        run: |
+          grep -o 'ghcr.io/[^ ]*@sha256:[0-9a-f]*' core/compose.release.yml | sort -u | while read -r ref; do
+            docker buildx imagetools inspect "$ref" > /dev/null || { echo "missing: $ref" >&2; exit 1; }
+          done
+      - name: Build the assets
+        run: |
+          bash scripts/make_release_bundle.sh "$TAG" core/compose.release.yml dist
+          (cd dist && sha256sum -c cobble.tar.gz.sha256 install.sh.sha256)
+      - name: Keep the assets as a workflow artifact (dry run)
+        if: env.DRY_RUN == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: release-assets-dry-run
+          path: dist/*
+      - name: Create the GitHub release
+        if: env.DRY_RUN == 'false'
+        run: |
+          flags=()
+          case "$TAG" in *-*) flags+=(--prerelease) ;; esac
+          notes="docs/releases/${TAG%.*}.md" # v0.3.1 -> docs/releases/v0.3.md
+          if [ -f "$notes" ]; then flags+=(--notes-file "$notes"); else flags+=(--generate-notes); fi
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --title "$TAG" "${flags[@]}" \
+            dist/cobble.tar.gz dist/cobble.tar.gz.sha256 dist/install.sh dist/install.sh.sha256
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
