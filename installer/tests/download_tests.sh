@@ -1,4 +1,5 @@
 # --- download from GitHub: URL resolution, SHA-256 verification (offline: local HTTP server) ---
+# shellcheck disable=SC2015
 
 SERVER_PID=""
 stop_server() {
@@ -8,12 +9,12 @@ stop_server() {
 
 # start_server DIR: serve DIR on a free local port; sets PORT.
 start_server() {
-  local log="$TMP/server.log" i
+  local log="$TMP/server.log"
   : >"$log"
   python3 -u -m http.server 0 --bind 127.0.0.1 --directory "$1" >"$log" 2>&1 &
   SERVER_PID=$!
   PORT=""
-  for i in $(seq 1 50); do
+  for _ in $(seq 1 50); do
     PORT="$(sed -n 's/.* port \([0-9][0-9]*\).*/\1/p' "$log" | head -n 1)"
     [ -z "$PORT" ] || return 0
     sleep 0.1

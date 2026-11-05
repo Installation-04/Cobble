@@ -94,9 +94,9 @@ fetch_tarball() {
     fail "Download failed: $url" "Échec du téléchargement : $url"
   fi
   if [ "$REF_MODE" = 1 ]; then
-    printf 'WARNING: %s is NOT a verified release: nothing guarantees its content and the images are built from source (slow). Prefer a release.\nAVERTISSEMENT : %s n’est PAS une version vérifiée : rien ne garantit son contenu et les images sont construites depuis les sources (lent). Préférez une version publiée.\n' "$url" "$url" >&2
+    printf 'WARNING: %s is NOT a verified release: nothing guarantees its content and the images are built from source (slow). Prefer a release.\nAVERTISSEMENT : %s n'\''est PAS une version vérifiée : rien ne garantit son contenu et les images sont construites depuis les sources (lent). Préférez une version publiée.\n' "$url" "$url" >&2
   elif [ "$NO_VERIFY" = 1 ]; then
-    printf 'WARNING: --no-verify: the SHA-256 of %s is NOT checked (unsafe).\nAVERTISSEMENT : --no-verify : le SHA-256 de %s n’est PAS vérifié (risqué).\n' "$url" "$url" >&2
+    printf 'WARNING: --no-verify: the SHA-256 of %s is NOT checked (unsafe).\nAVERTISSEMENT : --no-verify : le SHA-256 de %s n'\''est PAS vérifié (risqué).\n' "$url" "$url" >&2
   else
     rc=0
     curl -fsSL -o "$tmp/cobble.tar.gz.sha256" "$url.sha256" || rc=$?
