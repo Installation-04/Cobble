@@ -6,26 +6,42 @@ idempotent: running it again repairs or completes the install and never deletes 
 ## Quick install
 
 ```bash
-curl -fsSL https://<your-domain>/install.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/Installation-04/Cobble/main/installer/install.sh | sudo bash
 ```
 
-> `<your-domain>` is a placeholder: the official download address is not published yet.
-> Until then, install from a checkout of the repository (see "From a checkout" below).
+The script downloads the **latest release** from GitHub (`Installation-04/Cobble`), checks its
+SHA-256, then installs it. A release uses the published, digest-pinned images: nothing is built
+on your machine. If no release is published yet, the installer says so and suggests
+`--ref main` (see below).
+
+To install a specific release or another branch:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Installation-04/Cobble/main/installer/install.sh | sudo bash -s -- --version v0.3.0
+curl -fsSL https://raw.githubusercontent.com/Installation-04/Cobble/main/installer/install.sh | sudo bash -s -- --ref main     # NOT a verified release, built from source
+```
 
 At the end the installer prints the address of your Cobble and a **one-use activation
 link**. Open it in a browser to create the admin account.
 
 ## The cautious way
 
-Download, verify, read, then run:
+Download, verify, read, then run, using the files attached to the release:
 
 ```bash
-curl -fsSLO https://<your-domain>/install.sh
-curl -fsSLO https://<your-domain>/install.sh.sha256
+curl -fsSLO https://github.com/Installation-04/Cobble/releases/latest/download/install.sh
+curl -fsSLO https://github.com/Installation-04/Cobble/releases/latest/download/install.sh.sha256
 sha256sum -c install.sh.sha256      # must print: install.sh: OK
 less install.sh                     # read it
 sudo bash install.sh
 ```
+
+The `install.sh` of a release then downloads the `cobble.tar.gz` of the same release and its
+`cobble.tar.gz.sha256`, compares the SHA-256 and **stops without installing anything** if the
+checksum file is missing, malformed or different. Nothing is unpacked before the check passed.
+To do that step by hand too: download `cobble.tar.gz` and `cobble.tar.gz.sha256` from the
+release page, run `sha256sum -c cobble.tar.gz.sha256`, then
+`sudo bash install.sh --source ./cobble.tar.gz` (a local file is used as is).
 
 ## From a checkout
 
@@ -55,7 +71,11 @@ A VM is recommended. In Proxmox LXC the container must be privileged with `nesti
 | Option | Meaning |
 |---|---|
 | `--dir <path>` | install directory (default `/opt/cobble`) |
-| `--source <src>` | source tree: directory, tarball (file or URL) or git URL. Default: the checkout the script runs from, otherwise `$COBBLE_TARBALL_URL` |
+| `--source <src>` | source tree: directory, tarball (file or URL) or git URL. Default: the checkout the script runs from, otherwise the latest GitHub release. A tarball URL needs a `<URL>.sha256` file next to it |
+| `--version vX.Y.Z` | install that release (`cobble.tar.gz` from its GitHub release, SHA-256 verified) |
+| `--ref <branch\|tag\|sha>` | install a GitHub archive of that ref (`codeload.github.com`), built from source. **Not a verified release** (no checksum exists): a warning is printed. For testing and development |
+| `--no-verify` | skip the SHA-256 check of a downloaded tarball. **Unsafe**: only for tests or an air-gapped mirror you trust |
+| `COBBLE_REPO=owner/name` | environment variable: download from another GitHub repository (a fork). Default `Installation-04/Cobble` |
 | `--lang fr\|en` | language of the installer, the CLI and the app (default: from `$LANG`) |
 | `--gpu auto\|nvidia\|amd\|none` | GPU handling (default `auto`). In v0.1 the GPU is only detected and recorded |
 | `--yes`, `-y` | no confirmation prompt (non-interactive) |
@@ -64,11 +84,25 @@ A VM is recommended. In Proxmox LXC the container must be privileged with `nesti
 
 Example: `sudo bash install.sh --yes --lang en --dir /opt/cobble`.
 
+## Published images and updates
+
+A release tarball contains `core/compose.release.yml`, an override that replaces the local
+`build:` of the core services by `image: ghcr.io/installation-04/cobble-<service>@sha256:<digest>`.
+When this file is present in `/opt/cobble/src/core/`, the installer, the systemd unit and the
+`cobble` command add it to every `docker compose` call, so the images are **pulled** and nothing
+is built. A tree without it (a checkout, `--ref`) is built from source as before.
+
+To update: `sudo cobble update --latest` (or `--version vX.Y.Z`). The new tree replaces
+`/opt/cobble/src`, your `.env` and your data stay (a dated copy of `.env` is kept), the new
+images are pulled and the stack restarts. `sudo cobble update` alone restarts the installed
+version. Switching from a release to `--ref` (or back) is allowed: the build method follows
+the tree you installed.
+
 ## What gets installed
 
 | Path | Content |
 |---|---|
-| `/opt/cobble/src` | copy of the source tree; images are built from it |
+| `/opt/cobble/src` | copy of the source tree; images are built from it (or pulled, for a release) |
 | `/opt/cobble/.env` | secrets and settings, mode 0600, generated once and **never overwritten** |
 | `/opt/cobble/compose.install.yml` | generated override that gives the API its public URL |
 | `/opt/cobble/state.json` | install version, date, OS, GPU, language |
@@ -87,7 +121,7 @@ later. If `ufw` is active, ports 80 and 443 are opened; SSH is not touched.
 |---|---|
 | `cobble status` | containers and web health |
 | `cobble logs [service]` | follow the logs |
-| `cobble update [--source S]` | back up `.env`, then rebuild and restart (or install the source `S`) |
+| `cobble update [--latest\|--version V\|--ref R\|--source S]` | back up `.env`, then rebuild (or pull the published images) and restart; with an option, fetch that source first (`--latest`: the latest release) with the same SHA-256 check as the installer |
 | `cobble doctor` | check Docker, containers, HTTP health, disk, port, `.env` mode, systemd unit, GPU; each failure comes with a fix; exit code 1 if any check fails |
 | `cobble reset-admin [--yes]` | sign the admin out and print a one-use link to set a new email and password (projects and data are kept) |
 | `cobble modules list` / `status <id>` | the catalogue with each module's state and whether it fits this machine; the details of one module (which secrets are set, never their values) |
@@ -164,5 +198,5 @@ Start with `sudo cobble doctor`. Typical failures:
   Toolkit setup is attempted when a driver is present, and never blocks the install.
 - amd64 only.
 - No `backup` / `restore` yet. Copy `/opt/cobble/.env` and dump the database yourself.
-- The download URL, checksums and signatures of release files are placeholders until the
-  first release.
+- Release files carry a SHA-256 checksum, not a signature yet: the check protects against a
+  corrupt or swapped download, and relies on GitHub and TLS for who published it.

@@ -54,11 +54,16 @@ die() {
   exit 1
 }
 
+# release_override DIR: true when the installed tree ships core/compose.release.yml, the override
+# that swaps the local builds for published images (pinned by digest).
+release_override() { [ -f "$1/src/core/compose.release.yml" ]; }
+
 # set_compose DIR: build the COMPOSE array for an installed tree.
 set_compose() {
   COMPOSE=(docker compose)
   if [ -n "${COBBLE_COMPOSE_PROJECT:-}" ]; then COMPOSE+=(-p "$COBBLE_COMPOSE_PROJECT"); fi
   COMPOSE+=(--env-file "$1/.env" -f "$1/src/core/compose.yml")
+  if release_override "$1"; then COMPOSE+=(-f "$1/src/core/compose.release.yml"); fi
   if [ -f "$1/compose.install.yml" ]; then COMPOSE+=(-f "$1/compose.install.yml"); fi
 }
 

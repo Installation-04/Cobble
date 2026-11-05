@@ -9,7 +9,13 @@ Utilisation : install.sh [options]
 
   --dir <chemin>       répertoire d'installation (défaut : /opt/cobble)
   --source <src>       arborescence source : dossier, archive (fichier ou URL) ou URL git
-                       (défaut : ce dépôt, sinon \$COBBLE_TARBALL_URL)
+                       (défaut : ce dépôt, sinon la dernière version publiée sur GitHub)
+  --version vX.Y.Z     installer cette version (SHA-256 vérifié, images publiées)
+  --ref <réf>          installer une branche, un tag ou un commit construit depuis les sources
+                       (PAS une version vérifiée; affiche un avertissement). Ex. : --ref main
+  --no-verify          ne pas vérifier le SHA-256 d'une archive téléchargée (RISQUÉ; tests,
+                       miroirs hors ligne)
+  COBBLE_REPO=owner/nom choisit un autre dépôt GitHub (un fork)
   --lang fr|en         langue des messages et de l'application (défaut : selon \$LANG)
   --gpu auto|nvidia|amd|none
                        gestion du GPU (défaut : auto; en v0.1 il est seulement détecté et noté)
@@ -123,7 +129,9 @@ Utilisation : cobble <commande>
 
   status               conteneurs et santé web
   logs [service]       suivre les journaux
-  update [--source S]  reconstruire et redémarrer (ou installer la source S : dossier, archive, URL git)
+  update [--latest|--version V|--ref R|--source S]
+                       reconstruire/télécharger et redémarrer, ou passer à la dernière version,
+                       une version, une réf ou la source S (dossier, archive, URL git)
   doctor               diagnostiquer les problèmes et proposer des correctifs (code 1 si échec)
   models <commande>    connecter un service de modèles avec une clé d’API : list, add, test, default, remove
   reset-admin [--yes]  afficher un lien à usage unique pour définir un nouvel admin (courriel, mot de passe)

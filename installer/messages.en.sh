@@ -9,7 +9,13 @@ Usage: install.sh [options]
 
   --dir <path>         install directory (default: /opt/cobble)
   --source <src>       source tree: directory, tarball (file or URL) or git URL
-                       (default: this checkout, else $COBBLE_TARBALL_URL)
+                       (default: this checkout, else the latest GitHub release)
+  --version vX.Y.Z     install that release (SHA-256 verified, published images)
+  --ref <ref>          install a branch, tag or commit built from source (NOT a verified
+                       release; prints a warning). Example: --ref main
+  --no-verify          do not check the SHA-256 of a downloaded tarball (UNSAFE; tests,
+                       air-gapped mirrors)
+  COBBLE_REPO=owner/name selects another GitHub repository (a fork)
   --lang fr|en         language of the messages and of the app (default: from $LANG)
   --gpu auto|nvidia|amd|none
                        GPU handling (default: auto; only detected and recorded in v0.1)
@@ -123,7 +129,9 @@ Usage: cobble <command>
 
   status               containers and web health
   logs [service]       follow the logs
-  update [--source S]  rebuild and restart (or install the source S: dir, tarball, git URL)
+  update [--latest|--version V|--ref R|--source S]
+                       rebuild/pull and restart, or move to the latest release, a version,
+                       a ref or the source S (dir, tarball, git URL)
   doctor               diagnose problems and suggest fixes (exit 1 if one fails)
   reset-admin [--yes]  print a one-use link to set a new admin email and password
   modules <command>    list, install and uninstall modules (cobble modules help)
