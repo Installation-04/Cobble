@@ -1,0 +1,10 @@
+[
+  {"name": "newest first", "file": "app/db.py", "old": "ORDER BY id\"", "new": "ORDER BY id DESC\""},
+  {"name": "delete answers 200", "file": "app/api/todo_item.py", "old": "return Response(status_code=204)", "new": "return Response(status_code=200)"},
+  {"name": "empty title accepted", "file": "app/models.py", "old": "min_length=1", "new": "min_length=0"},
+  {"name": "title limit too high", "file": "app/models.py", "old": "max_length=200", "new": "max_length=500"},
+  {"name": "untick ignored", "file": "app/db.py", "old": "(int(done), todo_id)", "new": "(1, todo_id)"},
+  {"name": "data lost on restart", "file": "app/db.py", "old": "sqlite3.connect(path)", "new": "sqlite3.connect(\":memory:\")"},
+  {"name": "page not served", "file": "app/api/web.py", "old": "@router.get(\"/\"", "new": "@router.get(\"/home\""},
+  {"name": "unknown id on delete is 204", "file": "app/db.py", "old": "return cursor.rowcount > 0", "new": "return True"}
+]

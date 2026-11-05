@@ -6,6 +6,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versio
 ## [Unreleased]
 
 ### Added
+- v0.3: **agent benchmark** (ADR 0020). Five reference projects (`todo`, `blog`, `invoicing`, `dashboard`, `bot`) with frozen FR/EN specs, hidden acceptance tests kept out of every generated repository, and reference solutions plus mutation checks proving the tests are satisfiable and discriminating (`make bench-check`). `make bench` runs them through the API with a per-project cap and a total budget, runs the hidden tests on the generated code and writes JSON and Markdown (FR/EN) reports with success rate, average cost, tokens, duration, escalations, fallbacks and "no project exceeded its budget"; it refuses to start without explicit confirmation, credentials and a real model connection. `make bench-dry-run` tests the runner on a simulator. The paid run itself is still to be done by the owner. Docs in `docs/{fr,en}/bench.md`.
 - v0.3: **local package cache** (ADR 0015). Two optional catalogue modules, `verdaccio` (npm) and `devpi` (PyPI), each a read-through cache with no web page, a data volume, resource limits and a health check, providing `package-cache` plus `npm-cache` / `pypi-cache`. They are in no starter pack and are covered by the install/uninstall matrix test. They are not wired to the agent runners yet (needs optional links in the resolver and the agents' proxy allow-list: described in the ADR). Docs in `docs/{fr,en}/modules.md`.
 
 ### Changed

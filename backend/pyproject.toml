@@ -44,6 +44,9 @@ select = ["E", "F", "I", "UP", "B", "S", "C4", "SIM", "RUF"]
 "tests/**" = ["S101", "S105", "S106"]
 "../providers/fake-llm/tests/**" = ["S101", "S105"]
 "../scripts/**" = ["S101", "S105", "S106"]
+# Bilingual message tables and report texts are long on purpose.
+"../scripts/cobble_bench/**" = ["E501"]
+"../scripts/tests/test_bench.py" = ["E501"]
 
 [tool.mypy]
 strict = true

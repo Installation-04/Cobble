@@ -1,0 +1,16 @@
+[
+  {"name": "banker's rounding", "file": "app/main.py", "old": "tax = (subtotal * rate / 100).quantize(CENT, rounding=ROUND_HALF_UP)", "new": "tax = (subtotal * rate / 100).quantize(CENT)"},
+  {"name": "floating point", "file": "app/main.py", "old": "tax = (subtotal * rate / 100).quantize(CENT, rounding=ROUND_HALF_UP)", "new": "tax = Decimal(str(round(float(subtotal) * float(rate) / 100, 2)))"},
+  {"name": "tax truncated", "file": "app/main.py", "old": "tax = (subtotal * rate / 100).quantize(CENT, rounding=ROUND_HALF_UP)", "new": "tax = (subtotal * rate / 100).quantize(CENT, rounding=\"ROUND_DOWN\")"},
+  {"name": "numbers reused after delete", "file": "app/main.py", "old": "id INTEGER PRIMARY KEY AUTOINCREMENT, customer_id", "new": "id INTEGER PRIMARY KEY, customer_id"},
+  {"name": "pay a draft allowed", "file": "app/main.py", "old": "return move(invoice_id, \"sent\", \"paid\")", "new": "return move(invoice_id, \"draft\", \"paid\")"},
+  {"name": "sent invoice still editable", "file": "app/main.py", "old": "raise HTTPException(409, \"Only a draft can be edited\")", "new": "pass"},
+  {"name": "sent invoice can be deleted", "file": "app/main.py", "old": "if get_invoice(conn, invoice_id)[\"status\"] != \"draft\":", "new": "if False:"},
+  {"name": "more than two decimals accepted", "file": "app/main.py", "old": "or price != price.quantize(CENT)", "new": ""},
+  {"name": "zero quantity accepted", "file": "app/main.py", "old": "quantity: int = Field(ge=1)", "new": "quantity: int = Field(ge=0)"},
+  {"name": "tax rate not bounded", "file": "app/main.py", "old": "tax_rate: Decimal = Field(default=Decimal(0), ge=0, le=100)", "new": "tax_rate: Decimal = Field(default=Decimal(0))"},
+  {"name": "unknown customer accepted", "file": "app/main.py", "old": "        get_customer(conn, payload.customer_id)\n        cursor", "new": "        cursor"},
+  {"name": "customer with invoices deletable", "file": "app/main.py", "old": "raise HTTPException(409, \"The customer has invoices\")", "new": "pass"},
+  {"name": "outstanding counts drafts", "file": "app/main.py", "old": "result[\"outstanding\"] = result[\"sent\"][\"total\"]", "new": "result[\"outstanding\"] = money(Decimal(result[\"sent\"][\"total\"]) + Decimal(result[\"draft\"][\"total\"]))"},
+  {"name": "data not persisted", "file": "app/main.py", "old": "sqlite3.connect(folder / \"invoicing.db\")", "new": "sqlite3.connect(\":memory:\")"}
+]

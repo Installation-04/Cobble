@@ -1,0 +1,13 @@
+{
+  "title": {"fr": "Liste de tâches", "en": "To-do list"},
+  "idea": {
+    "fr": "Je veux une application simple de liste de tâches. Juste pour moi, sur mon téléphone. Je veux ajouter des tâches, les cocher et les supprimer. Pas de compte.",
+    "en": "I want a simple to-do list app. Just for me, on my phone. I want to add tasks, tick them off and delete them. No account needed."
+  },
+  "budget_usd": 1.0,
+  "timeout_s": 3600,
+  "measures": {
+    "fr": "La boucle complète sur une application minuscule: entrevue, plan, tests d'abord, CI, démo. Plancher de réussite et de coût.",
+    "en": "The whole loop on a tiny application: interview, plan, tests first, CI, demo. The floor for success rate and cost."
+  }
+}
