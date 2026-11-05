@@ -776,3 +776,43 @@ def test_the_mockup_models_match_the_migrations(migrated_database: str) -> None:
         engine.dispose()
     mine = [d for d in diff if "mockup_variants" in _tables_of(d) or "mockups_enabled" in repr(d)]
     assert mine == []
+
+
+def test_migration_0018_electricity_and_task_budgets_up_and_down(database_url: str) -> None:
+    config = alembic_config(database_url)
+    command.downgrade(config, "base")
+    command.upgrade(config, "0017")
+    engine = create_engine(database_url)
+    try:
+        with engine.begin() as conn:
+            conn.execute(
+                text(
+                    "INSERT INTO llm_calls (id, model, prompt_tokens, completion_tokens, cost_usd) "
+                    "VALUES ('00000000-0000-0000-0000-0000000000e1', 'old', 1, 1, 0.5)"
+                )
+            )
+        command.upgrade(config, "0018")
+        with engine.begin() as conn:
+            row = conn.execute(text("SELECT duration_ms, electricity_usd FROM llm_calls")).one()
+            assert row[0] is None and row[1] is None  # old calls: unknown, never invented
+            if conn.execute(text("SELECT id FROM platform_state WHERE id = 1")).first() is None:
+                conn.execute(text("INSERT INTO platform_state (id) VALUES (1)"))
+            flags = conn.execute(
+                text(
+                    "SELECT electricity_price_kwh_usd, electricity_watts, "
+                    "electricity_counts_in_budget, task_budget_multiplier "
+                    "FROM platform_state WHERE id = 1"
+                )
+            ).one()
+            assert flags[0] is None and flags[1] is None and flags[2] is False and flags[3] is None
+        command.downgrade(config, "0017")
+        columns = {c["name"] for c in inspect(engine).get_columns("llm_calls")}
+        assert not {"duration_ms", "electricity_usd"} & columns
+        columns = {c["name"] for c in inspect(engine).get_columns("platform_state")}
+        assert "electricity_watts" not in columns
+        with engine.begin() as conn:  # the calls themselves survive the round trip
+            assert conn.execute(text("SELECT count(*) FROM llm_calls")).scalar_one() == 1
+    finally:
+        engine.dispose()
+    command.downgrade(config, "base")  # leave the shared test database clean
+    command.upgrade(config, "head")

@@ -94,7 +94,7 @@ class Budget:
     def __init__(self) -> None:
         self.checked = 0
 
-    def ensure_can_spend(self, project_id: Any) -> None:
+    def ensure_can_spend(self, project_id: Any, task_id: Any = None) -> None:
         self.checked += 1
 
     def after_call(self, project_id: Any) -> None: ...

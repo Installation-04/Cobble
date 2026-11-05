@@ -178,6 +178,28 @@ export interface CostLine {
 /** `ref` is null for planner calls (no task). */
 export interface CostByTask extends CostLine {
   ref: string | null;
+  /** The task's own cost cap (null: none, or planner calls). */
+  cap_usd?: string | null;
+}
+
+/** Estimated electricity of local models, apart from the API spend (ADR 0021). */
+export interface CostElectricity {
+  usd: string;
+  seconds: number;
+  calls: number;
+  counts_in_budget: boolean;
+  estimated: boolean;
+}
+
+/** `GET/PUT /settings/costs`: electricity of local models and the per-task cap. */
+export interface CostSettings {
+  electricity_price_kwh_usd: string | null;
+  electricity_watts: number | null;
+  electricity_counts_in_budget: boolean;
+  electricity_enabled?: boolean;
+  task_budget_multiplier: string | null;
+  effective_task_budget_multiplier?: string;
+  task_budget_floor_usd?: string;
 }
 export interface CostByModel extends CostLine {
   model: string | null;
@@ -208,6 +230,9 @@ export interface CostByRole extends CostLine {
 export interface ProjectCosts {
   budget_usd: string | null;
   spent_usd: string;
+  /** What the providers charged; `spent_usd` adds the electricity only when it is counted. */
+  api_usd?: string;
+  electricity?: CostElectricity;
   tokens: { prompt: number; completion: number };
   estimate_usd: string | null;
   by_task: CostByTask[];

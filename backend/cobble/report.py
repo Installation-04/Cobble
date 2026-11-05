@@ -136,6 +136,8 @@ def project_report(
                 _percent(spent - estimate, estimate) if estimate is not None else None
             ),
             "tokens": spend["tokens"],
+            "api_usd": spend["api_usd"],
+            "electricity": spend["electricity"],
             "savings": spend["savings"],
             "by_model": spend["by_model"],
             "by_role": spend["by_role"],
@@ -257,6 +259,17 @@ def render_markdown(report: dict[str, Any], lang: str) -> str:
     if spend["budget_used_percent"] is not None:
         budget += f" ({spend['budget_used_percent']} %)"
     out.append(f"- {t('report.costs.budget', lang)}: {budget}")
+    electricity = spend["electricity"]
+    if electricity["calls"]:
+        counted = (
+            "report.costs.electricity_counted"
+            if electricity["counts_in_budget"]
+            else "report.costs.electricity_apart"
+        )
+        out.append(
+            f"- {t('report.costs.electricity', lang)}: ${electricity['usd']} ({t(counted, lang)})"
+        )
+        out.append(f"  - {t('report.costs.electricity_estimate', lang)}")
     estimate = f"${spend['estimate_usd']}" if spend["estimate_usd"] is not None else na
     if spend["estimate_delta_percent"] is not None:
         estimate += f" ({spend['estimate_delta_percent']:+d} %)"

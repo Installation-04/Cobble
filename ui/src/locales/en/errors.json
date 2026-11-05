@@ -71,5 +71,7 @@
   "job_local_only_unavailable": "This project is local-only and no model served on this machine can answer. Install a local model or turn local-only off in the Costs tab.",
   "mockups_disabled": "Mockup variants are turned off for this project.",
   "mockup_choice_required": "Choose a mockup before generating the plan.",
-  "job_mockups_invalid": "The assistant could not produce valid mockups after several attempts. Try again."
+  "job_mockups_invalid": "The assistant could not produce valid mockups after several attempts. Try again.",
+  "task_budget_reached": "This task reached its own cost cap and was stopped. The project goes on; raise the per-task cap in Settings → Models to retry it.",
+  "job_task_budget_reached": "A task reached its own cost cap and was stopped. The project goes on."
 }

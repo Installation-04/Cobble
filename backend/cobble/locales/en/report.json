@@ -37,7 +37,11 @@
       "no_budget": "none",
       "estimate": "Plan estimate",
       "tokens": "Tokens",
-      "tokens_split": "{prompt} in, {completion} out"
+      "tokens_split": "{prompt} in, {completion} out",
+      "electricity": "Electricity (local models)",
+      "electricity_counted": "counted in Spent",
+      "electricity_apart": "shown apart, not in Spent",
+      "electricity_estimate": "An estimate: watts x generation time x price per kWh, not a measure."
     },
     "savings": {
       "title": "Savings",

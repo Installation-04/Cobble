@@ -71,5 +71,7 @@
   "job_local_only_unavailable": "Ce projet est en local seulement et aucun modèle servi sur cette machine ne peut répondre. Installez un modèle local ou désactivez « local seulement » dans l'onglet Coûts.",
   "mockups_disabled": "Les variantes de maquette sont désactivées pour ce projet.",
   "mockup_choice_required": "Choisissez une maquette avant de générer le plan.",
-  "job_mockups_invalid": "L'assistant n'a pas pu produire de maquettes valides après plusieurs essais. Réessayez."
+  "job_mockups_invalid": "L'assistant n'a pas pu produire de maquettes valides après plusieurs essais. Réessayez.",
+  "task_budget_reached": "Cette tâche a atteint son propre plafond de coût et a été arrêtée. Le projet continue ; augmentez le plafond par tâche dans Réglages → Modèles pour la relancer.",
+  "job_task_budget_reached": "Une tâche a atteint son propre plafond de coût et a été arrêtée. Le projet continue."
 }

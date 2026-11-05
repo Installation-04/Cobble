@@ -15,6 +15,16 @@
     "reset": {
       "done": "Les sessions de l'administrateur ont été fermées. Utilisez ce lien pour définir un nouveau courriel et mot de passe; les projets sont conservés.",
       "no_admin": "Aucun administrateur n'existe encore. Utilisez plutôt le lien d'activation."
+    },
+    "costs": {
+      "electricity": "Électricité des modèles locaux : {price} USD par kWh à {watts} W pendant qu'un modèle génère.",
+      "electricity_off": "Électricité des modèles locaux : non réglée (aucun coût compté).",
+      "counted": "Elle est comptée dans la dépense et le budget de chaque projet.",
+      "apart": "Elle est affichée à part et non comptée dans la dépense ni le budget du projet.",
+      "estimate": "C'est une estimation (watts x durée de génération x prix), pas une mesure.",
+      "task_cap": "Plafond par tâche : {factor} x l'estimation de la tâche, au moins {floor} USD.",
+      "task_cap_off": "Plafond par tâche : désactivé.",
+      "invalid": "Valeur invalide pour {name}."
     }
   }
 }

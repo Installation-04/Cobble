@@ -16,7 +16,7 @@ from fastapi import APIRouter, Header, Request
 
 from cobble.auth import runtoken
 from cobble.capabilities.llm import Role
-from cobble.router.budget import BudgetExceeded
+from cobble.router.budget import BudgetExceeded, TaskBudgetExceeded
 from cobble.router.costs import LocalOnlyUnavailable
 from cobble.router.factory import build_cost_router
 from cobble.router.gateway import GatewayError
@@ -76,6 +76,8 @@ def chat_completions(
             task_id=claims.task_id,
             model=claims.model_override,
         )
+    except TaskBudgetExceeded:
+        raise ApiError(402, "task_budget_reached") from None
     except BudgetExceeded:
         raise ApiError(402, "budget_reached") from None
     except LocalOnlyUnavailable:

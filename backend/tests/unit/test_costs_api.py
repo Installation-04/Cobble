@@ -108,6 +108,8 @@ def test_project_costs_shape_and_numbers(sessions: sessionmaker[Session], pid: u
         db.commit()
     body = client_for(sessions, pid).get(f"{API}/projects/{pid}/costs").json()
     assert set(body) == {
+        "api_usd",
+        "electricity",
         "budget_usd",
         "spent_usd",
         "tokens",
@@ -134,6 +136,8 @@ def test_project_costs_shape_and_numbers(sessions: sessionmaker[Session], pid: u
             "calls": calls,
         }
 
+    caps = {e["ref"]: e.pop("cap_usd") for e in body["by_task"]}
+    assert caps["T-001"] is not None and caps[None] is None  # the per-task cap, apart
     assert body["by_task"] == [
         entry("T-001", "0.00001234", 1, 1, 1),
         entry("T-002", "0.0215", 440, 100, 3),
@@ -171,6 +175,14 @@ def test_project_costs_shape_and_numbers(sessions: sessionmaker[Session], pid: u
 def test_a_project_with_no_calls(sessions: sessionmaker[Session], pid: uuid.UUID) -> None:
     body = client_for(sessions, pid).get(f"{API}/projects/{pid}/costs").json()
     assert body == {
+        "api_usd": "0.00",
+        "electricity": {
+            "usd": "0.00",
+            "seconds": 0,
+            "calls": 0,
+            "counts_in_budget": False,
+            "estimated": True,
+        },
         "budget_usd": None,
         "spent_usd": "0.00",
         "tokens": {"prompt": 0, "completion": 0},
@@ -199,6 +211,7 @@ def test_calls_of_a_deleted_task_count_with_the_planner(
             "prompt_tokens": 10,
             "completion_tokens": 5,
             "calls": 1,
+            "cap_usd": None,
         }
     ]
 
@@ -245,7 +258,7 @@ def test_costs_are_aggregated_in_a_fixed_number_of_queries(
         assert api.get(f"{API}/projects/{pid}/costs").status_code == 200
     finally:
         event.remove(engine, "before_cursor_execute", count)
-    assert first == len(statements) <= 5  # tasks, models, roles, fallbacks, plan
+    assert first == len(statements) <= 6  # tasks, models (+ electricity), roles, fallbacks, plan x2
 
 
 def test_costs_need_login_and_ownership(sessions: sessionmaker[Session], pid: uuid.UUID) -> None:

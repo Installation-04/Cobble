@@ -69,6 +69,22 @@ gratuits ont leurs propres limites de débit et conditions (entraînement sur vo
 modifiable); Cobble ne peut pas les vérifier pour vous, et un projet « local seulement » les évite
 complètement. Sur un 429, le modèle suivant de la route répond et le modèle limité est essayé en
 dernier pendant 30 s (en doublant jusqu'à 10 min).
+
+### Électricité et plafonds par tâche (ADR 0021)
+
+`GET`/`PUT /api/v1/settings/costs` (admin ; aussi Réglages → Modèles et `cobble costs`) :
+`electricity_price_kwh_usd`, `electricity_watts`, `electricity_counts_in_budget` et
+`task_budget_multiplier`. Avec un prix et une puissance, chaque appel à un modèle servi sur cette
+machine enregistre `electricity_usd = watts x secondes de réponse / 3,6e6 x prix`. **C'est une
+estimation, pas une mesure.** Le rapport de coûts a `api_usd` (ce que les fournisseurs ont facturé) et
+`electricity` (`usd`, `seconds`, `calls`, `counts_in_budget`) sur une ligne à part ; `spent_usd`
+n'inclut l'électricité que si `electricity_counts_in_budget` est actif (le budget du projet et le
+compteur d'économies l'incluent alors aussi). Chaque ligne `by_task` a `cap_usd` : une tâche peut
+dépenser son multiple (3 par défaut) de son estimation, au moins 0,05 USD ; 0 désactive le plafond.
+Au-delà, les appels de la tâche sont refusés (HTTP 402 `task_budget_reached`) et le projet continue.
+Un appel déjà en cours quand un plafond est franchi se termine : un projet ou une tâche peut dépasser
+d'un appel.
+
 ## Rapport de fin de projet
 
 `GET /projects/{id}/report` (onglet « Rapport » du projet) résume le projet. Il marche aussi
