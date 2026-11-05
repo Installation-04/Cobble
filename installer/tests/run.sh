@@ -12,7 +12,7 @@ PASS=0
 FAIL=0
 
 TMP="$(mktemp -d)"
-trap 'rm -rf "$TMP"' EXIT
+trap '[ -z "${SERVER_PID:-}" ] || kill "$SERVER_PID" 2>/dev/null; rm -rf "$TMP"' EXIT
 
 ok() {
   PASS=$((PASS + 1))
@@ -350,6 +350,9 @@ t_source_bad() {
   bash "$INSTALLER/install.sh" --yes --dir "$S/opt" --source "$S/empty" >/dev/null 2>&1 && rc=0 || rc=$?
   [ "$rc" -eq 1 ] && ok source_bad || ko source_bad "rc=$rc"
 }
+
+# shellcheck source=download_tests.sh
+. "$HERE/download_tests.sh"
 
 for t in $(declare -F | awk '{print $3}' | grep '^t_'); do
   if [ -z "$FILTER" ] || [[ "$t" == *"$FILTER"* ]]; then "$t"; fi

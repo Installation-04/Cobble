@@ -9,10 +9,10 @@ Ubuntu Server 24.04 or 26.04, or Debian 12 or 13, on **amd64**. At least 2 vCPU,
 ## One command
 
 ```bash
-curl -fsSL <install.sh URL> | sudo bash
+curl -fsSL https://raw.githubusercontent.com/Installation-04/Cobble/main/installer/install.sh | sudo bash
 ```
 
-If you prefer, download the script, read it, then run it (`sudo bash install.sh`). Options: `--dir`, `--lang en|fr`, `--yes` (non-interactive), `--gpu auto|nvidia|amd|none`, `--source`.
+If you prefer, download the script, read it, then run it (`sudo bash install.sh`). Options: `--dir`, `--lang en|fr`, `--yes` (non-interactive), `--gpu auto|nvidia|amd|none`, `--source`, `--version vX.Y.Z`, `--ref <branch>` (not a verified release), `--no-verify` (unsafe). The SHA-256 of the downloaded tarball is always checked.
 
 The script checks the machine, installs Docker from the official repository, installs the core in `/opt/cobble` (generated secrets, pinned images), creates the `cobble` systemd service, opens ports 80/443 if `ufw` is active, installs the `cobble` CLI, and prints a **one-use activation link** to create the admin account. It is **idempotent**: re-running it repairs things without overwriting anything. Log: `/var/log/cobble-install.log`.
 
@@ -44,10 +44,10 @@ Ubuntu Server 24.04 ou 26.04, ou Debian 12 ou 13, **amd64**. Minimum 2 vCPU, 4 G
 ## Une commande
 
 ```bash
-curl -fsSL <URL de install.sh> | sudo bash
+curl -fsSL https://raw.githubusercontent.com/Installation-04/Cobble/main/installer/install.sh | sudo bash
 ```
 
-Pour les prudents: télécharger le script, le lire, puis l'exécuter (`sudo bash install.sh`). Options: `--dir`, `--lang fr|en`, `--yes` (non interactif), `--gpu auto|nvidia|amd|none`, `--source`.
+Pour les prudents: télécharger le script, le lire, puis l'exécuter (`sudo bash install.sh`). Options: `--dir`, `--lang fr|en`, `--yes` (non interactif), `--gpu auto|nvidia|amd|none`, `--source`, `--version vX.Y.Z`, `--ref <branche>` (pas une version vérifiée), `--no-verify` (risqué). Le SHA-256 de l'archive téléchargée est toujours vérifié.
 
 Le script: vérifie la machine, installe Docker depuis le dépôt officiel, installe le noyau dans `/opt/cobble` (secrets générés, images épinglées), crée le service systemd `cobble`, ouvre 80/443 si `ufw` est actif, installe la CLI `cobble`, puis **affiche un lien d'activation à usage unique** pour créer le compte admin. Il est **idempotent**: le relancer répare sans rien écraser. Journal: `/var/log/cobble-install.log`.
 
