@@ -89,6 +89,15 @@ class AgentRunner(Protocol):
 
     def stop(self, run_id: str) -> None: ...
 
+    def find(self, marker: str, task_id: uuid.UUID) -> str | None:
+        """The id of the newest run started for this task with this marker, or None.
+
+        Crash recovery: the scheduler may have died after the service accepted `start` but
+        before the id was recorded. Raises AgentUnavailable when the service cannot be reached.
+        A service that does not support the lookup answers None.
+        """
+        ...
+
     def logs(self, run_id: str, offset: int = 0) -> tuple[str, int]:
         """The log of a run from `offset` on, and the offset to ask for next (ADR 0007).
 

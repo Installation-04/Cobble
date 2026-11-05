@@ -1,7 +1,15 @@
 import { AlertTriangle, Coins } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { errorMessage } from "../api/errors";
-import type { CostFallbacks, CostLine, CostSavings } from "../api/types";
+import type { ReactNode } from "react";
+import type {
+  CostElectricity,
+  CostFallbacks,
+  CostLine,
+  CostSavings,
+  ModelPriceLine,
+} from "../api/types";
+import { FreeBadge, PriceChange } from "../models/Prices";
 import { cn } from "../lib";
 import { useWorkspace } from "../workspace/WorkspaceProvider";
 import { formatCost, formatTokens } from "./format";
@@ -44,7 +52,7 @@ function CostTable({
   testId: string;
   caption: string;
   firstColumn: string;
-  rows: { key: string; label: string; line: CostLine }[];
+  rows: { key: string; label: ReactNode; line: CostLine }[];
   lang: string;
 }) {
   const { t } = useTranslation("costs");
@@ -106,6 +114,90 @@ function CostTable({
   );
 }
 
+/** Estimated electricity of local models: its own line, never mixed silently into API spend. */
+export function ElectricityCard({
+  electricity,
+  apiUsd,
+  lang,
+}: {
+  electricity: CostElectricity | undefined;
+  apiUsd: string | undefined;
+  lang: string;
+}) {
+  const { t } = useTranslation("costs");
+  if (!electricity || electricity.calls === 0) return null;
+  return (
+    <section
+      aria-labelledby="electricity-title"
+      data-testid="costs-electricity"
+      data-counted={electricity.counts_in_budget ? "yes" : "no"}
+      className="flex flex-col gap-1 rounded-lg border border-border bg-card p-4 text-card-foreground"
+    >
+      <h3 id="electricity-title" className="text-sm font-semibold">
+        {t("electricity.title")}
+      </h3>
+      <p className="text-xl font-semibold" data-testid="costs-electricity-amount">
+        {formatCost(electricity.usd, lang)}
+      </p>
+      {apiUsd !== undefined && (
+        <p className="text-sm text-muted-foreground" data-testid="costs-api-spend">
+          {t("electricity.api", { amount: formatCost(apiUsd, lang) })}
+        </p>
+      )}
+      <p className="text-xs text-muted-foreground">
+        {t("electricity.detail", {
+          calls: formatTokens(electricity.calls, lang),
+          seconds: formatTokens(electricity.seconds, lang),
+        })}
+      </p>
+      <p className="text-xs text-muted-foreground">
+        {electricity.counts_in_budget ? t("electricity.counted") : t("electricity.apart")}
+      </p>
+    </section>
+  );
+}
+
+/** Free-tier calls (counted as free) and models of this project whose price changed lately. */
+function PricesCard({ freeCalls, changes }: { freeCalls: number; changes: ModelPriceLine[] }) {
+  const { t } = useTranslation("costs");
+  if (freeCalls === 0 && changes.length === 0) return null;
+  return (
+    <section
+      aria-labelledby="prices-title"
+      data-testid="costs-prices"
+      className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 text-card-foreground"
+    >
+      <h3 id="prices-title" className="text-sm font-semibold">
+        {t("prices.title")}
+      </h3>
+      {freeCalls > 0 && (
+        <p className="text-sm text-muted-foreground" data-testid="costs-free-calls">
+          {t("prices.freeCalls", { count: freeCalls })}
+        </p>
+      )}
+      {changes.length > 0 && (
+        <div
+          role="status"
+          data-testid="costs-price-changes"
+          className="flex items-start gap-2 text-sm font-medium text-warning"
+        >
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+          <div>
+            <p>{t("prices.changed")}</p>
+            <ul className="font-normal">
+              {changes.map((c) => (
+                <li key={c.model}>
+                  <PriceChange line={c} />
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
 /** Confidential projects: only models served on this machine, nothing leaves. */
 function LocalOnlyCard() {
   const { t } = useTranslation(["costs", "errors"]);
@@ -149,7 +241,7 @@ function LocalOnlyCard() {
 }
 
 /** What the cheaper models saved compared with the strongest one doing everything. */
-function SavingsCard({ savings, lang }: { savings: CostSavings | null; lang: string }) {
+export function SavingsCard({ savings, lang }: { savings: CostSavings | null; lang: string }) {
   const { t } = useTranslation("costs");
   const saved = savings !== null && !savings.saved_usd.startsWith("-") && savings.saved_percent > 0;
   return (
@@ -366,6 +458,8 @@ export function CostsTab() {
       </section>
 
       <SavingsCard savings={costs.savings ?? null} lang={lang} />
+      <ElectricityCard electricity={costs.electricity} apiUsd={costs.api_usd} lang={lang} />
+      <PricesCard freeCalls={costs.free_calls ?? 0} changes={costs.price_changes ?? []} />
       <LocalOnlyCard />
 
       <dl className="grid gap-3 sm:grid-cols-3" data-testid="costs-totals">
@@ -407,7 +501,19 @@ export function CostsTab() {
         lang={lang}
         rows={costs.by_task.map((row) => ({
           key: row.ref ?? "planner",
-          label: row.ref ?? t("table.planner"),
+          label: (
+            <>
+              {row.ref ?? t("table.planner")}
+              {row.ref !== null && row.cap_usd != null && (
+                <span
+                  className="ml-2 text-xs font-normal text-muted-foreground"
+                  data-testid="task-cap"
+                >
+                  {t("table.cap", { amount: formatCost(row.cap_usd, lang) })}
+                </span>
+              )}
+            </>
+          ),
           line: row,
         }))}
       />
@@ -418,7 +524,12 @@ export function CostsTab() {
         lang={lang}
         rows={costs.by_model.map((row) => ({
           key: row.model ?? "unknown",
-          label: row.model ?? t("table.unknown"),
+          label: (
+            <>
+              {row.model ?? t("table.unknown")}
+              {row.free === true && <FreeBadge />}
+            </>
+          ),
           line: row,
         }))}
       />

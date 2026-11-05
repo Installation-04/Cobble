@@ -1,0 +1,13 @@
+{
+  "title": {"fr": "Robot conversationnel simple", "en": "Simple chat bot"},
+  "idea": {
+    "fr": "Je veux un petit robot conversationnel pour mon site: il salue, répond à des mots-clés que je configure, fait des calculs simples et garde l'historique des conversations.",
+    "en": "I want a small chat bot for my site: it greets people, answers keywords that I configure, does simple calculations and keeps the history of the conversations."
+  },
+  "budget_usd": 1.5,
+  "timeout_s": 4500,
+  "measures": {
+    "fr": "Texte exact et priorités: commandes, règles de mots-clés (mot entier, premier gagnant), analyseur d'expressions sans eval, formats de réponse à la lettre.",
+    "en": "Exact text and priorities: commands, keyword rules (whole word, first wins), an expression parser without eval, reply formats to the letter."
+  }
+}

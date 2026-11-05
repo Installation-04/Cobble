@@ -105,6 +105,7 @@ def _reopen(milestone: Milestone) -> None:
     milestone.preview_state = None
     milestone.built_at = None
     milestone.validated_at = None
+    milestone.explanation = None  # it described a build that no longer stands (ADR 0017)
     milestone.revision += 1
 
 

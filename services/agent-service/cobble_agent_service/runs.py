@@ -174,6 +174,13 @@ class RunManager:
             raise RunError(404, "run_not_found")
         return rec
 
+    def find(self, task_id: str, marker: str) -> list[RunStatus]:
+        """Runs started for this task with this marker, newest first (crash recovery: the
+        scheduler may have lost the id of a run it did start)."""
+        matches = [r for r in self.records.values() if r.task_id == task_id and r.marker == marker]
+        matches.sort(key=lambda r: r.started_at, reverse=True)
+        return [self.status(r.run_id) for r in matches]
+
     def status(self, run_id: str) -> RunStatus:
         rec = self.get(run_id)
         return RunStatus(

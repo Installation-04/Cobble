@@ -1,0 +1,74 @@
+{
+  "report": {
+    "title": "Project report: {name}",
+    "na": "n/a",
+    "unknown": "unknown",
+    "state": {
+      "finished": "This project is finished.",
+      "ongoing": "This project is not finished yet: the figures below are those of today."
+    },
+    "duration": {
+      "days": "{days} d {hours} h",
+      "hours": "{hours} h {minutes} min",
+      "minutes": "{minutes} min"
+    },
+    "explain": {
+      "title": "Explained in plain words"
+    },
+    "built": {
+      "title": "What was built",
+      "summary": "{validated} of {milestones} milestones validated. Tasks: {done} done out of {total}, {failed} failed, {escalated} escalated to a stronger model."
+    },
+    "milestone_status": {
+      "pending": "pending",
+      "built": "built",
+      "validated": "validated"
+    },
+    "time": {
+      "title": "Time span",
+      "started": "Started",
+      "ended": "Last activity",
+      "duration": "Duration"
+    },
+    "costs": {
+      "title": "Costs",
+      "spent": "Spent",
+      "budget": "Budget",
+      "no_budget": "none",
+      "estimate": "Plan estimate",
+      "tokens": "Tokens",
+      "tokens_split": "{prompt} in, {completion} out",
+      "electricity": "Electricity (local models)",
+      "electricity_counted": "counted in Spent",
+      "electricity_apart": "shown apart, not in Spent",
+      "electricity_estimate": "An estimate: watts x generation time x price per kWh, not a measure."
+    },
+    "savings": {
+      "title": "Savings",
+      "saved": "You saved {amount} ({percent} %) compared with {model}.",
+      "none": "No saving compared with {model}.",
+      "detail": "Doing everything with {model} would have cost about {reference}; this project cost {actual}.",
+      "unavailable": "Not available: it needs some model calls and a known price for the strongest model (the escalation model)."
+    },
+    "by_model": { "title": "Cost per model" },
+    "by_role": { "title": "Cost per role" },
+    "fallbacks": {
+      "title": "Fallbacks",
+      "summary": "{calls} of {total} calls were answered by a fallback model."
+    },
+    "col": {
+      "milestone": "Milestone",
+      "status": "Status",
+      "tasks": "Tasks done",
+      "failed": "Failed",
+      "model": "Model",
+      "role": "Role",
+      "calls": "Calls",
+      "tokens_in": "Tokens in",
+      "tokens_out": "Tokens out",
+      "cost": "Cost (USD)",
+      "answered_by": "Answered by",
+      "instead_of": "Instead of"
+    }
+  }
+}

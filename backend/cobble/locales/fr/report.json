@@ -1,0 +1,74 @@
+{
+  "report": {
+    "title": "Rapport de projet : {name}",
+    "na": "n/d",
+    "unknown": "inconnu",
+    "state": {
+      "finished": "Ce projet est terminé.",
+      "ongoing": "Ce projet n'est pas encore terminé : les chiffres ci-dessous sont ceux d'aujourd'hui."
+    },
+    "duration": {
+      "days": "{days} j {hours} h",
+      "hours": "{hours} h {minutes} min",
+      "minutes": "{minutes} min"
+    },
+    "explain": {
+      "title": "Expliqué en mots simples"
+    },
+    "built": {
+      "title": "Ce qui a été construit",
+      "summary": "{validated} jalons validés sur {milestones}. Tâches : {done} réussies sur {total}, {failed} en échec, {escalated} escaladées vers un modèle plus fort."
+    },
+    "milestone_status": {
+      "pending": "à faire",
+      "built": "construit",
+      "validated": "validé"
+    },
+    "time": {
+      "title": "Durée",
+      "started": "Début",
+      "ended": "Dernière activité",
+      "duration": "Durée"
+    },
+    "costs": {
+      "title": "Coûts",
+      "spent": "Dépensé",
+      "budget": "Budget",
+      "no_budget": "aucun",
+      "estimate": "Estimation du plan",
+      "tokens": "Jetons",
+      "tokens_split": "{prompt} en entrée, {completion} en sortie",
+      "electricity": "Électricité (modèles locaux)",
+      "electricity_counted": "comptée dans Dépensé",
+      "electricity_apart": "affichée à part, hors Dépensé",
+      "electricity_estimate": "Une estimation : watts x durée de génération x prix du kWh, pas une mesure."
+    },
+    "savings": {
+      "title": "Économies",
+      "saved": "Vous avez économisé {amount} ({percent} %) par rapport à {model}.",
+      "none": "Aucune économie par rapport à {model}.",
+      "detail": "Tout faire avec {model} aurait coûté environ {reference} ; ce projet a coûté {actual}.",
+      "unavailable": "Non disponible : il faut quelques appels de modèle et un prix connu pour le modèle le plus fort (le modèle d'escalade)."
+    },
+    "by_model": { "title": "Coût par modèle" },
+    "by_role": { "title": "Coût par rôle" },
+    "fallbacks": {
+      "title": "Replis",
+      "summary": "{calls} appels sur {total} ont reçu leur réponse d'un modèle de repli."
+    },
+    "col": {
+      "milestone": "Jalon",
+      "status": "État",
+      "tasks": "Tâches réussies",
+      "failed": "En échec",
+      "model": "Modèle",
+      "role": "Rôle",
+      "calls": "Appels",
+      "tokens_in": "Jetons en entrée",
+      "tokens_out": "Jetons en sortie",
+      "cost": "Coût (USD)",
+      "answered_by": "Réponse de",
+      "instead_of": "À la place de"
+    }
+  }
+}

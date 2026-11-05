@@ -22,3 +22,9 @@ cd providers/fake-llm && uv run python scripts/make_todo_cassettes.py
 ## Résumé (français)
 
 Projet de référence le plus simple du banc d'essai: une liste de tâches personnelle (ajouter, cocher, supprimer; sans compte; pour téléphone). `spec.md` est la spécification visée. Les cassettes `todo-*.json` du faux fournisseur rejouent le flux complet (entrevue en deux tours, spécification, plan valide, plans invalides pour tester les reprises) en français et en anglais; la commande ci-dessus les régénère après un changement de prompt.
+
+## Hidden tests (v0.3)
+
+`hidden/` holds the hidden acceptance tests, `project.json` the bench settings, `spec.fr.md` the French spec and `mutations.json` the breakages that `make bench-check` verifies are caught. The solution used by the cassettes (`solution/tree`) is also the reference solution of the bench. See `docs/en/bench.md`.
+
+Tests cachés (v0.3): `hidden/`, réglages du banc dans `project.json`, spécification française dans `spec.fr.md`, mutations vérifiées par `make bench-check`.

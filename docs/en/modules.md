@@ -13,7 +13,28 @@ Install from the Store tab, or `cobble modules install <id>` / `cobble modules i
 | `aider` | `agent-runner` | `git` | agent-service, the egress proxy and the Aider runner image: [agents](agents.md) |
 | `preview` | `preview` | `git` | preview-service, which builds and serves the milestone demos under `/demo`: [demos](demo.md) |
 
-Starter packs (`catalog/packs/`) bundle them: `local-gpu`, `local-cpu` and `api-only`.
+| `verdaccio` | `package-cache`, `npm-cache` | | Verdaccio, a read-through cache of the npm registry; no web page, nobody can publish |
+| `devpi` | `package-cache`, `pypi-cache` | | devpi, a read-through mirror of PyPI; reachable on the platform network only |
+
+Starter packs (`catalog/packs/`) bundle them: `local-gpu`, `local-cpu` and `api-only`. The two
+package caches are in no pack: they are optional, install them from the Store.
+
+## Local package cache (optional)
+
+`verdaccio` and `devpi` keep a copy of every package they have served, so that the next install is
+fast, still works offline for what was already downloaded, and uses less bandwidth. They run on the
+platform network only (`web_ui.public: false`, no host port, no route on the reverse proxy), keep
+their data in a volume (included in backups), and are limited to 512 MB / 1 CPU (Verdaccio) and
+768 MB / 1 CPU (devpi). Other modules reach them at `http://cobble-verdaccio-verdaccio:4873` and
+`http://cobble-devpi-devpi:3141` (the Python index is `/root/pypi/+simple/`). Each provides the
+shared capability `package-cache` and an ecosystem one (`npm-cache`, `pypi-cache`): a consumer
+should require the specific one, since a module linked to a capability sees only one provider.
+
+**Not wired to the agents yet.** The manifest has no optional requirement, and the agents' egress
+proxy only allows the public registries, so the agent runners do not use the caches yet. Doing it
+needs a small core change (optional links in the manifest and the resolver, then the allow-list and
+the `npm` / `pip` index variables for the runner); it is described in
+[ADR 0015](../decisions/0015-package-cache.md).
 
 ## What every module follows
 

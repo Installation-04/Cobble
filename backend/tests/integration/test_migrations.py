@@ -613,6 +613,32 @@ def test_migration_0013_model_benchmarks_up_and_down(database_url: str) -> None:
     command.upgrade(config, "head")
 
 
+def test_migration_0014_model_prices_up_and_down(database_url: str) -> None:
+    config = alembic_config(database_url)
+    command.downgrade(config, "base")
+    command.upgrade(config, "0013")
+    engine = create_engine(database_url)
+    try:
+        assert "model_prices" not in tables(database_url)
+        command.upgrade(config, "0014")
+        assert "model_prices" in tables(database_url)
+        with engine.begin() as conn:
+            conn.execute(
+                text(
+                    "INSERT INTO model_prices (model, prompt_usd, completion_usd) "
+                    "VALUES ('big', 0.000003, 0.000015)"
+                )
+            )
+            row = conn.execute(text("SELECT free, changed_at, updated_at FROM model_prices")).one()
+            assert row[0] is False and row[1] is None and row[2] is not None
+        command.downgrade(config, "0013")
+        assert "model_prices" not in tables(database_url)
+    finally:
+        engine.dispose()
+    command.downgrade(config, "base")  # leave the shared test database clean
+    command.upgrade(config, "head")
+
+
 def test_the_models_match_the_migrations(migrated_database: str) -> None:
     """No drift: what `Base.metadata` declares is what the migrations created (module tables)."""
     from alembic.autogenerate import compare_metadata
@@ -648,3 +674,145 @@ def _tables_of(diff_entry: object) -> set[str]:
                     if isinstance(name, str):
                         names.add(name)
     return names
+
+
+def test_migration_0015_job_checkpoints_up_and_down(database_url: str) -> None:
+    config = alembic_config(database_url)
+    command.downgrade(config, "base")
+    command.upgrade(config, "0014")
+    assert "job_checkpoints" not in tables(database_url)
+
+    command.upgrade(config, "0015")
+    engine = create_engine(database_url)
+    try:
+        assert {"project_id", "key", "content", "created_at"} <= {
+            c["name"] for c in inspect(engine).get_columns("job_checkpoints")
+        }
+    finally:
+        engine.dispose()
+
+    command.downgrade(config, "0014")
+    assert "job_checkpoints" not in tables(database_url)
+    command.upgrade(config, "head")
+    assert "job_checkpoints" in tables(database_url)
+
+
+def test_migration_0016_explain_mode_up_and_down(database_url: str) -> None:
+    config = alembic_config(database_url)
+    command.downgrade(config, "base")
+    command.upgrade(config, "0015")
+    engine = create_engine(database_url)
+    try:
+        assert "explain_mode" not in {c["name"] for c in inspect(engine).get_columns("projects")}
+        command.upgrade(config, "0016")
+        assert "explain_mode" in {c["name"] for c in inspect(engine).get_columns("projects")}
+        assert "explanation" in {c["name"] for c in inspect(engine).get_columns("milestones")}
+        command.downgrade(config, "0015")
+        assert "explain_mode" not in {c["name"] for c in inspect(engine).get_columns("projects")}
+        assert "explanation" not in {c["name"] for c in inspect(engine).get_columns("milestones")}
+    finally:
+        engine.dispose()
+    command.upgrade(config, "head")
+
+
+def test_the_explain_columns_match_the_models(migrated_database: str) -> None:
+    """No drift on the two columns of migration 0016 (the module-table check ignores them)."""
+    from alembic.autogenerate import compare_metadata
+    from alembic.migration import MigrationContext
+
+    from cobble.db.base import Base
+
+    engine = create_engine(migrated_database)
+    try:
+        with engine.connect() as conn:
+            context = MigrationContext.configure(conn, opts={"compare_type": True})
+            diff = compare_metadata(context, Base.metadata)
+    finally:
+        engine.dispose()
+    assert [d for d in diff if {"projects", "milestones"} & _tables_of(d)] == []
+
+
+def test_migration_0017_mockup_variants_up_and_down(database_url: str) -> None:
+    config = alembic_config(database_url)
+    command.downgrade(config, "base")
+    command.upgrade(config, "0016")
+    assert "mockup_variants" not in tables(database_url)
+
+    command.upgrade(config, "0017")
+    engine = create_engine(database_url)
+    try:
+        inspector = inspect(engine)
+        assert {"project_id", "position", "title", "summary", "wireframe", "chosen"} <= {
+            c["name"] for c in inspector.get_columns("mockup_variants")
+        }
+        assert "mockups_enabled" in {c["name"] for c in inspector.get_columns("projects")}
+    finally:
+        engine.dispose()
+
+    command.downgrade(config, "0016")
+    engine = create_engine(database_url)
+    try:
+        assert "mockup_variants" not in tables(database_url)
+        assert "mockups_enabled" not in {c["name"] for c in inspect(engine).get_columns("projects")}
+    finally:
+        engine.dispose()
+    command.upgrade(config, "head")
+    assert "mockup_variants" in tables(database_url)
+
+
+def test_the_mockup_models_match_the_migrations(migrated_database: str) -> None:
+    """No drift on the mockup table and the project switch."""
+    from alembic.autogenerate import compare_metadata
+    from alembic.migration import MigrationContext
+
+    from cobble.db.base import Base
+
+    engine = create_engine(migrated_database)
+    try:
+        with engine.connect() as conn:
+            context = MigrationContext.configure(conn, opts={"compare_type": True})
+            diff = compare_metadata(context, Base.metadata)
+    finally:
+        engine.dispose()
+    mine = [d for d in diff if "mockup_variants" in _tables_of(d) or "mockups_enabled" in repr(d)]
+    assert mine == []
+
+
+def test_migration_0018_electricity_and_task_budgets_up_and_down(database_url: str) -> None:
+    config = alembic_config(database_url)
+    command.downgrade(config, "base")
+    command.upgrade(config, "0017")
+    engine = create_engine(database_url)
+    try:
+        with engine.begin() as conn:
+            conn.execute(
+                text(
+                    "INSERT INTO llm_calls (id, model, prompt_tokens, completion_tokens, cost_usd) "
+                    "VALUES ('00000000-0000-0000-0000-0000000000e1', 'old', 1, 1, 0.5)"
+                )
+            )
+        command.upgrade(config, "0018")
+        with engine.begin() as conn:
+            row = conn.execute(text("SELECT duration_ms, electricity_usd FROM llm_calls")).one()
+            assert row[0] is None and row[1] is None  # old calls: unknown, never invented
+            if conn.execute(text("SELECT id FROM platform_state WHERE id = 1")).first() is None:
+                conn.execute(text("INSERT INTO platform_state (id) VALUES (1)"))
+            flags = conn.execute(
+                text(
+                    "SELECT electricity_price_kwh_usd, electricity_watts, "
+                    "electricity_counts_in_budget, task_budget_multiplier "
+                    "FROM platform_state WHERE id = 1"
+                )
+            ).one()
+            assert flags[0] is None and flags[1] is None and flags[2] is False and flags[3] is None
+        command.downgrade(config, "0017")
+        columns = {c["name"] for c in inspect(engine).get_columns("llm_calls")}
+        assert not {"duration_ms", "electricity_usd"} & columns
+        columns = {c["name"] for c in inspect(engine).get_columns("platform_state")}
+        assert "electricity_watts" not in columns
+        with engine.begin() as conn:  # the calls themselves survive the round trip
+            assert conn.execute(text("SELECT count(*) FROM llm_calls")).scalar_one() == 1
+    finally:
+        engine.dispose()
+    command.downgrade(config, "base")  # leave the shared test database clean
+    command.upgrade(config, "head")

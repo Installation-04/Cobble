@@ -33,6 +33,22 @@ revert need `built` or `validated`; a revert of `M2` also needs `M1` built or va
 Without a preview service (no `COBBLE_PREVIEW_SERVICE_TOKEN`) the demo flow is off and a project is
 `done` as soon as every task is merged, as before.
 
+## "Explain me" mode
+
+For people who are learning: in the Demo tab, tick **Explain me**. When a milestone is built, an
+assistant writes a short summary in plain words (in your language): what was built, why it is built
+that way, and one thing worth learning. It appears on the milestone card, under the demo buttons.
+
+- **Off by default**: each summary uses a few tokens, which are counted in the project's costs
+  (role `reviewer`, so it follows the model you chose for reviews, and it respects "local only").
+- It is written once per build. If you comment on a milestone or revert it, the summary is removed
+  and written again when the milestone is rebuilt.
+- Turned it on after a milestone was built? Click **Explain this milestone** on its card. **Write it
+  again** replaces an existing summary.
+- Summaries are included in the Markdown report ("Explained in plain words").
+- API: `explain_mode` on `POST`/`PATCH /api/v1/projects`, `explanation` on each milestone,
+  `POST /api/v1/projects/{id}/milestones/{ref}/explain`.
+
 ## Pieces
 
 | Piece | Role |

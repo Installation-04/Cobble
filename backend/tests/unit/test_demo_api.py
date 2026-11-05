@@ -60,6 +60,7 @@ def test_list_milestones(api: TestClient, h: Harness, pid: uuid.UUID) -> None:
         "preview_state": None,
         "built_at": None,
         "validated_at": None,
+        "explanation": None,
     }
 
 

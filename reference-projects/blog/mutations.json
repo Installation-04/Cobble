@@ -1,0 +1,13 @@
+[
+  {"name": "accents kept out of the slug (not folded)", "file": "app/main.py", "old": "unicodedata.normalize(\"NFKD\", title).encode(\"ascii\", \"ignore\").decode()", "new": "title"},
+  {"name": "duplicate slugs collide", "file": "app/main.py", "old": "number += 1\n            slug = f\"{base}-{number}\"", "new": "number += 1\n            slug = f\"{base}-{number}-x\""},
+  {"name": "drafts listed", "file": "app/main.py", "old": "WHERE published = 1 ORDER BY id DESC", "new": "ORDER BY id DESC"},
+  {"name": "oldest first", "file": "app/main.py", "old": "WHERE published = 1 ORDER BY id DESC", "new": "WHERE published = 1 ORDER BY id"},
+  {"name": "tag filter ignored", "file": "app/main.py", "old": "if tag is None or tag in p[\"tags\"]", "new": "if True"},
+  {"name": "comments newest first", "file": "app/main.py", "old": "WHERE post_id = ? ORDER BY id\"", "new": "WHERE post_id = ? ORDER BY id DESC\""},
+  {"name": "comments on drafts allowed", "file": "app/main.py", "old": "        row = find(conn, slug)\n        created", "new": "        row = find(conn, slug, drafts=True)\n        created"},
+  {"name": "delete only hides the post", "file": "app/main.py", "old": "DELETE FROM posts WHERE id = ?", "new": "UPDATE posts SET published = 0 WHERE id = ?"},
+  {"name": "too many tags accepted", "file": "app/main.py", "old": "default_factory=list, max_length=5", "new": "default_factory=list, max_length=50"},
+  {"name": "title limit missing", "file": "app/main.py", "old": "min_length=1, max_length=120)]\n    body: Text", "new": "min_length=1)]\n    body: Text"},
+  {"name": "data not persisted", "file": "app/main.py", "old": "sqlite3.connect(folder / \"blog.db\")", "new": "sqlite3.connect(\":memory:\")"}
+]

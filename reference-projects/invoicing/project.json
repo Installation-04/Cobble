@@ -1,0 +1,13 @@
+{
+  "title": {"fr": "API de facturation", "en": "Invoicing API"},
+  "idea": {
+    "fr": "Je suis travailleur autonome et je veux émettre des factures pour mes clients: les lignes, la taxe, le total, et suivre ce qui est envoyé et payé.",
+    "en": "I am a freelancer and I want to issue invoices to my customers: the lines, the tax, the total, and to follow what is sent and what is paid."
+  },
+  "budget_usd": 2.0,
+  "timeout_s": 5400,
+  "measures": {
+    "fr": "Exactitude: argent en Decimal, arrondi, numérotation, machine à états et règles d'immuabilité. Les modèles qui calculent en virgule flottante échouent.",
+    "en": "Correctness: money in Decimal, rounding, numbering, state machine and immutability rules. Models that compute in floating point fail."
+  }
+}

@@ -34,7 +34,9 @@
     "cost": "Coût",
     "planner": "Planification (sans tâche)",
     "unknown": "Inconnu",
-    "empty": "Aucun appel de modèle pour l'instant."
+    "empty": "Aucun appel de modèle pour l'instant.",
+    "cap": "Plafond de la tâche : {{amount}}",
+    "noCap": "aucun"
   },
   "fallbacks": {
     "title": "Appels traités par un modèle de repli",
@@ -55,5 +57,32 @@
     "label": "Local seulement : ce projet ne peut utiliser que des modèles servis sur cette machine",
     "onHelp": "Rien de ce projet n'est envoyé à un service de modèles extérieur, pas même en repli ou en escalade. Si aucun modèle local ne peut répondre, le travail s'arrête avec un message clair au lieu de quitter la machine. Les téléchargements de paquets de l'application générée ne sont pas couverts.",
     "offHelp": "Demande un modèle servi sur cette machine (par exemple le module Ollama). À utiliser pour du code confidentiel."
+  },
+  "prices": {
+    "title": "Prix et paliers gratuits",
+    "freeCalls_one": "{{count}} appel est allé à un modèle de palier gratuit et compte comme gratuit.",
+    "freeCalls_other": "{{count}} appels sont allés à des modèles de paliers gratuits et comptent comme gratuits.",
+    "changed": "Le prix de modèles utilisés par ce projet a changé récemment:"
+  },
+  "electricity": {
+    "title": "Électricité (modèles locaux)",
+    "amount": "{{amount}}",
+    "detail": "{{calls}} appels locaux, {{seconds}} s de génération. Une estimation (watts x durée x prix du kWh), pas une mesure.",
+    "counted": "Comptée dans le montant dépensé et dans le budget.",
+    "apart": "Affichée à part : non comptée dans le montant dépensé ni dans le budget.",
+    "api": "Dépense API : {{amount}}"
+  },
+  "settings": {
+    "title": "Coûts",
+    "electricityTitle": "Électricité des modèles locaux",
+    "electricityHelp": "Facultatif. Si un prix du kWh et la puissance de la machine sont renseignés, chaque appel à un modèle local enregistre un coût d'électricité estimé (watts x durée de la réponse / 3,6 millions x prix). C'est une estimation, pas une mesure. Non renseigné : aucun coût d'électricité.",
+    "price": "Prix du kWh (USD)",
+    "watts": "Puissance pendant qu'un modèle génère (W)",
+    "counts": "Compter l'électricité dans le montant dépensé et dans le budget du projet",
+    "taskTitle": "Plafond de coût par tâche",
+    "taskHelp": "Une tâche peut dépenser ce multiple de sa propre estimation (au moins {{floor}} USD), toutes ses tentatives comprises. 0 désactive le plafond. Un appel déjà en cours quand le plafond est franchi se termine quand même : une tâche peut dépasser d'un appel. Par défaut : {{default}}.",
+    "multiplier": "Multiple de l'estimation de la tâche",
+    "save": "Enregistrer",
+    "saved": "Enregistré."
   }
 }

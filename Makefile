@@ -1,4 +1,4 @@
-.PHONY: screenshots e2e-full test-installer activation-link help install lint lint-backend lint-ui test test-backend test-ui test-integration format dev dev-down dev-logs smoke e2e bench cassettes
+.PHONY: screenshots e2e-full test-installer activation-link help install lint lint-backend lint-ui test test-backend test-ui test-integration format dev dev-down dev-logs smoke e2e bench bench-dry-run bench-check cassettes
 
 RUFF := cd backend && uv run --quiet ruff
 
@@ -126,5 +126,17 @@ e2e:
 	COBBLE_PACK_MODE=fake COBBLE_FAKE_STEP_S=0.2 $(COMPOSE) up --build -d --wait
 	port=$(HTTP_PORT); cd ui && E2E_BASE_URL=http://localhost:$$port pnpm exec playwright test
 
+# Agent bench (docs/en/bench.md). `make bench` spends real money: it refuses to run unless you
+# confirm with ARGS="--yes-real-models" (or COBBLE_BENCH_REAL_MODELS=yes) and an instance with a
+# real model connection is configured (COBBLE_BENCH_URL, COBBLE_BENCH_EMAIL, COBBLE_BENCH_PASSWORD).
+# Never run it in CI.
 bench:
-	@echo "make bench: available from v0.3 (agent benchmark)." >&2; exit 2
+	python3 scripts/bench.py $(ARGS)
+
+# The same runner against an in-memory simulator: no model, no cost, no network. Safe anywhere.
+bench-dry-run:
+	cd backend && uv run --quiet python ../scripts/bench.py --dry-run $(ARGS)
+
+# Proves the hidden tests of the reference projects are satisfiable and discriminating.
+bench-check:
+	cd backend && uv run --quiet python ../scripts/bench.py --validate-solutions $(ARGS)

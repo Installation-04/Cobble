@@ -58,7 +58,7 @@ from cobble.capabilities.preview import (
 )
 from cobble.config import Settings
 from cobble.db import Milestone, Project, Task, TaskRun
-from cobble.events import publish_project
+from cobble.events import enqueue_job, publish_project
 
 from . import control, demo, prompts, rules
 from .materialize import NoApprovedPlan, materialize_tasks
@@ -81,6 +81,7 @@ COUNTED = (
 )
 LOG_TAIL_CHARS = 4000
 RUN_TOKEN_SLACK_S = 60
+PENDING_GRACE_S = 120  # a pending row younger than this may be a start in flight
 
 
 class StartError(Exception):
@@ -263,8 +264,10 @@ class Scheduler:
         """Pick up after a restart. Safe to call at any time.
 
         - A run still `pending` (the process died around the call to the agent service, so its
-          id was never recorded) is marked `lost`; it does not use up an attempt and the task
-          gets a fresh run. The one risk is an orphan container, which its time limit ends.
+          id was never recorded) is looked up in the agent service by its marker: a run found
+          there is adopted (polled like any other); otherwise the row is marked `lost`, it does
+          not use up an attempt and the task gets a fresh run. While the service cannot be
+          asked the row stays `pending` and `tick` asks again (ADR 0016).
         - Every run still `running` is polled again: finished runs are processed, runs the
           service no longer knows are marked failed, the others are simply watched on.
         - Tasks waiting on CI are checked again (merging an already merged request is a no-op).
@@ -274,12 +277,10 @@ class Scheduler:
         reattached = 0
         waiting = 0
         with self._sessions() as session:
-            for run in session.scalars(select(TaskRun).where(TaskRun.state == PENDING)):
-                run.state = LOST
-                run.finished_at = self._clock()
-                run.log_tail = "interrupted before the agent run was recorded"
-                lost += 1
-            session.commit()
+            for run in session.scalars(select(TaskRun).where(TaskRun.state == PENDING)).all():
+                task = session.get(Task, run.task_id)
+                if task is not None and self._resolve_pending(session, task, run) == LOST:
+                    lost += 1
             reattached = (
                 session.scalar(
                     select(func.count()).select_from(TaskRun).where(TaskRun.state == RUNNING)
@@ -325,6 +326,7 @@ class Scheduler:
             project_ids = self._building_projects(session)
         for project_id in project_ids:
             try:
+                self._retry_pending(project_id)
                 self._advance_existing(project_id)
                 self._start_runnable(project_id)
                 self._advance_milestones(project_id)
@@ -370,7 +372,7 @@ class Scheduler:
         last = runs[-1] if runs else None
         if last is not None and last.state in ACTIVE_RUNS:
             if last.state == PENDING or last.agent_run_id is None:
-                return  # reconcile() decides what became of it
+                return  # reconcile() / _retry_pending() decide what became of it
             try:
                 result = self._agents.poll(last.agent_run_id)
             except AgentUnavailable:
@@ -384,6 +386,51 @@ class Scheduler:
                 return
             self._finish_run(session, task, last, result)
         self._follow_up(session, project, task)
+
+    def _retry_pending(self, project_id: uuid.UUID) -> None:
+        """Ask again about `pending` rows reconcile() could not settle (service unreachable).
+        Rows younger than PENDING_GRACE_S may be a start in flight and are left alone."""
+        with self._sessions() as session:
+            rows = session.scalars(
+                select(TaskRun)
+                .join(Task, Task.id == TaskRun.task_id)
+                .where(Task.project_id == project_id, TaskRun.state == PENDING)
+            ).all()
+            for run in rows:
+                age = (self._clock() - _aware(run.started_at)).total_seconds()
+                task = session.get(Task, run.task_id)
+                if task is not None and age > PENDING_GRACE_S:
+                    self._resolve_pending(session, task, run)
+
+    def _resolve_pending(self, session: Session, task: Task, run: TaskRun) -> str:
+        """Decide what became of a `pending` run: adopt the agent run it started (RUNNING),
+        mark it LOST (nothing was started), or leave it PENDING (service unreachable)."""
+        role = Role.WORKER if run.kind == "worker" else Role.TEST_WRITER
+        marker = prompts.marker(task.ref, role.value, run.attempt)
+        try:
+            found = self._agents.find(marker, task.id)
+        except AgentUnavailable:
+            log.warning("agent service unreachable, run of %s stays pending", task.ref)
+            return PENDING
+        known = {r.agent_run_id for r in self._runs(session, task) if r.agent_run_id}
+        if found is None or found in known:  # a known id belongs to an older run: no orphan
+            run.state = LOST
+            run.finished_at = self._clock()
+            run.log_tail = "interrupted before the agent run was recorded"
+            session.commit()
+            return LOST
+        log.warning("adopting the agent run %s of %s started before a crash", found, task.ref)
+        worker = run.kind == "worker"
+        run.agent_run_id = found
+        run.state = RUNNING
+        task.branch = task.branch or f"task/{task.ref.lower()}"
+        if worker:
+            task.attempts = run.attempt
+            task.escalated = task.escalated or run.attempt - 1 >= self._settings.escalate_after
+        task.state = rules.IMPLEMENTING if worker else rules.WRITING_TESTS
+        session.commit()
+        self._emit_task(task)
+        return RUNNING
 
     def _finish_run(self, session: Session, task: Task, run: TaskRun, result: AgentResult) -> None:
         run.state = result.outcome.value
@@ -780,6 +827,16 @@ class Scheduler:
         milestone.preview_state = state
         session.commit()
         demo.emit_milestone(self._emit, project.id, milestone)
+        self._queue_explanation(project, milestone)
+
+    def _queue_explanation(self, project: Project, milestone: Milestone) -> None:
+        """Explain mode (ADR 0017): ask the worker for the summary of the milestone just built."""
+        if not project.explain_mode or self._redis is None:
+            return
+        try:
+            enqueue_job(self._redis, "explain", project.id, ref=milestone.ref)
+        except Exception:  # a summary is a bonus: never hold the build back for it
+            log.warning("could not queue the explanation of %s", milestone.ref, exc_info=True)
 
     def _follow_preview(self, session: Session, project: Project, milestone: Milestone) -> None:
         if self._preview is None:

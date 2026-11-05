@@ -1,0 +1,26 @@
+# devpi: a local cache of the Python package index (capabilities `package-cache` and
+# `pypi-cache`). It mirrors PyPI on demand and serves what it has seen from disk. It is reachable
+# on the platform network only; nothing is published on the reverse proxy.
+id: devpi
+name: devpi (PyPI cache)
+version: 6.21.0
+category: cache
+description:
+  en: Keeps a local copy of the Python packages your projects download, so installs are faster, work offline once cached and use less bandwidth.
+  fr: "Garde une copie locale des paquets Python que vos projets téléchargent: installations plus rapides, utilisables hors ligne une fois en cache, moins de bande passante."
+license: MIT
+provides: [package-cache, pypi-cache]
+images:
+  - jonasal/devpi-server:6.21.0@sha256:3f06e7c54139d74e18f44f731f5facb39dbe9b48384dd13c4f05c71ded6be39e
+compose: compose.yml
+hardware:
+  min_ram_mb: 1024
+web_ui:
+  service: devpi
+  port: 3141
+  path: /pypi-cache
+  public: false
+healthcheck:
+  http: /
+backup:
+  volumes: [devpi_data]

@@ -49,6 +49,52 @@ class LLMCall(Base):
     # many failed before this one answered (nothing is stored for failed attempts: no tokens).
     fallback_from: Mapped[str | None] = mapped_column(String(200))
     fallbacks: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    # How long the gateway took to answer, and (local models only, when the owner set a price
+    # and a power draw) the estimated electricity cost of that time (ADR 0021). Kept apart from
+    # `cost_usd`, which stays what the providers charged.
+    duration_ms: Mapped[int | None] = mapped_column(Integer)
+    electricity_usd: Mapped[Decimal | None] = mapped_column(Numeric(14, 8))
+
+
+class ModelPrice(Base):
+    """The last price seen for a model, to notice when a provider changes it (ADR 0013).
+
+    `previous_*` and `changed_at` are set only when a later look found a different price."""
+
+    __tablename__ = "model_prices"
+
+    model: Mapped[str] = mapped_column(String(200), primary_key=True)
+    upstream: Mapped[str | None] = mapped_column(String(200))  # the provider's own model name
+    prompt_usd: Mapped[Decimal] = mapped_column(Numeric(20, 12), nullable=False)  # per token
+    completion_usd: Mapped[Decimal] = mapped_column(Numeric(20, 12), nullable=False)
+    free: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=false()
+    )
+    previous_prompt_usd: Mapped[Decimal | None] = mapped_column(Numeric(20, 12))
+    previous_completion_usd: Mapped[Decimal | None] = mapped_column(Numeric(20, 12))
+    changed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
+    )
+
+
+class JobCheckpoint(Base):
+    """The stored answer of one LLM step of a running planner job (ADR 0016).
+
+    Keyed by a digest of the request, so a job replayed after a crash reuses the answer it
+    already paid for instead of calling the model again. Rows live only while the job runs.
+    """
+
+    __tablename__ = "job_checkpoints"
+
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("projects.id", ondelete="CASCADE"), primary_key=True
+    )
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
 
 
 class ModelBenchmark(Base):
@@ -162,6 +208,14 @@ class Project(Base):
     local_only: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default=false()
     )
+    # True: a plain-language summary is written at each milestone (ADR 0017). Costs tokens.
+    explain_mode: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=false()
+    )
+    # True: before planning, the planner proposes 2-3 mockups and the user picks one (ADR 0018).
+    mockups_enabled: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=false()
+    )
     # interview -> spec_review -> plan_review -> ready -> building -> done
     phase: Mapped[str] = mapped_column(
         String(20), nullable=False, default="interview", server_default="interview"
@@ -200,6 +254,26 @@ class Spec(Base):
     status: Mapped[str] = mapped_column(
         String(20), nullable=False, default="draft", server_default="draft"
     )  # draft | approved
+    created_at: Mapped[datetime] = _now_col()
+
+
+class MockupVariant(Base):
+    """One mockup proposed by the planner: plain text only, never markup (ADR 0018)."""
+
+    __tablename__ = "mockup_variants"
+    __table_args__ = (UniqueConstraint("project_id", "position"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    position: Mapped[int] = mapped_column(Integer, nullable=False)
+    title: Mapped[str] = mapped_column(String(120), nullable=False)
+    summary: Mapped[str] = mapped_column(Text, nullable=False)
+    wireframe: Mapped[str] = mapped_column(Text, nullable=False)  # ASCII wireframe
+    chosen: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=false()
+    )
     created_at: Mapped[datetime] = _now_col()
 
 
@@ -313,6 +387,8 @@ class Milestone(Base):
     revision: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     built_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     validated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # "Explique-moi" summary in the user's language (ADR 0017); cleared when re-opened.
+    explanation: Mapped[str | None] = mapped_column(Text)
 
 
 class Module(Base):
@@ -449,3 +525,13 @@ class PlatformState(Base):
     # Per role, the ordered models to try: the first one, then each fallback if the previous
     # one cannot answer (`{"worker": ["local", "cheap-api"]}`). None: no routes were set.
     role_routes: Mapped[dict[str, list[str]] | None] = mapped_column(JSON)
+    # Electricity of local models (ADR 0021): price per kWh in USD and the machine's draw in
+    # watts while a local model generates. Either unset means "no electricity cost" (0).
+    electricity_price_kwh_usd: Mapped[Decimal | None] = mapped_column(Numeric(12, 6))
+    electricity_watts: Mapped[int | None] = mapped_column(Integer)
+    # Whether the estimated electricity counts in a project's spend (and so in its budget).
+    electricity_counts_in_budget: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=false()
+    )
+    # Per-task cap as a multiple of the task's estimate; None: the configured default, 0: none.
+    task_budget_multiplier: Mapped[Decimal | None] = mapped_column(Numeric(8, 2))

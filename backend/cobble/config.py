@@ -28,6 +28,11 @@ class Settings(BaseSettings):
     estimate_tokens_s: int = 20_000
     estimate_tokens_m: int = 50_000
     estimate_usd_per_1k_tokens: Decimal = Decimal("0.002")
+    # Per-task cap (ADR 0021): a task may spend this multiple of its estimate, but never less
+    # than the floor (so a free or tiny estimate does not block the task). 0 disables the cap.
+    # The owner can override the multiplier in the product (platform_state).
+    task_budget_multiplier: Decimal = Decimal("3")
+    task_budget_floor_usd: Decimal = Decimal("0.05")
     lang: str = "en"
     public_url: str = "http://localhost:8080"
     cookie_secure: bool = False

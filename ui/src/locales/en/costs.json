@@ -34,7 +34,9 @@
     "cost": "Cost",
     "planner": "Planning (no task)",
     "unknown": "Unknown",
-    "empty": "No model call yet."
+    "empty": "No model call yet.",
+    "cap": "Task cap: {{amount}}",
+    "noCap": "none"
   },
   "fallbacks": {
     "title": "Calls answered by a fallback model",
@@ -55,5 +57,32 @@
     "label": "Local only: this project may only use models served on this machine",
     "onHelp": "Nothing of this project is sent to an outside model service, not even as a fallback or an escalation. If no local model can answer, the work stops with a clear message instead of leaving the machine. Package downloads of the generated app are not covered.",
     "offHelp": "Needs a model served on this machine (for example the Ollama module). Use it for confidential code."
+  },
+  "prices": {
+    "title": "Prices and free tiers",
+    "freeCalls_one": "{{count}} call went to a free-tier model and is counted as free.",
+    "freeCalls_other": "{{count}} calls went to free-tier models and are counted as free.",
+    "changed": "The price of models this project uses changed lately:"
+  },
+  "electricity": {
+    "title": "Electricity (local models)",
+    "amount": "{{amount}}",
+    "detail": "{{calls}} local calls, {{seconds}} s of generation. An estimate (watts x time x price per kWh), not a measure.",
+    "counted": "Counted in the amount spent and in the budget.",
+    "apart": "Shown apart: not counted in the amount spent or in the budget.",
+    "api": "API spend: {{amount}}"
+  },
+  "settings": {
+    "title": "Costs",
+    "electricityTitle": "Electricity of local models",
+    "electricityHelp": "Optional. When a price per kWh and the machine's power draw are set, each call to a local model records an estimated electricity cost (watts x answer time / 3.6 million x price). It is an estimate, not a measure. Unset: no electricity cost.",
+    "price": "Price per kWh (USD)",
+    "watts": "Power draw while a model generates (W)",
+    "counts": "Count the electricity in the amount spent and in the project budget",
+    "taskTitle": "Cost cap per task",
+    "taskHelp": "A task may spend this multiple of its own estimate (at least {{floor}} USD), all its attempts together. 0 turns the cap off. A call already running when the cap is crossed still finishes, so a task can overshoot by one call. Default: {{default}}.",
+    "multiplier": "Multiple of the task estimate",
+    "save": "Save",
+    "saved": "Saved."
   }
 }

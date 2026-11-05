@@ -9,12 +9,21 @@ export interface JobFailure {
 
 export type JobsInFlight = Record<JobKind, boolean>;
 
-const NO_JOBS: JobsInFlight = { reply: false, spec: false, plan: false, start: false };
+const NO_JOBS: JobsInFlight = {
+  reply: false,
+  spec: false,
+  plan: false,
+  start: false,
+  explain: false,
+  mockups: false,
+};
 
 export interface StreamHandlers {
   onMessage?: (message: ChatMessage) => void;
   onSpecUpdated?: (version: number) => void;
   onPlanUpdated?: (version: number) => void;
+  /** `mockups.updated`: new variants, or another one was chosen (ADR 0018). */
+  onMockupsUpdated?: () => void;
   onPhaseChanged?: (phase: Phase) => void;
   /** `task.updated {task_id, state, attempts}` (ADR 0006). */
   onTaskUpdated?: (update: { ref: string; state: TaskState; attempts?: number }) => void;
@@ -26,7 +35,7 @@ export interface StreamHandlers {
   onResync?: () => void;
 }
 
-const JOB_KINDS: readonly JobKind[] = ["reply", "spec", "plan", "start"];
+const JOB_KINDS: readonly JobKind[] = ["reply", "spec", "plan", "start", "explain", "mockups"];
 
 function isKind(value: unknown): value is JobKind {
   return typeof value === "string" && (JOB_KINDS as readonly string[]).includes(value);
@@ -94,6 +103,10 @@ export function useProjectStream(projectId: string | undefined, handlers: Stream
     on("plan.updated", (data) => {
       setJob("plan", false);
       handlersRef.current.onPlanUpdated?.(Number(data.version));
+    });
+    on("mockups.updated", () => {
+      setJob("mockups", false);
+      handlersRef.current.onMockupsUpdated?.();
     });
     on("phase.changed", (data) => {
       if (data.phase === "building") setJob("start", false);

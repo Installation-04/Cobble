@@ -22,7 +22,13 @@ export interface WorkspaceValue {
   createProject: (name: string, folderId: string | null) => Promise<Project>;
   updateProject: (
     id: string,
-    body: { name?: string; folder_id?: string | null; local_only?: boolean },
+    body: {
+      name?: string;
+      folder_id?: string | null;
+      local_only?: boolean;
+      explain_mode?: boolean;
+      mockups_enabled?: boolean;
+    },
   ) => Promise<void>;
   deleteProject: (id: string) => Promise<void>;
   /** Merge server-pushed fields (e.g. the phase) into a project already in memory. */

@@ -9,6 +9,7 @@ import { Button } from "../components/ui/button";
 import { FailureBanner } from "./FailureBanner";
 import { FeedbackForm } from "./FeedbackForm";
 import { formatCost, formatTokens } from "./format";
+import { MockupsPanel } from "./MockupsPanel";
 import { useProjectData } from "./ProjectDataProvider";
 import { useAsyncAction } from "./useAsyncAction";
 
@@ -156,8 +157,18 @@ function PlanView({ plan, lang }: { plan: Plan; lang: string }) {
 
 export function PlanTab() {
   const { t, i18n } = useTranslation("plan");
-  const { phase, paused, plan, spec, jobs, generatePlan, approvePlan, startBuilding } =
-    useProjectData();
+  const {
+    project,
+    phase,
+    paused,
+    plan,
+    spec,
+    jobs,
+    mockups,
+    generatePlan,
+    approvePlan,
+    startBuilding,
+  } = useProjectData();
   const [asking, setAsking] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const feedback = useAsyncAction();
@@ -188,10 +199,13 @@ export function PlanTab() {
               <ClipboardList className="h-8 w-8 text-muted-foreground" aria-hidden="true" />
               <h2 className="text-lg font-semibold">{t(`empty.${key}.title`)}</h2>
               <p className="text-sm text-muted-foreground">{t(`empty.${key}.description`)}</p>
+              {specApproved && <MockupsPanel />}
               {specApproved && (
                 <Button
                   data-testid="plan-generate"
-                  disabled={paused}
+                  disabled={
+                    paused || (project.mockups_enabled === true && !mockups.some((m) => m.chosen))
+                  }
                   onClick={() => void generate.run(() => generatePlan())}
                 >
                   {t("generatePlan")}
@@ -240,6 +254,7 @@ export function PlanTab() {
             {t("regenerating")}
           </p>
         )}
+        {inReview && <MockupsPanel />}
         <PlanView plan={plan} lang={lang} />
       </div>
 

@@ -51,7 +51,8 @@
     "plan": "Plan",
     "agents": "Agents",
     "demo": "Démo",
-    "costs": "Coûts"
+    "costs": "Coûts",
+    "report": "Rapport"
   },
   "home": {
     "title": "Bienvenue sur Cobble",

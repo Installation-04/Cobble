@@ -1,0 +1,5 @@
+# Results of bench runs are local: only the summary templates are published.
+*
+!.gitignore
+!SUMMARY.template.en.md
+!SUMMARY.template.fr.md

@@ -15,5 +15,6 @@
   "regenerating": "Writing a new version of the spec…",
   "approvedNote": "Spec approved. The next step is the plan.",
   "generatePlan": "Generate plan",
-  "generatingPlan": "Generating the plan…"
+  "generatingPlan": "Generating the plan…",
+  "mockupHint": "Choose a mockup in the Plan tab before generating the plan."
 }

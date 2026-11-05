@@ -1,6 +1,7 @@
-import { api, requestText, type TextChunk } from "./client";
+import { API_BASE, api, requestText, type TextChunk } from "./client";
 import type {
   ChatMessage,
+  CostSettings,
   Folder,
   GlobalCostRow,
   Milestone,
@@ -9,16 +10,20 @@ import type {
   ModelRequest,
   PresetSlot,
   PresetsData,
+  BenchmarkStatus,
   Benchmarks,
+  ModelPrices,
   RoleRoutes,
   ModuleCatalog,
   ModuleOperation,
   ModuleOperationRequest,
   ModulePacks,
+  MockupVariant,
   ModulePlan,
   Plan,
   Project,
   ProjectCosts,
+  ProjectReport,
   Spec,
   Task,
   TaskDetail,
@@ -48,8 +53,16 @@ export const projectsApi = {
   list: () => api.get<Project[]>("/projects"),
   create: (name: string, folderId: string | null) =>
     api.post<Project>("/projects", folderId ? { name, folder_id: folderId } : { name }),
-  update: (id: string, body: { name?: string; folder_id?: string | null; local_only?: boolean }) =>
-    api.patch<Project>(`/projects/${id}`, body),
+  update: (
+    id: string,
+    body: {
+      name?: string;
+      folder_id?: string | null;
+      local_only?: boolean;
+      explain_mode?: boolean;
+      mockups_enabled?: boolean;
+    },
+  ) => api.patch<Project>(`/projects/${id}`, body),
   remove: (id: string) => api.delete(`/projects/${id}`),
 };
 
@@ -66,6 +79,11 @@ export const flowApi = {
   generatePlan: (id: string, feedback?: string) =>
     api.post<void>(`/projects/${id}/plan/generate`, feedback ? { feedback } : {}),
   approvePlan: (id: string) => api.post<Plan>(`/projects/${id}/plan/approve`),
+  mockups: (id: string) => api.get<MockupVariant[]>(`/projects/${id}/mockups`),
+  generateMockups: (id: string, body: { feedback?: string; count?: number } = {}) =>
+    api.post<void>(`/projects/${id}/mockups/generate`, body),
+  chooseMockup: (id: string, variantId: string) =>
+    api.post<MockupVariant[]>(`/projects/${id}/mockups/${variantId}/choose`),
 };
 
 /** The answer of an action is either the object itself or wrapped under `key` (ADR 0007). */
@@ -97,11 +115,19 @@ export const demoApi = {
     api.post<unknown>(`/projects/${id}/milestones/${ref}/comments`, { content }),
   revert: (id: string, ref: string) =>
     api.post<unknown>(`/projects/${id}/milestones/${ref}/revert`),
+  explain: (id: string, ref: string) =>
+    api.post<unknown>(`/projects/${id}/milestones/${ref}/explain`),
 };
 
 export const costsApi = {
   project: (id: string) => api.get<ProjectCosts>(`/projects/${id}/costs`),
   all: () => api.get<GlobalCostRow[]>("/costs"),
+};
+
+export const reportApi = {
+  get: (id: string) => api.get<ProjectReport>(`/projects/${id}/report`),
+  /** Same-origin download of the Markdown version, in the user's language. */
+  markdownUrl: (id: string) => `${API_BASE}/projects/${id}/report?format=md`,
 };
 
 export const modulesApi = {
@@ -114,6 +140,11 @@ export const modulesApi = {
   operation: (id: string) => api.get<ModuleOperation>(`/modules/operations/${id}`),
   /** Which secrets of a module are set (never their values). */
   secrets: (id: string) => api.get<Record<string, boolean>>(`/modules/${id}/secrets`),
+};
+
+export const costSettingsApi = {
+  get: () => api.get<CostSettings>("/settings/costs"),
+  save: (body: CostSettings) => api.put<CostSettings>("/settings/costs", body),
 };
 
 export const modelsApi = {
@@ -132,7 +163,11 @@ export const modelsApi = {
   applyPreset: (id: string, slots: Partial<Record<PresetSlot, string>>) =>
     api.post<RoleRoutes>(`/models/presets/${id}/apply`, slots),
   routes: () => api.get<RoleRoutes>("/models/routes"),
+  prices: () => api.get<ModelPrices>("/models/prices"),
   benchmarks: () => api.get<Benchmarks>("/models/benchmarks"),
+  benchmarkStatus: () => api.get<BenchmarkStatus>("/models/benchmarks/status"),
+  runBenchmark: (models: string[], allowPaid: boolean) =>
+    api.post<BenchmarkStatus>("/models/benchmarks/run", { models, allow_paid: allowPaid }),
   saveRoutes: (routes: Record<string, string[]>) =>
     api.put<RoleRoutes>("/models/routes", { routes }),
 };

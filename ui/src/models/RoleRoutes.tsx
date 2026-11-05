@@ -8,6 +8,7 @@ import { Select } from "../components/ui/select";
 import { useAsyncAction } from "../project/useAsyncAction";
 import { useFetched } from "../project/useFetched";
 import { Benchmarks } from "./Benchmarks";
+import { Prices } from "./Prices";
 import { Presets } from "./Presets";
 
 const SLOTS = 3; // the chosen model, then up to two fallbacks (the server allows `max_chain`)
@@ -153,6 +154,7 @@ export function RoleRoutes() {
           setVersion((v) => v + 1);
         }}
       />
+      <Prices />
       <RoleRows
         key={version}
         data={data}

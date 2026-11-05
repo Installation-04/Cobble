@@ -12,13 +12,17 @@ export const KNOWN_ERROR_CODES = [
   "not_found",
   "validation_error",
   "wrong_phase",
+  "mockups_disabled",
+  "mockup_choice_required",
   "project_paused",
   "plan_invalid",
   "llm_error",
   "local_only_unavailable",
   "budget_reached",
+  "task_budget_reached",
   "wrong_state",
   "queue_unavailable",
+  "explain_mode_off",
   "agent_unavailable",
   "git_unavailable",
   "forbidden",
@@ -37,6 +41,9 @@ export const KNOWN_ERROR_CODES = [
   "invalid_request",
   "model_unknown",
   "model_gateway_failed",
+  "benchmark_running",
+  "benchmark_paid",
+  "benchmark_nothing",
 ] as const;
 
 /** Failure codes of an install or removal step, translated as `errors:module_code_<code>`. */

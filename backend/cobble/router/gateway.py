@@ -6,7 +6,9 @@ All LLM calls go through LiteLLM (never a provider SDK). The cost router
 
 from __future__ import annotations
 
+import time
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from typing import Any
@@ -110,7 +112,11 @@ class LiteLLMGateway:
         sessions: sessionmaker[Session],
         events: Redis | None = None,
         client: httpx.Client | None = None,
+        electricity: Callable[[tuple[str, ...], Decimal], Decimal | None] | None = None,
     ) -> None:
+        # `electricity(models, seconds)`: the estimated electricity of a call to a local model
+        # (ADR 0021); None for a model served elsewhere or when the owner set nothing.
+        self._electricity = electricity
         self._sessions = sessions
         self._events = events
         self._client = client or httpx.Client(
@@ -147,9 +153,11 @@ class LiteLLMGateway:
     ) -> ChatResult:
         """`fallback_from` / `fallbacks`: the first model that could not answer and how many
         failed before this one did (set by the cost router, recorded with the call)."""
+        started = time.monotonic()
         reply = self._client.post(
             "/v1/chat/completions", json={"model": model, "messages": messages}
         )
+        elapsed = Decimal(str(time.monotonic() - started))
         if reply.status_code != 200:
             raise GatewayError(reply.status_code, unknown_model=_is_unknown_model(reply))
         data = reply.json()
@@ -163,6 +171,9 @@ class LiteLLMGateway:
             request_id=reply.headers.get(CALL_ID_HEADER) or data.get("id"),
         )
         call_id = uuid.uuid4()
+        electricity = (
+            self._electricity((model, result.model), elapsed) if self._electricity else None
+        )
         with self._sessions() as session:
             session.add(
                 LLMCall(
@@ -177,6 +188,8 @@ class LiteLLMGateway:
                     request_id=result.request_id,
                     fallback_from=fallback_from,
                     fallbacks=fallbacks,
+                    duration_ms=int(elapsed * 1000),
+                    electricity_usd=electricity,
                 )
             )
             session.commit()
@@ -193,6 +206,7 @@ class LiteLLMGateway:
                     "prompt_tokens": result.prompt_tokens,
                     "completion_tokens": result.completion_tokens,
                     "cost_usd": str(result.cost_usd),
+                    "electricity_usd": str(electricity) if electricity is not None else None,
                 },
             )
         return result

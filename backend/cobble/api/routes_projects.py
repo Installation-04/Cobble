@@ -50,6 +50,7 @@ def create_project(body: ProjectIn, user: CurrentUser, db: Db, settings: AppSett
         folder_id=body.folder_id,
         budget_usd=settings.default_budget_usd,
         local_only=body.local_only,
+        explain_mode=body.explain_mode,
     )
     db.add(project)
     db.commit()
@@ -70,6 +71,10 @@ def update_project(project_id: str, body: ProjectPatch, user: CurrentUser, db: D
         apply_budget(db, project, body.budget_usd)
     if body.local_only is not None:
         project.local_only = body.local_only
+    if body.explain_mode is not None:
+        project.explain_mode = body.explain_mode
+    if body.mockups_enabled is not None:
+        project.mockups_enabled = body.mockups_enabled
     db.commit()
     return project
 

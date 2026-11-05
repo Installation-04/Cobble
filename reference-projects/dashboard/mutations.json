@@ -1,0 +1,17 @@
+[
+  {"name": "offset ignored (naive UTC)", "file": "app/main.py", "old": "return (moment if moment.tzinfo else moment.replace(tzinfo=UTC)).astimezone(UTC)", "new": "return moment.replace(tzinfo=UTC)"},
+  {"name": "to is inclusive", "file": "app/main.py", "old": "AND ts < ?", "new": "AND ts <= ?"},
+  {"name": "from is exclusive", "file": "app/main.py", "old": "AND ts >= ?", "new": "AND ts > ?"},
+  {"name": "average not rounded", "file": "app/main.py", "old": "\"avg\": round(sum(values) / len(values), 2),", "new": "\"avg\": sum(values) / len(values),"},
+  {"name": "average is the median-ish first value", "file": "app/main.py", "old": "\"avg\": round(sum(values) / len(values), 2),", "new": "\"avg\": values[0],"},
+  {"name": "empty range is an error", "file": "app/main.py", "old": "    if not values:\n        return {\"count\": 0, \"sum\": 0, \"min\": None, \"max\": None, \"avg\": None}\n", "new": "    if not values:\n        raise HTTPException(404, \"Nothing\")\n"},
+  {"name": "buckets by day only", "file": "app/main.py", "old": "width = 13 if bucket == \"hour\" else 10", "new": "width = 10"},
+  {"name": "buckets in descending order", "file": "app/main.py", "old": "for key, values in sorted(groups.items())", "new": "for key, values in sorted(groups.items(), reverse=True)"},
+  {"name": "top sources ascending", "file": "app/main.py", "old": "key=lambda item: (-item[1], item[0])", "new": "key=lambda item: (item[1], item[0])"},
+  {"name": "limit ignored", "file": "app/main.py", "old": "return [{\"source\": source, \"sum\": round(total, 2)} for source, total in ranked[:limit]]", "new": "return [{\"source\": source, \"sum\": round(total, 2)} for source, total in ranked[:3]]"},
+  {"name": "metrics mixed together", "file": "app/main.py", "old": "sql, args = \"SELECT * FROM events WHERE name = ?\", [name]", "new": "sql, args = \"SELECT * FROM events WHERE name = ? OR 1\", [name]"},
+  {"name": "unknown metric is empty, not 404", "file": "app/main.py", "old": "        raise HTTPException(404, \"Unknown metric\")", "new": "        return []"},
+  {"name": "bad date accepted", "file": "app/main.py", "old": "        raise HTTPException(422, \"Invalid date\") from None", "new": "        return None"},
+  {"name": "bad name accepted", "file": "app/main.py", "old": "pattern=r\"^[a-z0-9_.]+$\", min_length=1, max_length=50", "new": "min_length=0, max_length=500"},
+  {"name": "data not persisted", "file": "app/main.py", "old": "sqlite3.connect(folder / \"dashboard.db\")", "new": "sqlite3.connect(\":memory:\")"}
+]

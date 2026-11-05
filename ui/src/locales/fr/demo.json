@@ -14,6 +14,16 @@
   "validate": "Valider",
   "validating": "Validation…",
   "done": "Tous les jalons sont validés : le projet est terminé.",
+  "explain": {
+    "toggleLabel": "Explique-moi : écrire un résumé en langage simple à chaque jalon",
+    "onHelp": "Quand un jalon est construit, un assistant explique en mots simples ce qui a été construit et pourquoi. Cela utilise quelques jetons de plus par jalon.",
+    "offHelp": "Désactivé par défaut, car chaque résumé coûte quelques jetons. Activez-le pour apprendre à mesure que le projet avance.",
+    "title": "Expliqué en mots simples",
+    "writing": "L'explication est en cours de rédaction…",
+    "regenerate": "La réécrire",
+    "generate": "Expliquer ce jalon",
+    "queued": "Explication demandée. Elle apparaît ici dans un instant."
+  },
   "empty": {
     "title": "Pas encore de démo",
     "notStarted": "Les démos apparaissent ici une fois le plan approuvé et la construction lancée.",

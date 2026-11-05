@@ -34,6 +34,10 @@ export interface Project {
   budget_usd?: string | null;
   /** True: no request of this project may reach a model that is not served on this machine. */
   local_only?: boolean;
+  /** True: a plain-language summary is written at each milestone ("Explique-moi"). */
+  explain_mode?: boolean;
+  /** True: the planner proposes mockup variants and the user picks one before planning. */
+  mockups_enabled?: boolean;
   status: "active" | "paused";
   phase: Phase;
 }
@@ -89,7 +93,17 @@ export interface Plan {
   created_at: string;
 }
 
-export type JobKind = "reply" | "spec" | "plan" | "start";
+export type JobKind = "reply" | "spec" | "plan" | "start" | "explain" | "mockups";
+
+/** A mockup proposed by the planner: plain text only, always rendered as escaped text. */
+export interface MockupVariant {
+  id: string;
+  position: number;
+  title: string;
+  summary: string;
+  wireframe: string;
+  chosen: boolean;
+}
 
 /** Scheduler task states (ADR 0006). */
 export const TASK_STATES = [
@@ -150,6 +164,8 @@ export interface Milestone {
   preview_path: string | null;
   built_at: string | null;
   validated_at: string | null;
+  /** Plain-language summary of what was built (explain mode), else null. */
+  explanation?: string | null;
 }
 
 /** Decimals travel as strings. */
@@ -162,9 +178,50 @@ export interface CostLine {
 /** `ref` is null for planner calls (no task). */
 export interface CostByTask extends CostLine {
   ref: string | null;
+  /** The task's own cost cap (null: none, or planner calls). */
+  cap_usd?: string | null;
+}
+
+/** Estimated electricity of local models, apart from the API spend (ADR 0021). */
+export interface CostElectricity {
+  usd: string;
+  seconds: number;
+  calls: number;
+  counts_in_budget: boolean;
+  estimated: boolean;
+}
+
+/** `GET/PUT /settings/costs`: electricity of local models and the per-task cap. */
+export interface CostSettings {
+  electricity_price_kwh_usd: string | null;
+  electricity_watts: number | null;
+  electricity_counts_in_budget: boolean;
+  electricity_enabled?: boolean;
+  task_budget_multiplier: string | null;
+  effective_task_budget_multiplier?: string;
+  task_budget_floor_usd?: string;
 }
 export interface CostByModel extends CostLine {
   model: string | null;
+  /** A free-tier model: its calls are counted as free. */
+  free?: boolean;
+}
+
+/** The last price seen of a model (USD per million tokens) and whether it changed lately. */
+export interface ModelPriceLine {
+  model: string;
+  prompt_per_million_usd: string | null;
+  completion_per_million_usd: string | null;
+  free: boolean;
+  changed: boolean;
+  previous_prompt_per_million_usd: string | null;
+  previous_completion_per_million_usd: string | null;
+  changed_at: string | null;
+}
+
+export interface ModelPrices {
+  prices: ModelPriceLine[];
+  change_window_days: number;
 }
 export interface CostByRole extends CostLine {
   role: string | null;
@@ -173,11 +230,18 @@ export interface CostByRole extends CostLine {
 export interface ProjectCosts {
   budget_usd: string | null;
   spent_usd: string;
+  /** What the providers charged; `spent_usd` adds the electricity only when it is counted. */
+  api_usd?: string;
+  electricity?: CostElectricity;
   tokens: { prompt: number; completion: number };
   estimate_usd: string | null;
   by_task: CostByTask[];
   by_model: CostByModel[];
   by_role: CostByRole[];
+  /** Calls to free-tier models (counted as free). */
+  free_calls?: number;
+  /** Models used by this project whose price changed lately. */
+  price_changes?: ModelPriceLine[];
   /** Calls answered by another model because the one chosen for the role could not. */
   fallbacks?: CostFallbacks;
   /** Compared with doing every call with the strongest model; null when it cannot be priced. */
@@ -191,6 +255,39 @@ export interface CostSavings {
   /** Negative (a leading "-") when the project cost more than the reference model would have. */
   saved_usd: string;
   saved_percent: number;
+}
+
+/** `GET /projects/{id}/report` (ADR 0014): the end-of-project report. */
+export interface ReportMilestone {
+  ref: string;
+  title: string;
+  status: "pending" | "built" | "validated";
+  validated_at: string | null;
+  tasks_total: number;
+  tasks_done: number;
+  tasks_failed: number;
+}
+
+export interface ProjectReport {
+  project: { id: string; name: string; phase: string; status: string; finished: boolean };
+  span: { started_at: string | null; ended_at: string | null; duration_seconds: number | null };
+  build: {
+    milestones: ReportMilestone[];
+    milestones_validated: number;
+    tasks: { total: number; done: number; failed: number; escalated: number; attempts: number };
+  };
+  costs: {
+    spent_usd: string;
+    budget_usd: string | null;
+    estimate_usd: string | null;
+    budget_used_percent: number | null;
+    estimate_delta_percent: number | null;
+    tokens: { prompt: number; completion: number };
+    savings: CostSavings | null;
+    by_model: CostByModel[];
+    by_role: CostByRole[];
+    fallbacks: CostFallbacks;
+  };
 }
 
 export interface CostFallbackLine extends CostLine {
@@ -411,6 +508,22 @@ export interface Benchmarks {
   version: number;
   results: BenchmarkResult[];
   suggested_worker: string | null;
+}
+
+/** The state of the local benchmark job (one run at a time). */
+export interface BenchmarkStatus {
+  state: "idle" | "running";
+  models: string[];
+  /** The model being measured, and its position among `models`. */
+  model: string | null;
+  model_index: number;
+  /** Tasks done for this model, out of `tasks`. */
+  task: number;
+  tasks: number;
+  started_at: string | null;
+  finished_at: string | null;
+  /** Why the last run stopped early (a code such as `sandbox_unavailable`), else null. */
+  error: string | null;
 }
 
 /** A model served on this machine by an installed backend: free, no key. */

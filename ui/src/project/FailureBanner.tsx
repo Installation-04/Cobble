@@ -5,8 +5,10 @@ import { useProjectData } from "./ProjectDataProvider";
 
 const KNOWN_CODES = [
   "plan_invalid",
+  "mockups_invalid",
   "llm_error",
   "budget_reached",
+  "task_budget_reached",
   "local_only_unavailable",
   // Start job (ADR 0006)
   "repo_error",
@@ -15,6 +17,9 @@ const KNOWN_CODES = [
   "wrong_phase",
   "internal_error",
   "scheduler_unavailable",
+  // The job crashed on every try and was set aside by the worker (ADR 0016)
+  "crashed",
+  "empty_explanation",
 ];
 
 /** Last failed job (job.failed), with its translated error code. */
