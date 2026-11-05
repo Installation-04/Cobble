@@ -90,7 +90,7 @@
   },
   "benchmark": {
     "title": "Local benchmark",
-    "description": "Measured on this machine with hidden test cases, run from the command line: cobble models benchmark. Quality is the share of cases passed.",
+    "description": "Measured on this machine with hidden test cases, run from here or with: cobble models benchmark. Quality is the share of cases passed.",
     "model": "Model",
     "quality": "Quality",
     "speed": "Speed",
@@ -98,7 +98,30 @@
     "unknown": "—",
     "tps": "{{n}} tokens/s",
     "use": "Use as worker",
-    "percent": "{{n}} %"
+    "percent": "{{n}} %",
+    "empty": "No benchmark has been run yet.",
+    "run": {
+      "open": "Run benchmark",
+      "close": "Close",
+      "start": "Start",
+      "local": "Models served on this machine",
+      "paid": "Models that cost money per token. Measuring them spends tokens: tick them only on purpose.",
+      "none": "No model is served on this machine and no other model is connected."
+    },
+    "running": "Measuring {{model}}: task {{task}} of {{tasks}} (model {{index}} of {{count}})",
+    "finished": "Benchmark finished.",
+    "failed": {
+      "title": "The benchmark stopped:",
+      "sandbox_unavailable": "The code sandbox is not available. Is the module-manager running with its sandbox image?",
+      "docker_unavailable": "Docker is not available to the module-manager, so the code cannot be run.",
+      "sandbox_busy": "The code sandbox is busy. Try again in a moment.",
+      "sandbox_error": "The code sandbox failed. Nothing was stored for the model being measured.",
+      "module_manager_unavailable": "The module manager is not available right now.",
+      "model_error": "The model could not answer (is it running, and is the model gateway up?). Nothing was stored for it.",
+      "interrupted": "The benchmark was interrupted (the worker stopped). Run it again.",
+      "internal_error": "An internal error stopped the benchmark. Run it again.",
+      "unknown": "The benchmark stopped for an unknown reason."
+    }
   },
   "prices": {
     "title": "Prices",

@@ -90,7 +90,7 @@
   },
   "benchmark": {
     "title": "Banc d'essai local",
-    "description": "Mesuré sur cette machine avec des cas de test cachés, lancé en ligne de commande: cobble models benchmark. La qualité est la part de cas réussis.",
+    "description": "Mesuré sur cette machine avec des cas de test cachés, lancé d'ici ou en ligne de commande: cobble models benchmark. La qualité est la part de cas réussis.",
     "model": "Modèle",
     "quality": "Qualité",
     "speed": "Vitesse",
@@ -98,7 +98,30 @@
     "unknown": "—",
     "tps": "{{n}} jetons/s",
     "use": "Utiliser comme développeur",
-    "percent": "{{n}} %"
+    "percent": "{{n}} %",
+    "empty": "Aucun banc d'essai n'a encore été lancé.",
+    "run": {
+      "open": "Lancer le banc d'essai",
+      "close": "Fermer",
+      "start": "Démarrer",
+      "local": "Modèles servis sur cette machine",
+      "paid": "Modèles payants au jeton. Les mesurer dépense des jetons: ne les cochez que volontairement.",
+      "none": "Aucun modèle n'est servi sur cette machine et aucun autre n'est connecté."
+    },
+    "running": "Mesure de {{model}}: tâche {{task}} sur {{tasks}} (modèle {{index}} sur {{count}})",
+    "finished": "Banc d'essai terminé.",
+    "failed": {
+      "title": "Le banc d'essai s'est arrêté:",
+      "sandbox_unavailable": "Le bac à sable de code n'est pas disponible. Le gestionnaire de modules tourne-t-il avec son image de bac à sable ?",
+      "docker_unavailable": "Docker n'est pas disponible pour le gestionnaire de modules, le code ne peut donc pas être exécuté.",
+      "sandbox_busy": "Le bac à sable de code est occupé. Réessayez dans un instant.",
+      "sandbox_error": "Le bac à sable de code a échoué. Rien n'a été enregistré pour le modèle mesuré.",
+      "module_manager_unavailable": "Le gestionnaire de modules n'est pas disponible pour le moment.",
+      "model_error": "Le modèle n'a pas pu répondre (tourne-t-il, et la passerelle de modèles est-elle active ?). Rien n'a été enregistré pour lui.",
+      "interrupted": "Le banc d'essai a été interrompu (le worker s'est arrêté). Relancez-le.",
+      "internal_error": "Une erreur interne a arrêté le banc d'essai. Relancez-le.",
+      "unknown": "Le banc d'essai s'est arrêté pour une raison inconnue."
+    }
   },
   "prices": {
     "title": "Prix",

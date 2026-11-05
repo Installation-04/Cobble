@@ -15,6 +15,7 @@ import sys
 from collections.abc import Callable
 from typing import Any, Protocol
 
+from cobble.benchmark.job import BenchRig, LiveBench
 from cobble.cli_modules import EXIT_UNAVAILABLE, Terminal, _refusal_text
 from cobble.config import Settings
 from cobble.i18n import t
@@ -154,48 +155,6 @@ def run(
     except ModuleManagerRejected as exc:
         term.warn(_refusal_text(exc, lang))
         return 1
-
-
-class BenchRig(Protocol):
-    """What the benchmark needs from the outside: asking a model, running code, the results."""
-
-    def chat(self, model: str) -> Callable[[list[dict[str, str]]], Any]: ...
-    def run_code(self, program: str, timeout_s: float) -> dict[str, Any]: ...
-    def store(self, result: Any) -> None: ...
-    def latest(self) -> list[Any]: ...
-
-
-class LiveBench:
-    """The real thing: the gateway for the model, the module-manager's sandbox for the code."""
-
-    def __init__(self, settings: Settings, api: Any) -> None:
-        from cobble.db import make_engine, make_session_factory
-        from cobble.router.gateway import LiteLLMGateway
-
-        self._sessions = make_session_factory(make_engine(settings.database_url))
-        self._gateway = LiteLLMGateway(settings.litellm_url, settings.litellm_key, self._sessions)
-        self._api = api
-
-    def chat(self, model: str) -> Callable[[list[dict[str, str]]], Any]:
-        def ask(messages: list[dict[str, str]]) -> Any:
-            return self._gateway.chat(model, list(messages), role="benchmark")
-
-        return ask
-
-    def run_code(self, program: str, timeout_s: float) -> dict[str, Any]:
-        result: dict[str, Any] = self._api.sandbox_run(program, timeout_s)
-        return result
-
-    def store(self, result: Any) -> None:
-        from cobble.benchmark.service import store
-
-        store(self._sessions, result)
-
-    def latest(self) -> list[Any]:
-        from cobble.benchmark.service import latest
-        from cobble.benchmark.tasks import VERSION
-
-        return latest(self._sessions, VERSION)
 
 
 class PriceRig(Protocol):
@@ -363,7 +322,7 @@ def _benchmark(
     store: RoutesStore | None,
     rig: BenchRig | None,
 ) -> int:
-    from cobble.benchmark.runner import run_benchmark
+    from cobble.benchmark.job import run_models
     from cobble.benchmark.service import best_worker
 
     rig = rig or LiveBench(settings, api)
@@ -384,14 +343,8 @@ def _benchmark(
         if not wanted:
             term.warn(t("cli.models.benchmark.nothing", lang))
             return 2
-        for name in wanted:
-            term.say(t("cli.models.benchmark.running", lang, name=name))
-            result = run_benchmark(name, rig.chat(name), rig.run_code)
-            rig.store(result)
-            failed = [o for o in result.outcomes if o.error in ("sandbox_error",)]
-            if failed:
-                term.warn(t("cli.models.benchmark.sandbox", lang))
-                return 1
+
+        def show(result: Any) -> None:
             speed = (
                 f"{result.tokens_per_second:.1f}" if result.tokens_per_second is not None else "-"
             )
@@ -399,11 +352,24 @@ def _benchmark(
                 t(
                     "cli.models.benchmark.result",
                     lang,
-                    name=name,
+                    name=result.model,
                     quality=f"{result.quality * 100:.0f}",
                     speed=speed,
                 )
             )
+
+        error = run_models(
+            wanted,
+            rig,
+            on_start=lambda name, _index: term.say(
+                t("cli.models.benchmark.running", lang, name=name)
+            ),
+            on_result=show,
+        )
+        if error is not None:
+            key = "model" if error == "model_error" else "sandbox"
+            term.warn(t(f"cli.models.benchmark.{key}", lang))
+            return 1
     rows = rig.latest()
     for row in rows:
         speed = f"{row.tokens_per_second:.1f}" if row.tokens_per_second is not None else "-"

@@ -80,6 +80,8 @@ class FakeStreamRedis:
         self.groups: dict[tuple[str, str], int] = {}  # next index to deliver
         self.pending: dict[tuple[str, str], dict[str, tuple[str, dict[bytes, bytes]]]] = {}
         self.acked: list[str] = []
+        self.values: dict[str, bytes] = {}
+        self.ttl: dict[str, int] = {}
         self._counter = 0
         self.now_ms = 0  # fake clock for idle times: advance it with `advance`
         # per pending entry: when it was last delivered/claimed and how many times
@@ -96,6 +98,24 @@ class FakeStreamRedis:
     def _check(self) -> None:
         if self.fail:
             raise RedisError("down")
+
+    def set(self, key: str, value: str, nx: bool = False, ex: int | None = None) -> bool | None:
+        self._check()
+        if nx and key in self.values:
+            return None
+        self.values[key] = value.encode()
+        if ex is not None:
+            self.ttl[key] = ex
+        return True
+
+    def get(self, key: str) -> bytes | None:
+        self._check()
+        return self.values.get(key)
+
+    def delete(self, key: str) -> int:
+        self._check()
+        self.ttl.pop(key, None)
+        return 1 if self.values.pop(key, None) is not None else 0
 
     def xadd(self, stream: str, fields: dict[str, str], **_kw: Any) -> bytes:
         self._check()

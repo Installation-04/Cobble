@@ -140,6 +140,7 @@
         "paid": "Ces modèles coûtent de l'argent par jeton : {names}. Ajoutez --allow-paid pour les mesurer quand même.",
         "nothing": "Aucun modèle à mesurer : aucun modèle local n'est servi ici. Nommez un modèle, ou installez un moteur local.",
         "running": "Mesure de {name}…",
+        "model": "Le modèle n'a pas pu répondre (tourne-t-il, et la passerelle est-elle active ?). Rien n'a été enregistré pour lui.",
         "sandbox": "Le bac à sable de code n'est pas disponible (le gestionnaire de modules tourne-t-il avec son image de bac à sable ?).",
         "result": "{name} : {quality} % des cas réussis, {speed} jetons/s",
         "row": "  {name:<30} {quality:>3} %   {speed} jetons/s",

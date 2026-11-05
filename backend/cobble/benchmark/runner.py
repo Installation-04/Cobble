@@ -96,6 +96,14 @@ def run_benchmark(
     run_code: RunCode,
     tasks: Sequence[Task] = TASKS,
     clock: Callable[[], float] = time.monotonic,
+    progress: Callable[[int, int], None] | None = None,
 ) -> BenchmarkResult:
-    outcomes = tuple(run_task(task, chat, run_code, clock) for task in tasks)
-    return BenchmarkResult(model, VERSION, outcomes)
+    """Run every task. `progress(done, total)` is called before the first and after each task."""
+    outcomes: list[TaskOutcome] = []
+    if progress is not None:
+        progress(0, len(tasks))
+    for task in tasks:
+        outcomes.append(run_task(task, chat, run_code, clock))
+        if progress is not None:
+            progress(len(outcomes), len(tasks))
+    return BenchmarkResult(model, VERSION, tuple(outcomes))

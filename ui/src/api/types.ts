@@ -485,6 +485,22 @@ export interface Benchmarks {
   suggested_worker: string | null;
 }
 
+/** The state of the local benchmark job (one run at a time). */
+export interface BenchmarkStatus {
+  state: "idle" | "running";
+  models: string[];
+  /** The model being measured, and its position among `models`. */
+  model: string | null;
+  model_index: number;
+  /** Tasks done for this model, out of `tasks`. */
+  task: number;
+  tasks: number;
+  started_at: string | null;
+  finished_at: string | null;
+  /** Why the last run stopped early (a code such as `sandbox_unavailable`), else null. */
+  error: string | null;
+}
+
 /** A model served on this machine by an installed backend: free, no key. */
 export interface LocalModel {
   name: string;
