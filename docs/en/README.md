@@ -5,3 +5,4 @@ Coming soon.
 - [Installation](install.md)
 - [Dev stack / Pile de développement](dev.md)
 - [Agent bench](bench.md)
+- [Releasing (maintainers)](releasing.md)
