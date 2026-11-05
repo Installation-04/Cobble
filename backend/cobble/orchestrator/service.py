@@ -30,7 +30,7 @@ from cobble.router.costs import LocalOnlyUnavailable
 from cobble.router.gateway import GatewayError
 
 from . import prompts
-from .estimate import estimate_from_settings
+from .estimate import RolePrice, estimate_from_settings
 from .plan_schema import Plan as ParsedPlan
 from .plan_schema import PlanInvalid, parse_plan_reply
 
@@ -68,7 +68,9 @@ class PlannerService:
         llm: LLMClient,
         events: Redis | None,
         settings: Settings,
+        role_price: RolePrice | None = None,
     ) -> None:
+        self._role_price = role_price  # prices the plan estimate with the routes (ADR 0021)
         self._sessions = sessions
         self._llm = llm
         self._events = events
@@ -247,7 +249,7 @@ class PlannerService:
                 messages = prompts.retry_messages(base, reply, errors)
         if parsed is None:
             raise JobError("plan_invalid")
-        estimate = estimate_from_settings(parsed, self._settings)
+        estimate = estimate_from_settings(parsed, self._settings, self._role_price)
         with self._sessions() as db:
             version = _next_version(db, Plan, project_id)
             db.add(

@@ -62,5 +62,7 @@
   "model_unknown": "The model “{{name}}” does not exist.",
   "model_gateway_failed": "The model service did not accept this connection, so nothing was changed. Check the key, then try again.",
   "local_only_unavailable": "This project is local-only and no model served on this machine can answer. Install a local model (for example the Ollama module) or turn local-only off.",
-  "job_local_only_unavailable": "This project is local-only and no model served on this machine can answer. Install a local model or turn local-only off in the Costs tab."
+  "job_local_only_unavailable": "This project is local-only and no model served on this machine can answer. Install a local model or turn local-only off in the Costs tab.",
+  "task_budget_reached": "This task reached its own cost cap and was stopped. The project goes on; raise the per-task cap in Settings → Models to retry it.",
+  "job_task_budget_reached": "A task reached its own cost cap and was stopped. The project goes on."
 }

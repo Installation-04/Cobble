@@ -5,6 +5,7 @@ import { isLang, LANGS } from "../i18n";
 import { isThemeMode, THEME_MODES } from "../theme/store";
 import { useTheme } from "../theme/useTheme";
 import { ModelConnections } from "../models/ModelConnections";
+import { CostSettingsForm } from "../models/CostSettingsForm";
 import { RoleRoutes } from "../models/RoleRoutes";
 import { UI_VERSION } from "../version";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./ui/dialog";
@@ -88,6 +89,7 @@ export function SettingsDialog({
               <div className="grid gap-6">
                 <ModelConnections onChanged={() => setModelsVersion((v) => v + 1)} />
                 <RoleRoutes key={modelsVersion} />
+                <CostSettingsForm />
               </div>
             </TabsContent>
           )}

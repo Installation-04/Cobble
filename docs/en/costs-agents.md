@@ -67,6 +67,21 @@ free tiers. Provider caveat: free tiers have their own rate limits and terms (tr
 requests, offer changes); Cobble cannot check them for you, and a `local only` project avoids them
 altogether. On a 429 the next model of the route answers and the limited one is tried last for 30 s
 (doubling up to 10 min).
+
+### Electricity and per-task caps (ADR 0021)
+
+`GET`/`PUT /api/v1/settings/costs` (admin; also Settings → Models and `cobble costs`):
+`electricity_price_kwh_usd`, `electricity_watts`, `electricity_counts_in_budget` and
+`task_budget_multiplier`. With a price and a power draw set, each call to a model served on this machine
+records `electricity_usd = watts x answer seconds / 3.6e6 x price`. **It is an estimate, not a
+measure.** The costs report gets `api_usd` (what providers charged) and `electricity` (`usd`,
+`seconds`, `calls`, `counts_in_budget`) on their own line; `spent_usd` includes the electricity only
+when `electricity_counts_in_budget` is on (then the project budget and the savings counter include it
+too). Each `by_task` line has `cap_usd`: a task may spend its multiple (default 3) of its estimate, at
+least 0.05 USD; 0 turns the cap off. Over its cap a task's calls are refused (HTTP 402
+`task_budget_reached`) while the project goes on. A call already running when a cap is crossed still
+completes: a project or a task can overshoot by one call.
+
 ## End-of-project report
 
 `GET /projects/{id}/report` (the project's "Report" tab) summarises the project. It also works

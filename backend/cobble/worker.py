@@ -30,7 +30,7 @@ from cobble.config import Settings, get_settings
 from cobble.db import make_engine, make_session_factory
 from cobble.events import EVENTS_STREAM, JOBS_GROUP, JOBS_STREAM, publish_project
 from cobble.orchestrator.service import PlannerService
-from cobble.router.factory import build_cost_router
+from cobble.router.factory import build_cost_router, build_role_price
 from cobble.scheduler import Scheduler
 from cobble.scheduler.factory import build_scheduler, make_scheduler_supervisor
 from cobble.scheduler.supervisor import SchedulerSupervisor, SchedulerUnavailable
@@ -93,7 +93,7 @@ def build_planner(settings: Settings, redis: Redis) -> PlannerService:
     """Wire the planner to the real cost router (LiteLLM gateway + budget + role routes)."""
     sessions = make_session_factory(make_engine(settings.database_url))
     router = build_cost_router(settings, sessions, redis)
-    return PlannerService(sessions, router, redis, settings)
+    return PlannerService(sessions, router, redis, settings, build_role_price(settings, sessions))
 
 
 def ensure_jobs_group(client: Redis) -> None:

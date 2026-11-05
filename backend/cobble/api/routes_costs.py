@@ -62,7 +62,7 @@ def project_costs(
     request: Request, project: OwnedProject, db: Db, settings: AppSettings
 ) -> dict[str, Any]:
     sync_prices(request, settings, db)
-    return costs.project_costs(db, project, reference(request, settings))
+    return costs.project_costs(db, project, reference(request, settings), settings)
 
 
 @router.get("/costs")

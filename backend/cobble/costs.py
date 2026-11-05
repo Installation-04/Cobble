@@ -15,8 +15,9 @@ from typing import Any
 from sqlalchemy import ColumnElement, func, select
 from sqlalchemy.orm import Session
 
+from cobble.config import Settings
 from cobble.db import LLMCall, Plan, Project, Task
-from cobble.router import price_table
+from cobble.router import cost_settings, price_table, task_budget
 from cobble.router.prices import Prices
 from cobble.scheduler.rules import ref_key
 
@@ -114,21 +115,48 @@ def savings(
     }
 
 
+def _task_cap(
+    ref: str | None,
+    sizes: dict[str | None, Any],
+    estimate: dict[str, object] | None,
+    values: cost_settings.CostSettings,
+    settings: Settings | None,
+) -> dict[str, Any]:
+    """`{"cap_usd": ...}` of a task line (None: no cap, or planner calls that have no task)."""
+    size = sizes.get(ref)
+    if settings is None or ref is None or size is None:
+        return {"cap_usd": None}
+    cap = task_budget.cap_for(estimate, str(size), values, settings)
+    return {"cap_usd": money(cap) if cap is not None else None}
+
+
 def project_costs(
-    session: Session, project: Project, reference: tuple[str, Prices] | None = None
+    session: Session,
+    project: Project,
+    reference: tuple[str, Prices] | None = None,
+    settings: Settings | None = None,
 ) -> dict[str, Any]:
     """The `GET /projects/{id}/costs` body. `reference` = (model, prices) of the strongest model,
-    for the savings counter."""
+    for the savings counter. `settings`: when given, each task line carries its cap."""
     where = LLMCall.project_id == project.id
     by_task_rows = session.execute(
-        select(Task.ref, *_aggregates())
+        select(Task.ref, *_aggregates(), func.max(Task.size))
         .select_from(LLMCall)
         .outerjoin(Task, Task.id == LLMCall.task_id)
         .where(where)
         .group_by(Task.ref)
     ).all()
     by_model_rows = session.execute(
-        select(LLMCall.model, *_aggregates()).where(where).group_by(LLMCall.model)
+        select(
+            LLMCall.model,
+            *_aggregates(),
+            # Electricity (ADR 0021): only calls that carry an estimate count.
+            func.coalesce(func.sum(LLMCall.electricity_usd), 0),
+            func.coalesce(func.sum(LLMCall.duration_ms), 0),
+            func.count(LLMCall.electricity_usd),
+        )
+        .where(where)
+        .group_by(LLMCall.model)
     ).all()
     by_role_rows = session.execute(
         select(LLMCall.role, *_aggregates()).where(where).group_by(LLMCall.role)
@@ -140,13 +168,22 @@ def project_costs(
         .group_by(LLMCall.model, LLMCall.fallback_from)
     ).all()
 
+    sizes = {r[0]: r[5] for r in by_task_rows}
     tasks = sorted(
-        ((r[0], _row(*r[1:])) for r in by_task_rows),
+        ((r[0], _row(*r[1:5])) for r in by_task_rows),
         key=lambda r: (r[0] is None, ref_key(r[0]) if r[0] else (0, "")),
     )
-    models = _by_cost([(r[0], _row(*r[1:])) for r in by_model_rows])
+    models = _by_cost([(r[0], _row(*r[1:5])) for r in by_model_rows])
     roles = _by_cost([(r[0], _row(*r[1:])) for r in by_role_rows])
-    spent = sum((t.cost for _, t in models), Decimal(0))
+    api_spent = sum((t.cost for _, t in models), Decimal(0))
+    # Estimated electricity of local models: a separate line, counted in `spent` only when the
+    # owner chose so (ADR 0021).
+    values = cost_settings.read(session)
+    elec_usd = sum((Decimal(str(r[5] or 0)) for r in by_model_rows), Decimal(0))
+    elec_seconds = sum(int(r[6] or 0) for r in by_model_rows) // 1000
+    elec_calls = sum(int(r[7] or 0) for r in by_model_rows)
+    spent = api_spent + (elec_usd if values.electricity_counts_in_budget else Decimal(0))
+    estimate_doc = task_budget.plan_estimate_doc(session, project.id) if settings else None
     total_calls = sum(t.calls for _, t in models)
     fallback_entries = sorted(
         (
@@ -176,7 +213,18 @@ def project_costs(
             spent,
             reference,
         ),
-        "by_task": [_entry("ref", name, t) for name, t in tasks],
+        "api_usd": money(api_spent),
+        "electricity": {
+            "usd": money(elec_usd),
+            "seconds": elec_seconds,
+            "calls": elec_calls,
+            "counts_in_budget": values.electricity_counts_in_budget,
+            "estimated": True,
+        },
+        "by_task": [
+            {**_entry("ref", name, t), **_task_cap(name, sizes, estimate_doc, values, settings)}
+            for name, t in tasks
+        ],
         "by_model": [
             {**_entry("model", name, t), "free": is_free_model(name)} for name, t in models
         ],
@@ -197,8 +245,11 @@ def project_costs(
 
 def global_costs(session: Session, owner_id: uuid.UUID) -> list[dict[str, Any]]:
     """The `GET /costs` body: one row per project of the owner, one grouped query."""
+    column: Any = LLMCall.cost_usd
+    if cost_settings.read(session).electricity_counts_in_budget:
+        column = column + func.coalesce(LLMCall.electricity_usd, 0)
     spent = (
-        select(LLMCall.project_id.label("pid"), func.sum(LLMCall.cost_usd).label("total"))
+        select(LLMCall.project_id.label("pid"), func.sum(column).label("total"))
         .group_by(LLMCall.project_id)
         .subquery()
     )

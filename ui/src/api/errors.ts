@@ -17,6 +17,7 @@ export const KNOWN_ERROR_CODES = [
   "llm_error",
   "local_only_unavailable",
   "budget_reached",
+  "task_budget_reached",
   "wrong_state",
   "queue_unavailable",
   "agent_unavailable",

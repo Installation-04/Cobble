@@ -16,6 +16,7 @@ from cobble.db import make_engine, make_session_factory
 from . import (
     routes_agents,
     routes_auth,
+    routes_cost_settings,
     routes_costs,
     routes_demo,
     routes_folders,
@@ -102,6 +103,7 @@ def create_app(
         routes_tasks.router,
         routes_agents.router,
         routes_costs.router,
+        routes_cost_settings.router,
         routes_demo.router,
         routes_modules.router,
         routes_models.router,

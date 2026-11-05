@@ -34,7 +34,11 @@
       "no_budget": "aucun",
       "estimate": "Estimation du plan",
       "tokens": "Jetons",
-      "tokens_split": "{prompt} en entrée, {completion} en sortie"
+      "tokens_split": "{prompt} en entrée, {completion} en sortie",
+      "electricity": "Électricité (modèles locaux)",
+      "electricity_counted": "comptée dans Dépensé",
+      "electricity_apart": "affichée à part, hors Dépensé",
+      "electricity_estimate": "Une estimation : watts x durée de génération x prix du kWh, pas une mesure."
     },
     "savings": {
       "title": "Économies",

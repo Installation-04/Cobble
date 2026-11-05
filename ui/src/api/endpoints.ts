@@ -1,6 +1,7 @@
 import { API_BASE, api, requestText, type TextChunk } from "./client";
 import type {
   ChatMessage,
+  CostSettings,
   Folder,
   GlobalCostRow,
   Milestone,
@@ -122,6 +123,11 @@ export const modulesApi = {
   operation: (id: string) => api.get<ModuleOperation>(`/modules/operations/${id}`),
   /** Which secrets of a module are set (never their values). */
   secrets: (id: string) => api.get<Record<string, boolean>>(`/modules/${id}/secrets`),
+};
+
+export const costSettingsApi = {
+  get: () => api.get<CostSettings>("/settings/costs"),
+  save: (body: CostSettings) => api.put<CostSettings>("/settings/costs", body),
 };
 
 export const modelsApi = {

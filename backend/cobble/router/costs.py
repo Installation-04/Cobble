@@ -144,7 +144,7 @@ class CostRouter:
         """`model` goes first (used for escalation: callers must be trusted); the role's
         chain follows as fallbacks."""
         if project_id is not None:
-            self._budget.ensure_can_spend(project_id)  # raises BudgetExceeded
+            self._budget.ensure_can_spend(project_id, task_id)  # raises BudgetExceeded
         candidates = self.chain_for(role)
         if model is not None:
             candidates = [model, *(m for m in candidates if m != model)]

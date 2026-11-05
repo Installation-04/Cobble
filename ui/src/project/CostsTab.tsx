@@ -2,7 +2,13 @@ import { AlertTriangle, Coins } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { errorMessage } from "../api/errors";
 import type { ReactNode } from "react";
-import type { CostFallbacks, CostLine, CostSavings, ModelPriceLine } from "../api/types";
+import type {
+  CostElectricity,
+  CostFallbacks,
+  CostLine,
+  CostSavings,
+  ModelPriceLine,
+} from "../api/types";
 import { FreeBadge, PriceChange } from "../models/Prices";
 import { cn } from "../lib";
 import { useWorkspace } from "../workspace/WorkspaceProvider";
@@ -104,6 +110,49 @@ function CostTable({
           </table>
         </div>
       )}
+    </section>
+  );
+}
+
+/** Estimated electricity of local models: its own line, never mixed silently into API spend. */
+export function ElectricityCard({
+  electricity,
+  apiUsd,
+  lang,
+}: {
+  electricity: CostElectricity | undefined;
+  apiUsd: string | undefined;
+  lang: string;
+}) {
+  const { t } = useTranslation("costs");
+  if (!electricity || electricity.calls === 0) return null;
+  return (
+    <section
+      aria-labelledby="electricity-title"
+      data-testid="costs-electricity"
+      data-counted={electricity.counts_in_budget ? "yes" : "no"}
+      className="flex flex-col gap-1 rounded-lg border border-border bg-card p-4 text-card-foreground"
+    >
+      <h3 id="electricity-title" className="text-sm font-semibold">
+        {t("electricity.title")}
+      </h3>
+      <p className="text-xl font-semibold" data-testid="costs-electricity-amount">
+        {formatCost(electricity.usd, lang)}
+      </p>
+      {apiUsd !== undefined && (
+        <p className="text-sm text-muted-foreground" data-testid="costs-api-spend">
+          {t("electricity.api", { amount: formatCost(apiUsd, lang) })}
+        </p>
+      )}
+      <p className="text-xs text-muted-foreground">
+        {t("electricity.detail", {
+          calls: formatTokens(electricity.calls, lang),
+          seconds: formatTokens(electricity.seconds, lang),
+        })}
+      </p>
+      <p className="text-xs text-muted-foreground">
+        {electricity.counts_in_budget ? t("electricity.counted") : t("electricity.apart")}
+      </p>
     </section>
   );
 }
@@ -409,6 +458,7 @@ export function CostsTab() {
       </section>
 
       <SavingsCard savings={costs.savings ?? null} lang={lang} />
+      <ElectricityCard electricity={costs.electricity} apiUsd={costs.api_usd} lang={lang} />
       <PricesCard freeCalls={costs.free_calls ?? 0} changes={costs.price_changes ?? []} />
       <LocalOnlyCard />
 
@@ -451,7 +501,19 @@ export function CostsTab() {
         lang={lang}
         rows={costs.by_task.map((row) => ({
           key: row.ref ?? "planner",
-          label: row.ref ?? t("table.planner"),
+          label: (
+            <>
+              {row.ref ?? t("table.planner")}
+              {row.ref !== null && row.cap_usd != null && (
+                <span
+                  className="ml-2 text-xs font-normal text-muted-foreground"
+                  data-testid="task-cap"
+                >
+                  {t("table.cap", { amount: formatCost(row.cap_usd, lang) })}
+                </span>
+              )}
+            </>
+          ),
           line: row,
         }))}
       />

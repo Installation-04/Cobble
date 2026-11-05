@@ -7,6 +7,7 @@ const KNOWN_CODES = [
   "plan_invalid",
   "llm_error",
   "budget_reached",
+  "task_budget_reached",
   "local_only_unavailable",
   // Start job (ADR 0006)
   "repo_error",

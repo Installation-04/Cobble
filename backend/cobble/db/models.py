@@ -49,6 +49,11 @@ class LLMCall(Base):
     # many failed before this one answered (nothing is stored for failed attempts: no tokens).
     fallback_from: Mapped[str | None] = mapped_column(String(200))
     fallbacks: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    # How long the gateway took to answer, and (local models only, when the owner set a price
+    # and a power draw) the estimated electricity cost of that time (ADR 0021). Kept apart from
+    # `cost_usd`, which stays what the providers charged.
+    duration_ms: Mapped[int | None] = mapped_column(Integer)
+    electricity_usd: Mapped[Decimal | None] = mapped_column(Numeric(14, 8))
 
 
 class ModelPrice(Base):
@@ -490,3 +495,13 @@ class PlatformState(Base):
     # Per role, the ordered models to try: the first one, then each fallback if the previous
     # one cannot answer (`{"worker": ["local", "cheap-api"]}`). None: no routes were set.
     role_routes: Mapped[dict[str, list[str]] | None] = mapped_column(JSON)
+    # Electricity of local models (ADR 0021): price per kWh in USD and the machine's draw in
+    # watts while a local model generates. Either unset means "no electricity cost" (0).
+    electricity_price_kwh_usd: Mapped[Decimal | None] = mapped_column(Numeric(12, 6))
+    electricity_watts: Mapped[int | None] = mapped_column(Integer)
+    # Whether the estimated electricity counts in a project's spend (and so in its budget).
+    electricity_counts_in_budget: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=false()
+    )
+    # Per-task cap as a multiple of the task's estimate; None: the configured default, 0: none.
+    task_budget_multiplier: Mapped[Decimal | None] = mapped_column(Numeric(8, 2))

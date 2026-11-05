@@ -15,6 +15,16 @@
     "reset": {
       "done": "The administrator's sessions were closed. Use this link to set a new email and password; projects are kept.",
       "no_admin": "No administrator exists yet. Use the activation link instead."
+    },
+    "costs": {
+      "electricity": "Electricity of local models: {price} USD per kWh at {watts} W while a model generates.",
+      "electricity_off": "Electricity of local models: not set (no cost counted).",
+      "counted": "It is counted in each project's spend and budget.",
+      "apart": "It is shown apart and not counted in the project's spend or budget.",
+      "estimate": "This is an estimate (watts x generation time x price), not a measure.",
+      "task_cap": "Per-task cap: {factor} x the task's estimate, at least {floor} USD.",
+      "task_cap_off": "Per-task cap: off.",
+      "invalid": "Invalid value for {name}."
     }
   }
 }
