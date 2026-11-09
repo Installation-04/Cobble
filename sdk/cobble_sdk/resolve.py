@@ -13,6 +13,9 @@ Rules (PLAN.md section 6):
 - every capability a module `requires` must be provided by an installed module; a missing one is
   satisfied automatically when exactly one module can provide it, otherwise the caller must choose;
 - a module that declares a capability `exclusive` must be its only installed provider;
+- a capability a module `wants` is optional: it never installs anything and never blocks or
+  cascades, but the module is linked to every installed provider (so a cache installed after the
+  consumer, or removed later, re-wires it);
 - uninstalling never adds modules: dependents that would lose their last provider are removed too
   (a *cascade* the caller must confirm).
 """
@@ -236,13 +239,13 @@ def _check_exclusive(catalog: Catalog, installed: set[str]) -> None:
 def desired_links(catalog: Catalog, installed: frozenset[str] | set[str]) -> frozenset[Link]:
     """Every (consumer, provider, capability) among the installed modules.
 
-    A consumer is linked to *every* installed provider of a capability it requires. The
+    A consumer is linked to *every* installed provider of a capability it requires or wants. The
     module-manager reconciles this set with the stored links and runs the (idempotent) link and
     unlink hooks for the difference.
     """
     links: set[Link] = set()
     for consumer in installed:
-        for capability in catalog[consumer].requires:
+        for capability in (*catalog[consumer].requires, *catalog[consumer].wants):
             for provider in installed:
                 if provider != consumer and capability in _provided(catalog, provider):
                     links.add(Link(consumer, provider, capability))
@@ -250,11 +253,22 @@ def desired_links(catalog: Catalog, installed: frozenset[str] | set[str]) -> fro
 
 
 def install_order(catalog: Catalog, modules: frozenset[str] | set[str]) -> list[str]:
-    """Providers before the modules that depend on them; ties broken by id."""
+    """Providers before the modules that depend on them; ties broken by id.
+
+    A provider of a wanted capability also comes first (so the consumer can be given its address
+    when it starts), unless that would make a cycle: a soft preference never blocks a plan.
+    """
+    try:
+        return _order(catalog, modules, soft=True)
+    except DependencyCycle:
+        return _order(catalog, modules, soft=False)
+
+
+def _order(catalog: Catalog, modules: frozenset[str] | set[str], *, soft: bool) -> list[str]:
     depends: dict[str, set[str]] = {
         m: {
             provider
-            for capability in catalog[m].requires
+            for capability in (*catalog[m].requires, *(catalog[m].wants if soft else ()))
             for provider in modules
             if provider != m and capability in _provided(catalog, provider)
         }

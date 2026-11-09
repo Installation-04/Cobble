@@ -249,6 +249,20 @@
           "pattern": "^[a-z][a-z0-9-]{0,39}$",
           "title": "Capability",
           "type": "string"
+        },
+        "endpoint": {
+          "anyOf": [
+            {
+              "maxLength": 120,
+              "pattern": "^/[A-Za-z0-9._~+/-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Endpoint"
         }
       },
       "required": [
@@ -575,6 +589,14 @@
       "pattern": "^\\d+\\.\\d+\\.\\d+(?:[-+][0-9A-Za-z.-]+)?$",
       "title": "Version",
       "type": "string"
+    },
+    "wants": {
+      "items": {
+        "pattern": "^[a-z][a-z0-9-]{0,39}$",
+        "type": "string"
+      },
+      "title": "Wants",
+      "type": "array"
     },
     "web_ui": {
       "anyOf": [
