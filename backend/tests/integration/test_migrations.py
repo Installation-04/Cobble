@@ -715,6 +715,43 @@ def test_migration_0016_explain_mode_up_and_down(database_url: str) -> None:
     command.upgrade(config, "head")
 
 
+def test_migration_0021_project_lessons_up_and_down(database_url: str) -> None:
+    config = alembic_config(database_url)
+    command.downgrade(config, "base")
+    command.upgrade(config, "0018")
+    assert "project_lessons" not in tables(database_url)
+
+    command.upgrade(config, "0021")
+    engine = create_engine(database_url)
+    try:
+        assert {"project_id", "text", "source", "task_ref", "active", "hits", "created_at"} <= {
+            c["name"] for c in inspect(engine).get_columns("project_lessons")
+        }
+        command.downgrade(config, "0018")
+        assert "project_lessons" not in tables(database_url)
+    finally:
+        engine.dispose()
+    command.upgrade(config, "head")
+    assert "project_lessons" in tables(database_url)
+
+
+def test_the_lessons_table_matches_the_model(migrated_database: str) -> None:
+    """No drift on `project_lessons`."""
+    from alembic.autogenerate import compare_metadata
+    from alembic.migration import MigrationContext
+
+    from cobble.db.base import Base
+
+    engine = create_engine(migrated_database)
+    try:
+        with engine.connect() as conn:
+            context = MigrationContext.configure(conn, opts={"compare_type": True})
+            diff = compare_metadata(context, Base.metadata)
+    finally:
+        engine.dispose()
+    assert [d for d in diff if "project_lessons" in _tables_of(d)] == []
+
+
 def test_the_explain_columns_match_the_models(migrated_database: str) -> None:
     """No drift on the two columns of migration 0016 (the module-table check ignores them)."""
     from alembic.autogenerate import compare_metadata
