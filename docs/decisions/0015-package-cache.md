@@ -1,6 +1,6 @@
 # ADR 0015 — Local package cache: Verdaccio and devpi as modules
 
-Status: **accepted**; the agent wiring left out here is done in [ADR 0027](0027-package-cache-wiring.md).
+Status: **proposed** (implemented in v0.3, waiting for the owner to accept); the agent wiring left out here is done in [ADR 0027](0027-package-cache-wiring.md).
 
 ## Context
 PLAN.md §17 ("Cache local des paquets", v0.3) asks for npm and PyPI caches so that agent installs

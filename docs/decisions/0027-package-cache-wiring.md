@@ -1,6 +1,6 @@
 # ADR 0027 — Wiring the package caches to the agents with optional requirements
 
-Status: **accepted** (implemented; no image was run, see "Not verified").
+Status: **proposed** (implemented in v0.3, waiting for the owner to accept; no image was run, see "Not verified").
 
 ## Context
 ADR 0015 shipped `verdaccio` and `devpi` but left the agents downloading from the public

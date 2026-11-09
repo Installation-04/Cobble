@@ -1,6 +1,6 @@
 # 0026 — Lessons learned per project
 
-Status: accepted (v0.3, "leçons apprises", PLAN.md section 14).
+Status: **proposed** (implemented in v0.3, waiting for the owner to accept; "leçons apprises", PLAN.md section 14).
 
 ## Context
 

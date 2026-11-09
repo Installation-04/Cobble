@@ -1,6 +1,6 @@
 # 0017 — "Explain me" mode
 
-Status: accepted (v0.3, "Mode « Explique-moi »", PLAN.md section 17).
+Status: **proposed** (implemented in v0.3, waiting for the owner to accept; "Mode « Explique-moi »", PLAN.md section 17).
 
 ## Context
 
