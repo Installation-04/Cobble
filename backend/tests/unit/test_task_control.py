@@ -71,6 +71,11 @@ TABLE: list[tuple[Action, str, str | None, str | None]] = [
     (T, "failed", "boom", "todo"),
     (T, "blocked", "dependency_failed", "todo"),
     (T, "merged", None, None),
+    # waiting_human (an agent asked the user, ADR 0025): only the answer, stop or retry release it
+    (P, "waiting_human", None, "same"),
+    (R, "waiting_human", None, "same"),
+    (S, "waiting_human", None, "stopped"),
+    (T, "waiting_human", None, "todo"),
 ]
 
 

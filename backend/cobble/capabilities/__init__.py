@@ -3,7 +3,7 @@
 The catalogue modules (catalog/) provide the implementations.
 """
 
-from .agent import AgentLimits, AgentOutcome, AgentResult, AgentRunner, AgentTask
+from .agent import AgentLimits, AgentOutcome, AgentQuestion, AgentResult, AgentRunner, AgentTask
 from .ci import CIProvider, CIState, CIStatus
 from .git import GitProvider, MergeRefused, MergeRequestRef, RepoRef, TagExists
 from .llm import ChatResult, LLMClient, Role
@@ -12,6 +12,7 @@ from .preview import PreviewProvider, PreviewRequest, PreviewState, PreviewStatu
 __all__ = [
     "AgentLimits",
     "AgentOutcome",
+    "AgentQuestion",
     "AgentResult",
     "AgentRunner",
     "AgentTask",

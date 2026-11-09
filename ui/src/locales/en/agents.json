@@ -17,7 +17,8 @@
     "failed": "Failed",
     "blocked": "Blocked",
     "paused": "Paused",
-    "stopped": "Stopped"
+    "stopped": "Stopped",
+    "waiting_human": "Waiting for you"
   },
   "runState": {
     "pending": "Starting",
@@ -30,7 +31,8 @@
     "budget": "Budget reached",
     "rejected": "Rejected",
     "lost": "Lost",
-    "retired": "Superseded"
+    "retired": "Superseded",
+    "question": "Asked a question"
   },
   "escalated": "Escalated",
   "attempts_one": "{{count}} attempt",
@@ -90,5 +92,21 @@
     "label": "Diff of the task branch",
     "empty": "No changes pushed yet.",
     "truncated": "The diff is too large and was truncated."
+  },
+  "questions": {
+    "badge_one": "{{count}} question for you",
+    "badge_other": "{{count}} questions for you",
+    "waiting": "Waiting for you",
+    "title": "Question from the agent",
+    "hint": "The agent stopped to ask you instead of guessing. The task resumes when you answer.",
+    "choicesLabel": "Suggested answers",
+    "answerLabel": "Your answer",
+    "placeholder": "Type your answer",
+    "send": "Send answer",
+    "sending": "Sending…",
+    "skip": "Skip: let the agent decide",
+    "answered": "Your answer: {{answer}}",
+    "skipped": "Skipped: the agent decided.",
+    "history": "Earlier questions"
   }
 }

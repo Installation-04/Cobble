@@ -17,7 +17,8 @@
     "failed": "Échouée",
     "blocked": "Bloquée",
     "paused": "En pause",
-    "stopped": "Arrêtée"
+    "stopped": "Arrêtée",
+    "waiting_human": "Attend votre réponse"
   },
   "runState": {
     "pending": "Démarrage",
@@ -30,7 +31,8 @@
     "budget": "Budget atteint",
     "rejected": "Rejeté",
     "lost": "Perdu",
-    "retired": "Remplacé"
+    "retired": "Remplacé",
+    "question": "A posé une question"
   },
   "escalated": "Escaladée",
   "attempts_one": "{{count}} tentative",
@@ -90,5 +92,21 @@
     "label": "Différences de la branche de la tâche",
     "empty": "Aucune modification envoyée pour l'instant.",
     "truncated": "Le diff est trop volumineux et a été tronqué."
+  },
+  "questions": {
+    "badge_one": "{{count}} question pour vous",
+    "badge_other": "{{count}} questions pour vous",
+    "waiting": "Attend votre réponse",
+    "title": "Question de l'agent",
+    "hint": "L'agent s'est arrêté pour vous demander au lieu de deviner. La tâche reprend quand vous répondez.",
+    "choicesLabel": "Réponses suggérées",
+    "answerLabel": "Votre réponse",
+    "placeholder": "Saisissez votre réponse",
+    "send": "Envoyer la réponse",
+    "sending": "Envoi…",
+    "skip": "Passer : laisser l'agent décider",
+    "answered": "Votre réponse : {{answer}}",
+    "skipped": "Passée : l'agent a décidé.",
+    "history": "Questions précédentes"
   }
 }

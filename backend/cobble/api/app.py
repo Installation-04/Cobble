@@ -26,6 +26,7 @@ from . import (
     routes_modules,
     routes_planning,
     routes_projects,
+    routes_questions,
     routes_setup,
     routes_tasks,
 )
@@ -103,6 +104,7 @@ def create_app(
         routes_planning.router,
         routes_mockups.router,
         routes_tasks.router,
+        routes_questions.router,
         routes_agents.router,
         routes_costs.router,
         routes_cost_settings.router,

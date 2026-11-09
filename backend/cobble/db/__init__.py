@@ -14,6 +14,7 @@ from .models import (
     Project,
     Spec,
     Task,
+    TaskQuestion,
     TaskRun,
     User,
 )
@@ -34,6 +35,7 @@ __all__ = [
     "Project",
     "Spec",
     "Task",
+    "TaskQuestion",
     "TaskRun",
     "User",
     "make_engine",

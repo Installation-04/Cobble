@@ -16,6 +16,7 @@ MERGED = "merged"
 FAILED = "failed"
 BLOCKED = "blocked"
 PAUSED = "paused"
+WAITING_HUMAN = "waiting_human"  # an agent asked the user a question (ADR 0025)
 STOPPED = "stopped"
 
 TASK_STATES = (
@@ -28,6 +29,7 @@ TASK_STATES = (
     BLOCKED,
     PAUSED,
     STOPPED,
+    WAITING_HUMAN,
 )
 # States in which a task works on its branch: its files are taken.
 ACTIVE = frozenset({WRITING_TESTS, IMPLEMENTING, CI})

@@ -319,7 +319,8 @@ class Task(Base):
     kind: Mapped[str] = mapped_column(
         String(10), nullable=False, default="plan", server_default="plan"
     )
-    # todo, writing_tests, implementing, ci, merged, failed, blocked, paused, stopped
+    # todo, writing_tests, implementing, ci, merged, failed, blocked, paused, stopped,
+    # waiting_human (an agent asked the user a question, ADR 0025)
     state: Mapped[str] = mapped_column(
         String(20), nullable=False, default="todo", server_default="todo"
     )
@@ -353,7 +354,7 @@ class TaskRun(Base):
     attempt: Mapped[int] = mapped_column(Integer, nullable=False)
     model: Mapped[str] = mapped_column(String(200), nullable=False)
     # pending (not started yet), running, then the outcome: done, failed, timeout,
-    # loop_detected, stopped, budget, lost
+    # loop_detected, stopped, budget, lost, question (the agent asked the user)
     state: Mapped[str] = mapped_column(String(20), nullable=False)
     agent_run_id: Mapped[str | None] = mapped_column(String(200))
     iterations: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
@@ -361,6 +362,30 @@ class TaskRun(Base):
     started_at: Mapped[datetime] = _now_col()
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     log_tail: Mapped[str | None] = mapped_column(Text)
+
+
+class TaskQuestion(Base):
+    """A question an agent asked the user instead of guessing (ADR 0025)."""
+
+    __tablename__ = "task_questions"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    task_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    run_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("task_runs.id", ondelete="SET NULL")
+    )
+    question: Mapped[str] = mapped_column(Text, nullable=False)
+    choices: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    # open (waiting for the user), answered, skipped (by the user, or by the system when the
+    # task already used its questions)
+    status: Mapped[str] = mapped_column(
+        String(10), nullable=False, default="open", server_default="open"
+    )
+    answer: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = _now_col()
+    answered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class Milestone(Base):

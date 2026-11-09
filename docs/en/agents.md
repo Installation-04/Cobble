@@ -160,3 +160,24 @@ The unit tests use a fake Docker engine and real git repositories in a temporary
 auth, validation, loop detection, timeout, stop, restart recovery, secret leakage, hostile `.git`
 config. Agent tests never call a real model; for end-to-end trials use the fake LLM with a marker
 cassette (`providers/fake-llm/README.md`).
+
+## Questions to the user (ADR 0025)
+
+An agent that cannot go on without a decision of yours may ask instead of guessing. It ends its run
+with one line on its output, or writes `.cobble/question.json` (the runner turns it into the line):
+
+```
+[cobble:question] {"question": "Should the amount include taxes?", "choices": ["yes", "no"]}
+```
+
+`choices` is optional. The agent-service stops the container at once (nothing more is spent), keeps
+the work already committed on the task branch and reports the run as `question`. The task becomes
+**Waiting for you**: it holds no agent slot, uses no attempt and counts as no failure; the other
+tasks go on and nothing times out while it waits. In the Agents tab a badge counts the open
+questions; open the task to answer with a suggested choice or free text, or skip ("let the agent
+decide"). The task then resumes with the same step and the answers in its prompt.
+
+Limits: 3 questions per task (a fourth ask fails that run), 2000 characters for a question or an
+answer, 6 choices. API: `GET /api/v1/projects/{id}/questions`, `POST .../questions/{qid}/answer`
+(`{"answer": "..."}`) and `POST .../questions/{qid}/skip`; events `task.question` and
+`task.answered`. Stopping or retrying a waiting task closes its question as skipped.
