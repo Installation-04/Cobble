@@ -216,6 +216,10 @@ class Project(Base):
     mockups_enabled: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default=false()
     )
+    # True: a reviewer agent reads each task's diff between CI green and merge (ADR 0024).
+    review_enabled: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=false()
+    )
     # interview -> spec_review -> plan_review -> ready -> building -> done
     phase: Mapped[str] = mapped_column(
         String(20), nullable=False, default="interview", server_default="interview"
@@ -319,7 +323,7 @@ class Task(Base):
     kind: Mapped[str] = mapped_column(
         String(10), nullable=False, default="plan", server_default="plan"
     )
-    # todo, writing_tests, implementing, ci, merged, failed, blocked, paused, stopped
+    # todo, writing_tests, implementing, ci, review, merged, failed, blocked, paused, stopped
     state: Mapped[str] = mapped_column(
         String(20), nullable=False, default="todo", server_default="todo"
     )
@@ -330,6 +334,8 @@ class Task(Base):
     branch: Mapped[str | None] = mapped_column(String(200))
     pr_number: Mapped[int | None] = mapped_column(Integer)
     last_error: Mapped[str | None] = mapped_column(Text)
+    # Latest reviewer verdict (ADR 0024): {verdict, issues, attempt, warning}. None: not reviewed.
+    review: Mapped[dict[str, Any] | None] = mapped_column(JSON)
     created_at: Mapped[datetime] = _now_col()
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

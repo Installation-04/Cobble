@@ -16,7 +16,7 @@ Each change publishes `task.updated` on the project stream. Every action is idem
 | Task state | pause | resume | stop | retry |
 |---|---|---|---|---|
 | `todo` | `paused` | no-op | `stopped` | no-op |
-| `writing_tests`, `implementing`, `ci` | `paused` | no-op | `stopped` | 409 |
+| `writing_tests`, `implementing`, `ci`, `review` | `paused` | no-op | `stopped` | 409 |
 | `paused` (held by you) | no-op | continues | `stopped` | `todo` (409 while a run is active) |
 | `paused` (waiting for a slot or budget) | held | no-op | `stopped` | `todo` |
 | `stopped` | 409 | 409 | no-op | `todo` |
@@ -30,6 +30,23 @@ Each change publishes `task.updated` on the project stream. Every action is idem
 - `retry` resets attempts, escalation and the last error, keeps the branch, marks earlier runs
   `retired` (they stay visible but no longer count as attempts) and frees the tasks that were
   blocked only because of this one.
+
+### Code review and task time limit (ADR 0024)
+
+- **Reviewer agent** (off by default, it costs tokens): `review_enabled` on `POST /projects` and
+  `PATCH /projects/{id}`, and a switch in the Agents tab. When CI is green the task moves to `review`
+  (`task.review_started`); a reviewer reads the task's acceptance criteria and diff and answers
+  `approve` (merge) or `request_changes` with a short list of issues (`task.reviewed`). Requested
+  changes start another attempt like a red CI would (the issues are added to the worker's prompt;
+  `COBBLE_ESCALATE_AFTER` and `COBBLE_MAX_ATTEMPTS` apply). An unreadable verdict is asked again once,
+  then the task is approved with a warning (`review_unparsable`, `review_unavailable`; when no attempt
+  is left, `review_unresolved`). The latest verdict is in `GET /projects/{id}/tasks/{ref}` as
+  `review` `{verdict, issues, attempt, warning}`. Its cost shows under the role `reviewer`; the
+  `reviewer` route in Settings → Models picks the model and `local only` is honoured.
+- **Time limit per task**: `COBBLE_TASK_MAX_SECONDS` (default 2700 = 45 min, `0` turns it off) bounds a
+  task, all its attempts together. Over it the task is stopped and `failed` with `last_error`
+  `task_timeout` (exposed in the task detail, translated in the drawer, event `task.timeout`); the
+  project goes on and `retry` starts a fresh clock.
 
 ## Costs
 

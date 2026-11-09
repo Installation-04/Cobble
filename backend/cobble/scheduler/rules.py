@@ -12,6 +12,7 @@ TODO = "todo"
 WRITING_TESTS = "writing_tests"
 IMPLEMENTING = "implementing"
 CI = "ci"
+REVIEW = "review"  # CI is green, the reviewer agent reads the diff (ADR 0024)
 MERGED = "merged"
 FAILED = "failed"
 BLOCKED = "blocked"
@@ -23,6 +24,7 @@ TASK_STATES = (
     WRITING_TESTS,
     IMPLEMENTING,
     CI,
+    REVIEW,
     MERGED,
     FAILED,
     BLOCKED,
@@ -30,7 +32,7 @@ TASK_STATES = (
     STOPPED,
 )
 # States in which a task works on its branch: its files are taken.
-ACTIVE = frozenset({WRITING_TESTS, IMPLEMENTING, CI})
+ACTIVE = frozenset({WRITING_TESTS, IMPLEMENTING, CI, REVIEW})
 # States in which an agent container runs (what `max_parallel` limits).
 RUNNING = frozenset({WRITING_TESTS, IMPLEMENTING})
 # A dead end: tasks that depend on one of these can never start.

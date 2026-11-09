@@ -20,6 +20,7 @@ export const KNOWN_ERROR_CODES = [
   "local_only_unavailable",
   "budget_reached",
   "task_budget_reached",
+  "task_timeout",
   "wrong_state",
   "queue_unavailable",
   "explain_mode_off",
