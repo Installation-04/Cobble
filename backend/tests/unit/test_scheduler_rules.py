@@ -107,6 +107,7 @@ def test_states_are_the_documented_ones() -> None:
         "writing_tests",
         "implementing",
         "ci",
+        "review",
         "merged",
         "failed",
         "blocked",

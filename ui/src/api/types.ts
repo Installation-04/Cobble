@@ -38,6 +38,8 @@ export interface Project {
   explain_mode?: boolean;
   /** True: the planner proposes mockup variants and the user picks one before planning. */
   mockups_enabled?: boolean;
+  /** True: a reviewer agent reads each task's diff between CI green and merge. */
+  review_enabled?: boolean;
   status: "active" | "paused";
   phase: Phase;
 }
@@ -111,6 +113,7 @@ export const TASK_STATES = [
   "writing_tests",
   "implementing",
   "ci",
+  "review",
   "merged",
   "failed",
   "blocked",
@@ -144,8 +147,20 @@ export interface TaskRun {
   log_tail: string | null;
 }
 
+/** Latest verdict of the reviewer agent on a task. */
+export interface TaskReview {
+  verdict: "approve" | "request_changes";
+  issues: string[];
+  attempt: number;
+  /** Set when the approval was not really given: review_unparsable, review_unavailable... */
+  warning: string | null;
+}
+
 export interface TaskDetail extends Task {
   runs: TaskRun[];
+  /** A stable code (task_timeout, task_budget_reached...) when the task failed for it. */
+  last_error?: string | null;
+  review?: TaskReview | null;
 }
 
 export interface TaskDiff {

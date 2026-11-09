@@ -61,6 +61,7 @@ export const projectsApi = {
       local_only?: boolean;
       explain_mode?: boolean;
       mockups_enabled?: boolean;
+      review_enabled?: boolean;
     },
   ) => api.patch<Project>(`/projects/${id}`, body),
   remove: (id: string) => api.delete(`/projects/${id}`),

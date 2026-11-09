@@ -16,7 +16,7 @@ Chaque changement publie `task.updated` sur le flux du projet. Toutes les action
 | État de la tâche | pause | resume | stop | retry |
 |---|---|---|---|---|
 | `todo` | `paused` | sans effet | `stopped` | sans effet |
-| `writing_tests`, `implementing`, `ci` | `paused` | sans effet | `stopped` | 409 |
+| `writing_tests`, `implementing`, `ci`, `review` | `paused` | sans effet | `stopped` | 409 |
 | `paused` (retenue par vous) | sans effet | reprend | `stopped` | `todo` (409 tant qu'un run est actif) |
 | `paused` (attend un créneau ou le budget) | retenue | sans effet | `stopped` | `todo` |
 | `stopped` | 409 | 409 | sans effet | `todo` |
@@ -30,6 +30,24 @@ Chaque changement publie `task.updated` sur le flux du projet. Toutes les action
 - `retry` remet à zéro les tentatives, l'escalade et la dernière erreur, garde la branche,
   marque les runs précédents `retired` (ils restent visibles mais ne comptent plus comme
   tentatives) et libère les tâches bloquées uniquement à cause de celle-ci.
+
+### Relecture du code et limite de durée (ADR 0024)
+
+- **Agent relecteur** (désactivé par défaut, il coûte des jetons) : `review_enabled` sur `POST /projects`
+  et `PATCH /projects/{id}`, et un interrupteur dans l'onglet Agents. Quand la CI est verte, la tâche
+  passe en `review` (`task.review_started`) ; un relecteur lit les critères d'acceptation et le diff de
+  la tâche et répond `approve` (fusion) ou `request_changes` avec une courte liste de points
+  (`task.reviewed`). Les changements demandés lancent une nouvelle tentative comme une CI rouge (les
+  points sont ajoutés au prompt du worker ; `COBBLE_ESCALATE_AFTER` et `COBBLE_MAX_ATTEMPTS`
+  s'appliquent). Un verdict illisible est redemandé une fois, puis la tâche est approuvée avec un
+  avertissement (`review_unparsable`, `review_unavailable` ; s'il ne reste aucune tentative,
+  `review_unresolved`). Le dernier verdict est dans `GET /projects/{id}/tasks/{ref}` sous `review`
+  `{verdict, issues, attempt, warning}`. Son coût apparaît sous le rôle `reviewer` ; la route
+  `reviewer` de Réglages → Modèles choisit le modèle et « local seulement » est respecté.
+- **Limite de durée par tâche** : `COBBLE_TASK_MAX_SECONDS` (2700 par défaut = 45 min, `0` la
+  désactive) borne une tâche, toutes tentatives confondues. Au-delà, la tâche est arrêtée et `failed`
+  avec `last_error` = `task_timeout` (exposé dans le détail de la tâche, traduit dans le tiroir,
+  évènement `task.timeout`) ; le projet continue et `retry` repart d'un chronomètre neuf.
 
 ## Coûts
 

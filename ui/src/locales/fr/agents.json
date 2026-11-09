@@ -4,7 +4,7 @@
   "group": {
     "todo": "À faire",
     "running": "En cours",
-    "ci": "CI",
+    "ci": "CI et relecture",
     "merged": "Fusionnées",
     "attention": "À surveiller"
   },
@@ -17,7 +17,8 @@
     "failed": "Échouée",
     "blocked": "Bloquée",
     "paused": "En pause",
-    "stopped": "Arrêtée"
+    "stopped": "Arrêtée",
+    "review": "En relecture"
   },
   "runState": {
     "pending": "Démarrage",
@@ -90,5 +91,27 @@
     "label": "Différences de la branche de la tâche",
     "empty": "Aucune modification envoyée pour l'instant.",
     "truncated": "Le diff est trop volumineux et a été tronqué."
+  },
+  "review": {
+    "title": "Relecture du code",
+    "inProgress": "Le relecteur lit les changements…",
+    "approve": "Approuvée",
+    "request_changes": "Changements demandés",
+    "issues": "Points à corriger",
+    "attempt": "Relecture de la tentative {{count}}",
+    "warning": {
+      "review_unparsable": "La réponse du relecteur n'a pas pu être lue : la tâche a été fusionnée sans relecture.",
+      "review_unavailable": "Le relecteur n'a pas pu répondre : la tâche a été fusionnée sans relecture.",
+      "review_unresolved": "Des changements ont été demandés mais il ne restait aucune tentative : la tâche a été fusionnée telle quelle."
+    },
+    "toggle": {
+      "title": "Relecture du code",
+      "label": "Faire relire chaque tâche par un agent relecteur avant la fusion",
+      "onHelp": "Quand la CI est verte, un relecteur compare les changements aux critères d'acceptation. S'il trouve des problèmes, l'agent réessaie avec ses remarques. Cela coûte quelques jetons par tâche et par nouvelle tentative.",
+      "offHelp": "Désactivée par défaut, car chaque relecture coûte des jetons. Activez-la pour un résultat plus exigeant."
+    }
+  },
+  "failure": {
+    "title": "Pourquoi cette tâche s'est arrêtée"
   }
 }

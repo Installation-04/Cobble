@@ -12,6 +12,7 @@ State machine (rows: action, columns: current state of the task):
     writing_tests        | paused(hold) | no-op    | stopped | 409
     implementing         | paused(hold) | no-op    | stopped | 409
     ci                   | paused(hold) | no-op    | stopped | 409
+    review (ADR 0024)    | paused(hold) | no-op    | stopped | 409
     paused (held)        | no-op        | continue | stopped | todo (*)
     paused (waiting)     | paused(hold) | no-op    | stopped | todo (*)
     stopped              | 409          | 409      | no-op   | todo
@@ -149,7 +150,13 @@ def resume_state(facts: TaskFacts) -> str:
     return rules.PAUSED
 
 
-_RUNNING_OR_TODO = (rules.TODO, rules.WRITING_TESTS, rules.IMPLEMENTING, rules.CI)
+_RUNNING_OR_TODO = (
+    rules.TODO,
+    rules.WRITING_TESTS,
+    rules.IMPLEMENTING,
+    rules.CI,
+    rules.REVIEW,
+)
 
 
 def decide(action: Action, facts: TaskFacts) -> Decision:

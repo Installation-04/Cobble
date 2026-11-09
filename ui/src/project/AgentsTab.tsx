@@ -8,6 +8,7 @@ import { Badge } from "../components/ui/badge";
 import { cn } from "../lib";
 import { FailureBanner } from "./FailureBanner";
 import { useProjectData } from "./ProjectDataProvider";
+import { ReviewToggle } from "./ReviewToggle";
 import { groupTasks, stateTone, TASK_GROUPS } from "./taskState";
 import { TaskDrawer } from "./TaskDrawer";
 
@@ -119,6 +120,7 @@ export function AgentsTab() {
       data-testid="agents-tab"
     >
       <FailureBanner kinds={["start"]} />
+      <ReviewToggle />
       {buildError != null && (
         <div
           role="alert"

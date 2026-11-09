@@ -9,6 +9,7 @@ const GROUP_OF: Record<TaskState, TaskGroup> = {
   writing_tests: "running",
   implementing: "running",
   ci: "ci",
+  review: "ci",
   merged: "merged",
   failed: "attention",
   blocked: "attention",
@@ -41,9 +42,9 @@ export type TaskAction = "pause" | "resume" | "stop" | "retry";
 export const TASK_ACTIONS: readonly TaskAction[] = ["pause", "resume", "stop", "retry"];
 
 const ALLOWED: Record<TaskAction, readonly TaskState[]> = {
-  pause: ["todo", "writing_tests", "implementing", "ci", "paused"],
+  pause: ["todo", "writing_tests", "implementing", "ci", "review", "paused"],
   resume: ["paused"],
-  stop: ["todo", "writing_tests", "implementing", "ci", "paused"],
+  stop: ["todo", "writing_tests", "implementing", "ci", "review", "paused"],
   retry: ["paused", "stopped", "failed", "blocked"],
 };
 
@@ -61,6 +62,7 @@ export function stateTone(state: TaskState): StateTone {
     case "writing_tests":
     case "implementing":
     case "ci":
+    case "review":
       return "primary";
     case "failed":
     case "blocked":

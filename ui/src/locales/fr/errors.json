@@ -73,5 +73,7 @@
   "mockup_choice_required": "Choisissez une maquette avant de générer le plan.",
   "job_mockups_invalid": "L'assistant n'a pas pu produire de maquettes valides après plusieurs essais. Réessayez.",
   "task_budget_reached": "Cette tâche a atteint son propre plafond de coût et a été arrêtée. Le projet continue ; augmentez le plafond par tâche dans Réglages → Modèles pour la relancer.",
-  "job_task_budget_reached": "Une tâche a atteint son propre plafond de coût et a été arrêtée. Le projet continue."
+  "job_task_budget_reached": "Une tâche a atteint son propre plafond de coût et a été arrêtée. Le projet continue.",
+  "task_timeout": "Cette tâche a épuisé sa limite de temps (toutes ses tentatives ensemble) et a été arrêtée. Le projet continue ; relancez-la, ou augmentez COBBLE_TASK_MAX_SECONDS (0 désactive la limite).",
+  "job_task_timeout": "Une tâche a épuisé sa limite de temps et a été arrêtée. Le projet continue."
 }

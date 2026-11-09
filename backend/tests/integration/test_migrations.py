@@ -816,3 +816,57 @@ def test_migration_0018_electricity_and_task_budgets_up_and_down(database_url: s
         engine.dispose()
     command.downgrade(config, "base")  # leave the shared test database clean
     command.upgrade(config, "head")
+
+
+def test_migration_0019_reviewer_agent_up_and_down(database_url: str) -> None:
+    config = alembic_config(database_url)
+    command.downgrade(config, "base")
+    command.upgrade(config, "0018")
+    engine = create_engine(database_url)
+    try:
+        with engine.begin() as conn:
+            conn.execute(
+                text(
+                    "INSERT INTO users (id, email, password_hash) "
+                    "VALUES ('00000000-0000-0000-0000-0000000000f1', 'rev@example.com', 'x')"
+                )
+            )
+            conn.execute(
+                text(
+                    "INSERT INTO projects (id, owner_id, name) VALUES "
+                    "('00000000-0000-0000-0000-0000000000f2', "
+                    "'00000000-0000-0000-0000-0000000000f1', 'old')"
+                )
+            )
+        command.upgrade(config, "0019")
+        with engine.begin() as conn:
+            flag = conn.execute(text("SELECT review_enabled FROM projects")).scalar_one()
+            assert flag is False  # existing projects keep the cheaper flow
+        assert "review" in {c["name"] for c in inspect(engine).get_columns("tasks")}
+        command.downgrade(config, "0018")
+        assert "review" not in {c["name"] for c in inspect(engine).get_columns("tasks")}
+        assert "review_enabled" not in {c["name"] for c in inspect(engine).get_columns("projects")}
+        with engine.begin() as conn:  # the project itself survives the round trip
+            assert conn.execute(text("SELECT count(*) FROM projects")).scalar_one() == 1
+    finally:
+        engine.dispose()
+    command.downgrade(config, "base")  # leave the shared test database clean
+    command.upgrade(config, "head")
+
+
+def test_the_reviewer_columns_match_the_migrations(migrated_database: str) -> None:
+    """No drift on `projects.review_enabled` and `tasks.review`."""
+    from alembic.autogenerate import compare_metadata
+    from alembic.migration import MigrationContext
+
+    from cobble.db.base import Base
+
+    engine = create_engine(migrated_database)
+    try:
+        with engine.connect() as conn:
+            context = MigrationContext.configure(conn, opts={"compare_type": True})
+            diff = compare_metadata(context, Base.metadata)
+    finally:
+        engine.dispose()
+    mine = [d for d in diff if "review_enabled" in repr(d) or "'review'" in repr(d)]
+    assert mine == []
