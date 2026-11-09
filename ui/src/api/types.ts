@@ -38,6 +38,8 @@ export interface Project {
   explain_mode?: boolean;
   /** True: the planner proposes mockup variants and the user picks one before planning. */
   mockups_enabled?: boolean;
+  /** True: a reviewer agent reads each task's diff between CI green and merge. */
+  review_enabled?: boolean;
   status: "active" | "paused";
   phase: Phase;
 }
@@ -111,11 +113,13 @@ export const TASK_STATES = [
   "writing_tests",
   "implementing",
   "ci",
+  "review",
   "merged",
   "failed",
   "blocked",
   "paused",
   "stopped",
+  "waiting_human",
 ] as const;
 export type TaskState = (typeof TASK_STATES)[number];
 
@@ -132,6 +136,25 @@ export interface Task {
   depends_on: string[];
 }
 
+/** A question an agent asked the user (ADR 0025). */
+export interface TaskQuestion {
+  id: string;
+  /** Reference of the task that asks (T-003). */
+  task_id: string;
+  task_title: string;
+  question: string;
+  choices: string[];
+  status: "open" | "answered" | "skipped";
+  answer: string | null;
+  created_at: string;
+  answered_at: string | null;
+}
+
+export interface QuestionList {
+  open: number;
+  items: TaskQuestion[];
+}
+
 export interface TaskRun {
   /** Which agent ran: test-writer, worker... */
   kind: string;
@@ -144,8 +167,20 @@ export interface TaskRun {
   log_tail: string | null;
 }
 
+/** Latest verdict of the reviewer agent on a task. */
+export interface TaskReview {
+  verdict: "approve" | "request_changes";
+  issues: string[];
+  attempt: number;
+  /** Set when the approval was not really given: review_unparsable, review_unavailable... */
+  warning: string | null;
+}
+
 export interface TaskDetail extends Task {
   runs: TaskRun[];
+  /** A stable code (task_timeout, task_budget_reached...) when the task failed for it. */
+  last_error?: string | null;
+  review?: TaskReview | null;
 }
 
 export interface TaskDiff {

@@ -12,7 +12,8 @@ services:
     read_only: true
     tmpfs: ["/tmp:size=4m,uid=10004,mode=700"]
     environment:
-      AGENT_PROXY_ALLOW: ${COBBLE_AGENT_PROXY_ALLOW:-api,pypi.org,files.pythonhosted.org,registry.npmjs.org}
+      # Exactly the cache hosts are added (when a cache module is installed): nothing else widens.
+      AGENT_PROXY_ALLOW: ${COBBLE_AGENT_PROXY_ALLOW:-api,pypi.org,files.pythonhosted.org,registry.npmjs.org}${COBBLE_WANT_NPM_CACHE_HOST:+,${COBBLE_WANT_NPM_CACHE_HOST}}${COBBLE_WANT_PYPI_CACHE_HOST:+,${COBBLE_WANT_PYPI_CACHE_HOST}}
     healthcheck:
       test: ["CMD-SHELL", "nc -z 127.0.0.1 3128"]
       interval: 5s
@@ -42,6 +43,10 @@ services:
       COBBLE_AGENT_NETWORK: cobble-aider-agents
       COBBLE_AGENT_RUNNER_IMAGE: ghcr.io/installation-04/cobble-aider-runner@sha256:5e1acab5b595b3ac31f73304d4ff219fb47e5f0045c16a7d92de1ea335743302
       COBBLE_AGENT_PROXY_URL: http://agent-proxy:3128
+      # Package caches (empty = the public registries): the agents install through them, still
+      # via the proxy above, whose allow-list names the cache hosts.
+      COBBLE_AGENT_NPM_REGISTRY: ${COBBLE_WANT_NPM_CACHE_URL:-}
+      COBBLE_AGENT_PYPI_INDEX: ${COBBLE_WANT_PYPI_CACHE_URL:-}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - agents-data:/data

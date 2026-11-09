@@ -1,6 +1,6 @@
 # 0016 — Crash recovery (resume instead of restart)
 
-Status: accepted (v0.3, "Reprise après panne", PLAN.md section 17).
+Status: **proposed** (implemented in v0.3, waiting for the owner to accept; "Reprise après panne", PLAN.md section 17).
 
 ## Context: what happens today when the worker dies
 

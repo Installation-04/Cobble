@@ -73,5 +73,9 @@
   "mockup_choice_required": "Choose a mockup before generating the plan.",
   "job_mockups_invalid": "The assistant could not produce valid mockups after several attempts. Try again.",
   "task_budget_reached": "This task reached its own cost cap and was stopped. The project goes on; raise the per-task cap in Settings → Models to retry it.",
-  "job_task_budget_reached": "A task reached its own cost cap and was stopped. The project goes on."
+  "job_task_budget_reached": "A task reached its own cost cap and was stopped. The project goes on.",
+  "task_timeout": "This task used up its time limit (all its attempts together) and was stopped. The project goes on; retry it, or raise COBBLE_TASK_MAX_SECONDS (0 turns the limit off).",
+  "job_task_timeout": "A task used up its time limit and was stopped. The project goes on.",
+  "question_closed": "This question was already answered or skipped.",
+  "answer_empty": "Type an answer first."
 }

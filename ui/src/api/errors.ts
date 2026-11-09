@@ -20,6 +20,7 @@ export const KNOWN_ERROR_CODES = [
   "local_only_unavailable",
   "budget_reached",
   "task_budget_reached",
+  "task_timeout",
   "wrong_state",
   "queue_unavailable",
   "explain_mode_off",
@@ -44,6 +45,8 @@ export const KNOWN_ERROR_CODES = [
   "benchmark_running",
   "benchmark_paid",
   "benchmark_nothing",
+  "question_closed",
+  "answer_empty",
 ] as const;
 
 /** Failure codes of an install or removal step, translated as `errors:module_code_<code>`. */

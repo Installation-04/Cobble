@@ -244,3 +244,22 @@ def test_the_local_packs_use_the_flavour_of_ollama_that_matches_the_machine() ->
     assert choose_variant(ollama, Hardware(ram_mb=16384, gpu="nvidia")).id == "nvidia"  # type: ignore[union-attr]
     assert choose_variant(ollama, Hardware(ram_mb=16384, gpu="amd")).id == "amd"  # type: ignore[union-attr]
     assert choose_variant(ollama, Hardware(ram_mb=16384, gpu="none")).id == "cpu"  # type: ignore[union-attr]
+
+
+def test_the_agents_use_a_package_cache_only_if_one_is_installed() -> None:
+    from cobble_sdk import plan_install
+
+    catalog = _manifests()
+    aider = catalog["aider"]
+    assert set(aider.wants) == {"npm-cache", "pypi-cache"}
+    assert "npm-cache" not in aider.requires and "pypi-cache" not in aider.requires
+    # nothing installs a cache for the agents, and a cache never needs the agents
+    assert plan_install(catalog, set(), ["aider"]).installed == {"aider", "forgejo"}
+    assert plan_install(catalog, set(), ["verdaccio"]).installed == {"verdaccio"}
+    # the providers say where their index lives under their address
+    endpoints = {p.capability: p.endpoint for m in catalog.values() for p in m.provides}
+    assert endpoints["npm-cache"] == "/" and endpoints["pypi-cache"] == "/root/pypi/+simple/"
+    # the compose file widens the proxy allow-list with exactly the cache hosts, nothing else
+    text = (CATALOG / "aider" / "compose.yml").read_text("utf-8")
+    assert "COBBLE_WANT_NPM_CACHE_HOST" in text and "COBBLE_WANT_PYPI_CACHE_HOST" in text
+    assert "COBBLE_WANT_NPM_CACHE_URL" in text and "COBBLE_WANT_PYPI_CACHE_URL" in text

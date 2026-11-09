@@ -87,6 +87,23 @@ def writer_instructions(task: PromptTask) -> str:
     )
 
 
+# `last_error` of a task whose reviewer asked for changes starts with this (ADR 0024).
+REVIEW_FEEDBACK = "Code review: changes requested.\n"
+
+
+def review_feedback(issues: tuple[str, ...] | list[str]) -> str:
+    """The text a worker attempt receives when the reviewer asked for changes."""
+    return REVIEW_FEEDBACK + "\n".join(f"- {issue}" for issue in issues)
+
+
+def _review_section(feedback: str) -> str:
+    return (
+        "\nThe previous attempt passed the tests but a code reviewer asked for changes:\n"
+        f"{feedback.removeprefix(REVIEW_FEEDBACK).strip()}\n"
+        "Address each point without weakening the tests.\n"
+    )
+
+
 def worker_instructions(task: PromptTask, attempt: int, failure: str | None = None) -> str:
     """Second step: make the tests pass. `failure` is the previous attempt's CI log or error."""
     text = (
@@ -96,7 +113,9 @@ def worker_instructions(task: PromptTask, attempt: int, failure: str | None = No
         "with the test command, then stop.\n\n"
         f"{_body(task)}"
     )
-    if failure:
+    if failure and failure.startswith(REVIEW_FEEDBACK):
+        text += _review_section(failure)
+    elif failure:
         text += (
             "\nThe previous attempt failed. End of its log:\n"
             f"```\n{tail(failure)}\n```\n"

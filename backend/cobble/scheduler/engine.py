@@ -47,8 +47,9 @@ from cobble.capabilities.git import (
     MergeRequestRef,
     RepoRef,
     TagExists,
+    cap_diff,
 )
-from cobble.capabilities.llm import Role
+from cobble.capabilities.llm import LLMClient, Role
 from cobble.capabilities.preview import (
     PreviewProvider,
     PreviewRejected,
@@ -60,7 +61,7 @@ from cobble.config import Settings
 from cobble.db import Milestone, Project, Task, TaskRun
 from cobble.events import enqueue_job, publish_project
 
-from . import control, demo, prompts, rules
+from . import control, demo, lessons, prompts, questions, review, rules
 from .materialize import NoApprovedPlan, materialize_tasks
 
 log = logging.getLogger(__name__)
@@ -82,6 +83,7 @@ COUNTED = (
 LOG_TAIL_CHARS = 4000
 RUN_TOKEN_SLACK_S = 60
 PENDING_GRACE_S = 120  # a pending row younger than this may be a start in flight
+TASK_TIMEOUT = "task_timeout"  # `last_error` of a task that used up its wall-clock limit
 
 
 class StartError(Exception):
@@ -125,6 +127,7 @@ class Scheduler:
         model_for: Callable[[Role], str] | None = None,
         clock: Callable[[], datetime] = _now,
         preview: PreviewProvider | None = None,
+        llm: LLMClient | None = None,
     ) -> None:
         self._sessions = sessions
         self._git = git
@@ -137,6 +140,8 @@ class Scheduler:
         # Without a preview provider the demo flow is off: the project is `done` as soon as every
         # task is merged (the behaviour of ADR 0006).
         self._preview = preview
+        # The cost router, for the reviewer agent (ADR 0024). Without it reviews are skipped.
+        self._llm = llm
 
     # --- helpers --------------------------------------------------------------------------
 
@@ -341,7 +346,9 @@ class Scheduler:
                     select(Task)
                     .where(
                         Task.project_id == project_id,
-                        Task.state.in_([rules.WRITING_TESTS, rules.IMPLEMENTING, rules.CI]),
+                        Task.state.in_(
+                            [rules.WRITING_TESTS, rules.IMPLEMENTING, rules.CI, rules.REVIEW]
+                        ),
                     )
                     .order_by(Task.ref)
                 )
@@ -360,10 +367,14 @@ class Scheduler:
             task = session.get(Task, task_id)
             if project is None or task is None:
                 return
+            if self._enforce_duration(session, task):
+                return
             if task.state in (rules.WRITING_TESTS, rules.IMPLEMENTING):
                 self._step_run(session, project, task)
             elif task.state == rules.CI:
                 self._step_ci(session, project, task)
+            elif task.state == rules.REVIEW:
+                self._step_review(session, project, task)
 
     # --- agent runs -----------------------------------------------------------------------
 
@@ -433,14 +444,34 @@ class Scheduler:
         return RUNNING
 
     def _finish_run(self, session: Session, task: Task, run: TaskRun, result: AgentResult) -> None:
+        if result.outcome is AgentOutcome.QUESTION:
+            if questions.left(session, task) == 0:  # an agent that ignores its budget fails
+                result = AgentResult(
+                    AgentOutcome.FAILED,
+                    iterations=result.iterations,
+                    log=questions.OVER_LIMIT_LOG,
+                    exit_code=result.exit_code,
+                )
+            else:
+                # Stored before the run is closed: a crash in between re-polls the run and
+                # records the question once (ADR 0025).
+                questions.record(session, task, run, result.question, self._emit)
         run.state = result.outcome.value
         run.iterations = result.iterations
         run.head_sha = result.head_sha
         run.finished_at = self._clock()
         run.log_tail = prompts.tail(result.log, LOG_TAIL_CHARS) if result.log else None
-        if result.outcome is not AgentOutcome.DONE:
+        if result.outcome not in (AgentOutcome.DONE, AgentOutcome.QUESTION):
             detail = prompts.tail(result.log, LOG_TAIL_CHARS) if result.log else ""
             task.last_error = f"agent {result.outcome.value}: {detail}".rstrip(": ")
+            source = {
+                AgentOutcome.LOOP_DETECTED: lessons.LOOP,
+                AgentOutcome.TIMEOUT: lessons.TIMEOUT,
+            }.get(result.outcome)
+            if source:
+                lessons.capture_failure(
+                    session, task, source, result.log, self._settings.escalate_after
+                )
         session.commit()
 
     def _follow_up(self, session: Session, project: Project, task: Task) -> None:
@@ -458,6 +489,8 @@ class Scheduler:
             self._set_state(session, task, rules.STOPPED)
         elif last.state == AgentOutcome.BUDGET.value:
             self._set_state(session, task, rules.PAUSED)
+        elif last.state == questions.RUN_STATE:
+            self._after_question(session, project, task, last)
         elif last.state == LOST:
             self._launch_or_hold(session, project, task, last.kind)
         elif last.kind == "test-writer":
@@ -469,6 +502,16 @@ class Scheduler:
             self._open_merge_request(session, project, task)
         else:  # failed, timeout, loop_detected, rejected
             self._launch_or_hold(session, project, task, "worker")
+
+    def _after_question(
+        self, session: Session, project: Project, task: Task, last: TaskRun
+    ) -> None:
+        """The last run asked the user: wait for the answer (no run, no attempt used). A question
+        the system already skipped (the task used its questions) goes straight on."""
+        if questions.has_open(session, task):
+            self._set_state(session, task, rules.WAITING_HUMAN)
+        else:
+            self._launch_or_hold(session, project, task, last.kind)
 
     def _running_elsewhere(self, session: Session, task: Task) -> int:
         return (
@@ -501,6 +544,8 @@ class Scheduler:
         runs = self._runs(session, task)
         if any(r.state in ACTIVE_RUNS for r in runs):
             return  # never two runs for one task
+        if questions.has_open(session, task):
+            return  # the user has not answered yet (ADR 0025)
         counted = sum(1 for r in runs if r.kind == kind and r.state in COUNTED)
         if counted >= self._settings.max_attempts:
             self._fail_task(session, task, task.last_error or f"{kind} failed {counted} times")
@@ -526,6 +571,9 @@ class Scheduler:
             instructions = make(view, attempt, task.last_error)
         else:
             instructions = prompts.writer_instructions(view)
+        instructions += questions.addendum(session, task)  # earlier answers, how to ask (ADR 0025)
+        if task.kind != "demo":
+            instructions += lessons.prompt_block(session, task.project_id)
         limits = AgentLimits(
             max_iterations=self._settings.agent_max_iterations,
             max_seconds=self._settings.agent_max_seconds,
@@ -638,8 +686,23 @@ class Scheduler:
         if status.state is CIState.FAILURE:
             self._reject(session, project, task, run, status.detail or "CI failed")
             return
+        if self._review_wanted(project, task):
+            self._set_state(session, task, rules.REVIEW)  # the next tick reads the diff
+            self._emit(
+                project.id, "task.review_started", {"task_id": task.ref, "attempt": task.attempts}
+            )
+            return
+        self._merge(session, project, task, run)
+
+    def _merge(self, session: Session, project: Project, task: Task, run: TaskRun) -> None:
+        if task.branch is None or task.pr_number is None:
+            return
         request = MergeRequestRef(
-            repo, task.pr_number, task.branch, self._settings.base_branch, run.head_sha
+            self._repo(project),
+            task.pr_number,
+            task.branch,
+            self._settings.base_branch,
+            run.head_sha,
         )
         try:
             self._git.merge(request)
@@ -652,6 +715,130 @@ class Scheduler:
         task.last_error = None
         self._set_state(session, task, rules.MERGED)
 
+    # --- reviewer agent (ADR 0024) ----------------------------------------------------------
+
+    @staticmethod
+    def _review_wanted(project: Project, task: Task) -> bool:
+        # Demo data and restores carry no logic to review.
+        return project.review_enabled and task.kind not in ("demo", "revert")
+
+    def _step_review(self, session: Session, project: Project, task: Task) -> None:
+        """CI is green and the reviewer reads the diff: approve -> merge, else another attempt."""
+        run = self._last_worker_run(session, task)
+        if run is None or task.branch is None or task.pr_number is None:
+            self._set_state(session, task, rules.IMPLEMENTING)
+            return
+        decided = task.review
+        if not (
+            decided
+            and decided.get("attempt") == task.attempts
+            and decided.get("verdict") == review.APPROVE
+        ):  # a merge that failed transiently must not pay for a second review
+            verdict, warning = self._ask_reviewer(session, project, task)
+            counted = sum(
+                1 for r in self._runs(session, task) if r.kind == "worker" and r.state in COUNTED
+            )
+            if verdict.verdict == review.REQUEST_CHANGES and counted >= self._settings.max_attempts:
+                verdict, warning = review.Verdict(review.APPROVE), review.WARNING_UNRESOLVED
+            task.review = {
+                "verdict": verdict.verdict,
+                "issues": list(verdict.issues),
+                "attempt": task.attempts,
+                "warning": warning,
+            }
+            session.commit()
+            self._emit(
+                project.id,
+                "task.reviewed",
+                {
+                    "task_id": task.ref,
+                    "verdict": verdict.verdict,
+                    "issues": list(verdict.issues),
+                    "warning": warning,
+                },
+            )
+            if verdict.verdict == review.REQUEST_CHANGES:
+                # Same path as a red CI: one attempt used, escalation and max_attempts apply.
+                self._reject(session, project, task, run, prompts.review_feedback(verdict.issues))
+                return
+        self._merge(session, project, task, run)
+
+    def _ask_reviewer(
+        self, session: Session, project: Project, task: Task
+    ) -> tuple[review.Verdict, str | None]:
+        """The reviewer's verdict and, when it is an approval nobody really gave, why. Never
+        raises and never blocks: an unusable answer is retried once, then approved."""
+        approve = review.Verdict(review.APPROVE)
+        if self._llm is None or task.branch is None:
+            return approve, review.WARNING_UNAVAILABLE
+        try:
+            text, truncated = self._git.diff(
+                self._repo(project),
+                self._settings.base_branch,
+                task.branch,
+                request_number=task.pr_number,
+            )
+        except Exception:
+            log.warning("could not read the diff of %s for review", task.ref, exc_info=True)
+            return approve, review.WARNING_UNAVAILABLE
+        if not text.strip():
+            return approve, review.WARNING_UNAVAILABLE
+        text, cut = cap_diff(text, review.DIFF_CHARS)
+        warning = review.WARNING_UNAVAILABLE
+        previous: str | None = None
+        for _ in range(review.VERDICT_ATTEMPTS):
+            messages = review.review_messages(
+                task.title, task.acceptance, text, truncated=truncated or cut, previous=previous
+            )
+            try:
+                answer = self._llm.chat(
+                    Role.REVIEWER, messages, project_id=task.project_id, task_id=task.id
+                ).content
+            except Exception:  # budget, local-only, gateway: the review is a bonus, never a wall
+                log.warning("the reviewer could not answer for %s", task.ref, exc_info=True)
+                continue
+            try:
+                return review.parse_verdict(answer), None
+            except review.VerdictInvalid:
+                log.info("unparsable review verdict for %s", task.ref)
+                previous, warning = answer, review.WARNING_UNPARSABLE
+        return approve, warning
+
+    # --- wall-clock limit of a task (ADR 0024) ---------------------------------------------
+
+    def _enforce_duration(self, session: Session, task: Task) -> bool:
+        """Stop and fail a task that worked longer than `task_max_seconds`, all attempts
+        together (counted from its first run since the last retry). The project goes on."""
+        limit = self._settings.task_max_seconds
+        if limit <= 0 or task.kind == "revert":
+            return False
+        all_runs = self._runs(session, task)
+        # A retry or a stop starts the clock over: only the runs since then count.
+        runs = [r for r in all_runs if r.state not in (control.RUN_RETIRED, control.RUN_STOPPED)]
+        if not runs:
+            return False
+        elapsed = (self._clock() - _aware(runs[0].started_at)).total_seconds()
+        if elapsed <= limit:
+            return False
+        for run in all_runs:
+            if run.state not in ACTIVE_RUNS:
+                continue
+            if run.agent_run_id is not None:
+                try:
+                    self._agents.stop(run.agent_run_id)
+                except Exception:  # the run ends by its own limit anyway
+                    log.warning("could not stop the run %s", run.agent_run_id, exc_info=True)
+            run.state = control.RUN_STOPPED
+            run.finished_at = self._clock()
+        task.last_error = TASK_TIMEOUT
+        self._set_state(session, task, rules.FAILED)
+        self._emit(
+            task.project_id,
+            "task.timeout",
+            {"task_id": task.ref, "elapsed_s": int(elapsed), "limit_s": limit},
+        )
+        return True
+
     def _reject(
         self, session: Session, project: Project, task: Task, run: TaskRun, detail: str
     ) -> None:
@@ -661,6 +848,9 @@ class Scheduler:
         if task.kind == "revert":  # no agent can fix a restore: the operator decides
             self._set_state(session, task, rules.FAILED)
             return
+        lessons.capture_failure(
+            session, task, lessons.CI_FAILURE, detail, self._settings.escalate_after
+        )
         self._set_state(session, task, rules.IMPLEMENTING)
         self._launch_or_hold(session, project, task, "worker")
 
@@ -672,6 +862,8 @@ class Scheduler:
         last = runs[-1] if runs else None
         if last is None:
             return "worker" if task_kind == "demo" else "test-writer"
+        if last.state == questions.RUN_STATE:
+            return last.kind  # answered: the same step again, with the answer in its prompt
         if last.kind == "test-writer":
             return "worker" if last.state == AgentOutcome.DONE.value else "test-writer"
         return None if last.state == AgentOutcome.DONE.value else "worker"

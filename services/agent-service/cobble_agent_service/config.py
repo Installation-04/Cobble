@@ -6,6 +6,7 @@ import os
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import urlsplit
 
 
 class ConfigError(RuntimeError):
@@ -42,6 +43,10 @@ class Settings:
     cap_seconds: int = 3600
     tmp_mb: int = 1024
     log_limit_bytes: int = 50 * 1024 * 1024
+    # Optional package caches (set by the module-manager when a cache module is installed): the
+    # agents install through them, still via the allow-list proxy. Empty = the public registries.
+    npm_registry: str = ""
+    pypi_index: str = ""
     agent_cmd: str = ""  # test hook only: forwarded as COBBLE_AGENT_CMD to the runner
 
     def __repr__(self) -> str:  # pragma: no cover - guards against accidental secret logging
@@ -51,6 +56,11 @@ class Settings:
     def runs_dir(self) -> Path:
         return self.data_dir / "runs"
 
+    @property
+    def pypi_host(self) -> str:
+        """The host name of the PyPI cache (pip must be told to trust a plain-HTTP index)."""
+        return urlsplit(self.pypi_index).hostname or ""
+
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> Settings:
         e = os.environ if env is None else env
@@ -59,6 +69,14 @@ class Settings:
             value = e.get(name, "").strip()
             if not value:
                 raise ConfigError(f"{name} is required")
+            return value
+
+        def cache_url(name: str) -> str:
+            value = e.get(name, "").strip()
+            if value:
+                parts = urlsplit(value)
+                if parts.scheme not in ("http", "https") or not parts.hostname or parts.username:
+                    raise ConfigError(f"{name} must be an http(s) URL without credentials")
             return value
 
         rewrite = e.get("COBBLE_AGENT_GIT_REWRITE", "").strip()
@@ -97,5 +115,7 @@ class Settings:
             cap_pids=int(e.get("COBBLE_AGENT_MAX_PIDS", "1024")),
             cap_seconds=int(e.get("COBBLE_AGENT_MAX_SECONDS", "3600")),
             tmp_mb=int(e.get("COBBLE_AGENT_TMP_MB", "1024")),
+            npm_registry=cache_url("COBBLE_AGENT_NPM_REGISTRY"),
+            pypi_index=cache_url("COBBLE_AGENT_PYPI_INDEX"),
             agent_cmd=e.get("COBBLE_AGENT_CMD", ""),
         )

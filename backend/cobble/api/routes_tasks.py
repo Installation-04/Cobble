@@ -23,6 +23,13 @@ from .schemas import TaskDetailOut, TaskOut
 
 router = APIRouter()
 
+# `last_error` also holds agent logs and review feedback (free text): only these codes leave.
+PUBLIC_ERRORS = ("task_timeout", "task_budget_reached", "dependency_failed")
+
+
+def _public_error(value: str | None) -> str | None:
+    return value if value in PUBLIC_ERRORS else None
+
 
 @router.post("/projects/{project_id}/start", status_code=202)
 def start_project(project: OwnedProject, redis: RedisDep) -> dict[str, Any]:
@@ -51,4 +58,9 @@ def get_task(ref: str, project: OwnedProject, db: Db) -> dict[str, Any]:
     runs = db.scalars(
         select(TaskRun).where(TaskRun.task_id == task.id).order_by(TaskRun.started_at)
     )
-    return {**TaskOut.model_validate(task).model_dump(), "runs": list(runs)}
+    return {
+        **TaskOut.model_validate(task).model_dump(),
+        "runs": list(runs),
+        "last_error": _public_error(task.last_error),
+        "review": task.review,
+    }
