@@ -328,6 +328,17 @@ class RunManager:
             "COBBLE_TASK_ID": req.task_id,
             "COBBLE_ROLE": req.role,
         }
+        # Package caches: the tools still go out through the proxy (its allow-list names the
+        # cache), so a cache that is down makes an install fail instead of reaching the internet.
+        if s.npm_registry:
+            env["npm_config_registry"] = s.npm_registry
+            env["COBBLE_NPM_REGISTRY"] = s.npm_registry
+        if s.pypi_index:
+            env["PIP_INDEX_URL"] = s.pypi_index
+            env["UV_DEFAULT_INDEX"] = s.pypi_index
+            env["COBBLE_PYPI_INDEX"] = s.pypi_index
+            if s.pypi_index.startswith("http://"):
+                env["PIP_TRUSTED_HOST"] = s.pypi_host
         if s.agent_cmd:
             env["COBBLE_AGENT_CMD"] = s.agent_cmd
         return {

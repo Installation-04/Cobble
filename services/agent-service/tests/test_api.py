@@ -190,3 +190,27 @@ def test_settings_require_the_secrets_and_one_data_location() -> None:
     ok = Settings.from_env({**env, "COBBLE_AGENT_DATA_VOLUME": "v"})
     assert ok.api_url == "http://api:8000/internal/llm/v1" and ok.network == "cobble_agents"
     assert "ft" not in repr(ok)
+
+
+def test_package_cache_settings_are_optional_and_validated() -> None:
+    env = {
+        "COBBLE_AGENT_SERVICE_TOKEN": "t",
+        "COBBLE_AGENT_RUNNER_IMAGE": "img",
+        "COBBLE_INTERNAL_API_URL": "http://api:8000/internal/llm/v1",
+        "COBBLE_PACK_FORGEJO_URL": "http://forgejo:3000",
+        "COBBLE_PACK_FORGEJO_TOKEN": "ft",
+        "COBBLE_AGENT_DATA_VOLUME": "v",
+    }
+    plain = Settings.from_env(env)
+    assert plain.npm_registry == "" and plain.pypi_index == ""
+    cached = Settings.from_env(
+        {
+            **env,
+            "COBBLE_AGENT_NPM_REGISTRY": "http://cobble-verdaccio-verdaccio:4873/",
+            "COBBLE_AGENT_PYPI_INDEX": "http://cobble-devpi-devpi:3141/root/pypi/+simple/",
+        }
+    )
+    assert cached.pypi_host == "cobble-devpi-devpi"
+    for bad in ("ftp://x/", "http://u:p@x/", "not a url"):
+        with pytest.raises(ConfigError):
+            Settings.from_env({**env, "COBBLE_AGENT_NPM_REGISTRY": bad})
