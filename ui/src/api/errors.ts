@@ -45,6 +45,8 @@ export const KNOWN_ERROR_CODES = [
   "benchmark_running",
   "benchmark_paid",
   "benchmark_nothing",
+  "question_closed",
+  "answer_empty",
 ] as const;
 
 /** Failure codes of an install or removal step, translated as `errors:module_code_<code>`. */

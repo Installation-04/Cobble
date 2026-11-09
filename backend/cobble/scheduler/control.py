@@ -15,11 +15,15 @@ State machine (rows: action, columns: current state of the task):
     review (ADR 0024)    | paused(hold) | no-op    | stopped | 409
     paused (held)        | no-op        | continue | stopped | todo (*)
     paused (waiting)     | paused(hold) | no-op    | stopped | todo (*)
+    waiting_human        | no-op        | no-op    | stopped | todo
     stopped              | 409          | 409      | no-op   | todo
     failed, blocked      | 409          | 409      | 409     | todo
     merged               | 409          | 409      | 409     | 409
 
     (*) 409 while a run is still active: stop it first.
+
+`waiting_human` (an agent asked the user a question, ADR 0025) leaves only through the answer,
+a stop or a retry; stop and retry close the open question as skipped.
 
 `paused` has two meanings. The scheduler parks a task as `paused` while it waits for a free slot
 or for the budget (the scheduler restarts it by itself). A pause requested by the operator holds
@@ -54,7 +58,7 @@ from cobble.capabilities.agent import AgentRunner, AgentUnavailable
 from cobble.db import Task, TaskRun
 from cobble.events import publish_project
 
-from . import rules
+from . import questions, rules
 
 log = logging.getLogger(__name__)
 
@@ -68,7 +72,7 @@ RUN_STOPPED = "stopped"
 RUN_RETIRED = "retired"
 ACTIVE_RUNS = (RUN_PENDING, RUN_RUNNING)
 # Run states that used up an attempt (mirrors the scheduler's COUNTED, plus nothing else).
-_RETIRABLE = ("done", "failed", "timeout", "loop_detected", "rejected")
+_RETIRABLE = ("done", "failed", "timeout", "loop_detected", "rejected", "question")
 
 
 class Action(enum.StrEnum):
@@ -164,6 +168,9 @@ def decide(action: Action, facts: TaskFacts) -> Decision:
     state, error = facts.state, facts.last_error
     keep = Decision(state, error, changed=False)
 
+    if state == rules.WAITING_HUMAN and action in (Action.PAUSE, Action.RESUME):
+        return keep  # only the answer, a stop or a retry release it
+
     if action is Action.PAUSE:
         if state in _RUNNING_OR_TODO:
             return Decision(rules.PAUSED, _hold(error), changed=True)
@@ -182,14 +189,14 @@ def decide(action: Action, facts: TaskFacts) -> Decision:
     if action is Action.STOP:
         if state == rules.STOPPED:
             return keep
-        if state in _RUNNING_OR_TODO or state == rules.PAUSED:
+        if state in _RUNNING_OR_TODO or state in (rules.PAUSED, rules.WAITING_HUMAN):
             return Decision(rules.STOPPED, _release(error), changed=True, stop_runs=True)
         raise WrongState(action, state)
 
     # retry
     if state == rules.TODO:
         return keep
-    if state in (rules.FAILED, rules.BLOCKED, rules.STOPPED) or (
+    if state in (rules.FAILED, rules.BLOCKED, rules.STOPPED, rules.WAITING_HUMAN) or (
         state == rules.PAUSED and not facts.active_run
     ):
         return Decision(rules.TODO, None, changed=True, retire_runs=True, reset=True, unblock=True)
@@ -294,6 +301,9 @@ def apply(
                 other.state = rules.TODO
                 other.last_error = None
                 unblocked.append(other.ref)
+
+    if task.state == rules.WAITING_HUMAN and decision.state != rules.WAITING_HUMAN:
+        questions.close_open(session, task)  # nobody is going to answer it any more
 
     previous = task.state
     task.state = decision.state

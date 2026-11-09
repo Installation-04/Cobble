@@ -7,9 +7,9 @@ from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-State = Literal["running", "done", "failed", "timeout", "loop_detected", "stopped"]
+State = Literal["running", "done", "failed", "timeout", "loop_detected", "stopped", "question"]
 TERMINAL_STATES: frozenset[str] = frozenset(
-    {"done", "failed", "timeout", "loop_detected", "stopped"}
+    {"done", "failed", "timeout", "loop_detected", "stopped", "question"}
 )
 
 _ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$")
@@ -126,3 +126,4 @@ class RunStatus(BaseModel):
     started_at: float
     finished_at: float | None = None
     detail: dict[str, Any] = {}
+    question: dict[str, Any] | None = None  # state "question": {question, choices}

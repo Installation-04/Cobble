@@ -10,6 +10,7 @@ import { Sheet, SheetContent, SheetDescription, SheetTitle } from "../components
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { DiffView } from "./DiffView";
 import { LogView } from "./LogView";
+import { QuestionPanel } from "./QuestionPanel";
 import { useProjectData } from "./ProjectDataProvider";
 import { canDo, isRunning, stateTone, TASK_ACTIONS, type TaskAction } from "./taskState";
 import { useAsyncAction } from "./useAsyncAction";
@@ -218,6 +219,8 @@ function DrawerBody({ task }: { task: Task }) {
           {task.escalated && <Badge tone="warning">{t("agents:escalated")}</Badge>}
         </div>
       </div>
+
+      <QuestionPanel taskRef={task.ref} />
 
       <Actions task={task} onDone={detail.reload} />
 

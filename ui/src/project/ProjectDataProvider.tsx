@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { ApiError } from "../api/client";
-import { buildApi, costsApi, demoApi, flowApi } from "../api/endpoints";
+import { buildApi, costsApi, demoApi, flowApi, questionsApi } from "../api/endpoints";
 import type {
   ChatMessage,
   Milestone,
@@ -20,6 +20,7 @@ import type {
   ProjectCosts,
   Spec,
   Task,
+  TaskQuestion,
 } from "../api/types";
 import { useWorkspace } from "../workspace/WorkspaceProvider";
 import { useProjectStream, type JobFailure, type JobsInFlight } from "./useProjectStream";
@@ -57,6 +58,11 @@ export interface ProjectData {
   reloadCosts: () => Promise<void>;
   /** Merge a task returned by an action (e.g. the one created by a demo comment). */
   upsertTask: (task: Task) => void;
+  /** Questions agents asked the user (ADR 0025), open ones first. */
+  questions: TaskQuestion[];
+  openQuestions: number;
+  /** `answer` null skips the question. */
+  answerQuestion: (questionId: string, answer: string | null) => Promise<void>;
 }
 
 const COSTS_REFRESH_MS = 1500;
@@ -116,6 +122,7 @@ export function ProjectDataProvider({
   const [tasks, setTasks] = useState<Task[]>([]);
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [costs, setCosts] = useState<ProjectCosts | null>(null);
+  const [questions, setQuestions] = useState<TaskQuestion[]>([]);
   const [buildError, setBuildError] = useState<unknown>(null);
   const alive = useRef(true);
   const statusRef = useRef(project.status);
@@ -196,9 +203,19 @@ export function ProjectDataProvider({
       ),
     [applyBuild, projectId, reload],
   );
+  const reloadQuestions = useCallback(
+    () =>
+      settle(questionsApi.list(projectId)).then((r) =>
+        applyBuild(r, (v: { items: TaskQuestion[] } | null) => setQuestions(v?.items ?? [])),
+      ),
+    [applyBuild, projectId],
+  );
   const loadBuildAll = useCallback(
-    () => Promise.all([reloadTasks(), reloadMilestones(), reloadCosts()]).then(() => undefined),
-    [reloadTasks, reloadMilestones, reloadCosts],
+    () =>
+      Promise.all([reloadTasks(), reloadMilestones(), reloadCosts(), reloadQuestions()]).then(
+        () => undefined,
+      ),
+    [reloadTasks, reloadMilestones, reloadCosts, reloadQuestions],
   );
 
   const scheduleCostsRefresh = useCallback(() => {
@@ -250,6 +267,10 @@ export function ProjectDataProvider({
       // A task we have never seen (a new comment task, a fresh plan): fetch the list.
       if (!tasksRef.current.some((task) => task.ref === ref)) void reloadTasks();
       scheduleCostsRefresh();
+    },
+    onQuestionEvent: () => {
+      void reloadQuestions();
+      void reloadTasks();
     },
     onMilestoneUpdated: ({ ref, status }) => {
       setMilestones((prev) => prev.map((m) => (m.ref === ref ? { ...m, status } : m)));
@@ -369,6 +390,15 @@ export function ProjectDataProvider({
     );
   }, []);
 
+  const answerQuestion = useCallback(
+    async (questionId: string, answer: string | null) => {
+      if (answer === null) await questionsApi.skip(projectId, questionId);
+      else await questionsApi.answer(projectId, questionId, answer);
+      await Promise.all([reloadQuestions(), reloadTasks()]);
+    },
+    [projectId, reloadQuestions, reloadTasks],
+  );
+
   const value = useMemo<ProjectData>(
     () => ({
       project,
@@ -399,6 +429,9 @@ export function ProjectDataProvider({
       reloadMilestones,
       reloadCosts,
       upsertTask,
+      questions,
+      openQuestions: questions.filter((q) => q.status === "open").length,
+      answerQuestion,
     }),
     [
       project,
@@ -427,6 +460,8 @@ export function ProjectDataProvider({
       reloadMilestones,
       reloadCosts,
       upsertTask,
+      questions,
+      answerQuestion,
     ],
   );
 

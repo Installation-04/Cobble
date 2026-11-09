@@ -113,4 +113,5 @@ def test_states_are_the_documented_ones() -> None:
         "blocked",
         "paused",
         "stopped",
+        "waiting_human",
     }

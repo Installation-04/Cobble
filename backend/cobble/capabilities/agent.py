@@ -24,6 +24,7 @@ class AgentOutcome(enum.StrEnum):
     LOOP_DETECTED = "loop_detected"
     BUDGET = "budget"  # stopped because the project budget was reached
     STOPPED = "stopped"  # stopped on request (`stop`)
+    QUESTION = "question"  # the agent stopped to ask the user (ADR 0025)
 
 
 class AgentUnavailable(Exception):
@@ -66,12 +67,21 @@ class AgentTask:
 
 
 @dataclass(frozen=True)
+class AgentQuestion:
+    """What an agent asks the user: free text, optionally with suggested answers."""
+
+    text: str
+    choices: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
 class AgentResult:
     outcome: AgentOutcome
     iterations: int = 0
     log: str = ""
     head_sha: str | None = None
     exit_code: int | None = None
+    question: AgentQuestion | None = None  # set when the outcome is QUESTION
 
 
 class AgentRunner(Protocol):

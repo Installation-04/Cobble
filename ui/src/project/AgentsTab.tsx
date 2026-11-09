@@ -1,4 +1,4 @@
-import { Bot, Loader2, RotateCw } from "lucide-react";
+import { Bot, Loader2, MessageCircleQuestion, RotateCw } from "lucide-react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useSearchParams } from "react-router-dom";
@@ -16,6 +16,8 @@ const SEP = "·";
 
 function TaskCard({ task, onOpen }: { task: Task; onOpen: () => void }) {
   const { t } = useTranslation(["agents", "plan"]);
+  const { questions } = useProjectData();
+  const asking = questions.some((q) => q.task_id === task.ref && q.status === "open");
   return (
     <li>
       <button
@@ -36,6 +38,12 @@ function TaskCard({ task, onOpen }: { task: Task; onOpen: () => void }) {
             </Badge>
           )}
         </span>
+        {asking && (
+          <span data-testid="card-question" className="flex items-center gap-1 text-xs font-medium">
+            <MessageCircleQuestion className="h-3 w-3 text-warning" aria-hidden="true" />
+            {t("agents:questions.waiting")}
+          </span>
+        )}
         <span className="font-medium">{task.title}</span>
         <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
           <span data-testid="card-milestone">{task.milestone}</span>
@@ -95,7 +103,7 @@ function EmptyState() {
 
 export function AgentsTab() {
   const { t } = useTranslation(["agents", "errors"]);
-  const { tasks, buildError, reloadTasks } = useProjectData();
+  const { tasks, buildError, reloadTasks, openQuestions } = useProjectData();
   const [params, setParams] = useSearchParams();
   const selectedRef = params.get("task");
   const grouped = useMemo(() => groupTasks(tasks), [tasks]);
@@ -142,9 +150,16 @@ export function AgentsTab() {
         <EmptyState />
       ) : (
         <>
-          <p className="text-sm text-muted-foreground" data-testid="agents-summary">
-            {t("summary", { merged: grouped.merged.length, total: tasks.length })}
-          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-sm text-muted-foreground" data-testid="agents-summary">
+              {t("summary", { merged: grouped.merged.length, total: tasks.length })}
+            </p>
+            {openQuestions > 0 && (
+              <Badge tone="warning" data-testid="agents-questions-count">
+                {t("questions.badge", { count: openQuestions })}
+              </Badge>
+            )}
+          </div>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
             {TASK_GROUPS.map((group) => (
               <section

@@ -15,6 +15,7 @@ const GROUP_OF: Record<TaskState, TaskGroup> = {
   blocked: "attention",
   paused: "attention",
   stopped: "attention",
+  waiting_human: "attention",
 };
 
 export function groupOf(state: TaskState): TaskGroup {
@@ -44,8 +45,8 @@ export const TASK_ACTIONS: readonly TaskAction[] = ["pause", "resume", "stop", "
 const ALLOWED: Record<TaskAction, readonly TaskState[]> = {
   pause: ["todo", "writing_tests", "implementing", "ci", "review", "paused"],
   resume: ["paused"],
-  stop: ["todo", "writing_tests", "implementing", "ci", "review", "paused"],
-  retry: ["paused", "stopped", "failed", "blocked"],
+  stop: ["todo", "writing_tests", "implementing", "ci", "review", "paused", "waiting_human"],
+  retry: ["paused", "stopped", "failed", "blocked", "waiting_human"],
 };
 
 /** Mirror of the transitions the API accepts; the server stays the judge (409 wrong_state). */
@@ -69,6 +70,7 @@ export function stateTone(state: TaskState): StateTone {
       return "destructive";
     case "paused":
     case "stopped":
+    case "waiting_human":
       return "warning";
     default:
       return "neutral";

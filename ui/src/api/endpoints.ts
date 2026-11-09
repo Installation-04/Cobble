@@ -10,6 +10,7 @@ import type {
   ModelRequest,
   PresetSlot,
   PresetsData,
+  QuestionList,
   BenchmarkStatus,
   Benchmarks,
   ModelPrices,
@@ -28,6 +29,7 @@ import type {
   Task,
   TaskDetail,
   TaskDiff,
+  TaskQuestion,
   User,
 } from "./types";
 import type { Lang } from "../i18n";
@@ -105,6 +107,15 @@ export const buildApi = {
   resume: (id: string, ref: string) => api.post<Task>(`/projects/${id}/tasks/${ref}/resume`),
   stop: (id: string, ref: string) => api.post<Task>(`/projects/${id}/tasks/${ref}/stop`),
   retry: (id: string, ref: string) => api.post<Task>(`/projects/${id}/tasks/${ref}/retry`),
+};
+
+/** Questions agents ask the user (ADR 0025). */
+export const questionsApi = {
+  list: (id: string) => api.get<QuestionList>(`/projects/${id}/questions`),
+  answer: (id: string, questionId: string, answer: string) =>
+    api.post<TaskQuestion>(`/projects/${id}/questions/${questionId}/answer`, { answer }),
+  skip: (id: string, questionId: string) =>
+    api.post<TaskQuestion>(`/projects/${id}/questions/${questionId}/skip`),
 };
 
 /** Demo milestones: validate, comment, revert (ADR 0007). */

@@ -870,3 +870,83 @@ def test_the_reviewer_columns_match_the_migrations(migrated_database: str) -> No
         engine.dispose()
     mine = [d for d in diff if "review_enabled" in repr(d) or "'review'" in repr(d)]
     assert mine == []
+
+
+def test_migration_0020_task_questions_up_and_down(database_url: str) -> None:
+    config = alembic_config(database_url)
+    command.downgrade(config, "base")
+    command.upgrade(config, "0019")
+    assert "task_questions" not in tables(database_url)
+    command.upgrade(config, "0020")
+    engine = create_engine(database_url)
+    try:
+        columns = {c["name"] for c in inspect(engine).get_columns("task_questions")}
+        assert {
+            "id",
+            "task_id",
+            "run_id",
+            "question",
+            "choices",
+            "status",
+            "answer",
+            "created_at",
+            "answered_at",
+        } <= columns
+        with engine.begin() as conn:  # a question row follows its task (cascade)
+            conn.execute(
+                text(
+                    "INSERT INTO users (id, email, password_hash) VALUES "
+                    "('00000000-0000-0000-0000-0000000000a1', 'q@example.com', 'x')"
+                )
+            )
+            conn.execute(
+                text(
+                    "INSERT INTO projects (id, owner_id, name) VALUES "
+                    "('00000000-0000-0000-0000-0000000000b1', "
+                    "'00000000-0000-0000-0000-0000000000a1', 'p')"
+                )
+            )
+            conn.execute(
+                text(
+                    "INSERT INTO tasks (id, project_id, ref, title, milestone, tests, size, role) "
+                    "VALUES ('00000000-0000-0000-0000-0000000000c1', "
+                    "'00000000-0000-0000-0000-0000000000b1', 'T-001', 't', 'M1', 'x.py', 'S', "
+                    "'backend')"
+                )
+            )
+            conn.execute(
+                text(
+                    "INSERT INTO task_questions (id, task_id, question, choices) VALUES "
+                    "('00000000-0000-0000-0000-0000000000d1', "
+                    "'00000000-0000-0000-0000-0000000000c1', 'q?', '[\"a\"]')"
+                )
+            )
+            status = conn.execute(text("SELECT status FROM task_questions")).scalar_one()
+            assert status == "open"  # the server default
+            conn.execute(text("DELETE FROM tasks"))
+            assert conn.execute(text("SELECT count(*) FROM task_questions")).scalar_one() == 0
+            conn.execute(text("DELETE FROM projects"))
+            conn.execute(text("DELETE FROM users"))
+        command.downgrade(config, "0019")
+        assert "task_questions" not in set(inspect(engine).get_table_names())
+    finally:
+        engine.dispose()
+    command.downgrade(config, "base")  # leave the shared test database clean
+    command.upgrade(config, "head")
+
+
+def test_the_task_question_model_matches_the_migration(migrated_database: str) -> None:
+    """No drift on the table of migration 0020."""
+    from alembic.autogenerate import compare_metadata
+    from alembic.migration import MigrationContext
+
+    from cobble.db.base import Base
+
+    engine = create_engine(migrated_database)
+    try:
+        with engine.connect() as conn:
+            context = MigrationContext.configure(conn, opts={"compare_type": True})
+            diff = compare_metadata(context, Base.metadata)
+    finally:
+        engine.dispose()
+    assert [d for d in diff if "task_questions" in _tables_of(d)] == []

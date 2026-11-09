@@ -61,7 +61,7 @@ from cobble.config import Settings
 from cobble.db import Milestone, Project, Task, TaskRun
 from cobble.events import enqueue_job, publish_project
 
-from . import control, demo, prompts, review, rules
+from . import control, demo, prompts, questions, review, rules
 from .materialize import NoApprovedPlan, materialize_tasks
 
 log = logging.getLogger(__name__)
@@ -444,12 +444,24 @@ class Scheduler:
         return RUNNING
 
     def _finish_run(self, session: Session, task: Task, run: TaskRun, result: AgentResult) -> None:
+        if result.outcome is AgentOutcome.QUESTION:
+            if questions.left(session, task) == 0:  # an agent that ignores its budget fails
+                result = AgentResult(
+                    AgentOutcome.FAILED,
+                    iterations=result.iterations,
+                    log=questions.OVER_LIMIT_LOG,
+                    exit_code=result.exit_code,
+                )
+            else:
+                # Stored before the run is closed: a crash in between re-polls the run and
+                # records the question once (ADR 0025).
+                questions.record(session, task, run, result.question, self._emit)
         run.state = result.outcome.value
         run.iterations = result.iterations
         run.head_sha = result.head_sha
         run.finished_at = self._clock()
         run.log_tail = prompts.tail(result.log, LOG_TAIL_CHARS) if result.log else None
-        if result.outcome is not AgentOutcome.DONE:
+        if result.outcome not in (AgentOutcome.DONE, AgentOutcome.QUESTION):
             detail = prompts.tail(result.log, LOG_TAIL_CHARS) if result.log else ""
             task.last_error = f"agent {result.outcome.value}: {detail}".rstrip(": ")
         session.commit()
@@ -469,6 +481,8 @@ class Scheduler:
             self._set_state(session, task, rules.STOPPED)
         elif last.state == AgentOutcome.BUDGET.value:
             self._set_state(session, task, rules.PAUSED)
+        elif last.state == questions.RUN_STATE:
+            self._after_question(session, project, task, last)
         elif last.state == LOST:
             self._launch_or_hold(session, project, task, last.kind)
         elif last.kind == "test-writer":
@@ -480,6 +494,16 @@ class Scheduler:
             self._open_merge_request(session, project, task)
         else:  # failed, timeout, loop_detected, rejected
             self._launch_or_hold(session, project, task, "worker")
+
+    def _after_question(
+        self, session: Session, project: Project, task: Task, last: TaskRun
+    ) -> None:
+        """The last run asked the user: wait for the answer (no run, no attempt used). A question
+        the system already skipped (the task used its questions) goes straight on."""
+        if questions.has_open(session, task):
+            self._set_state(session, task, rules.WAITING_HUMAN)
+        else:
+            self._launch_or_hold(session, project, task, last.kind)
 
     def _running_elsewhere(self, session: Session, task: Task) -> int:
         return (
@@ -512,6 +536,8 @@ class Scheduler:
         runs = self._runs(session, task)
         if any(r.state in ACTIVE_RUNS for r in runs):
             return  # never two runs for one task
+        if questions.has_open(session, task):
+            return  # the user has not answered yet (ADR 0025)
         counted = sum(1 for r in runs if r.kind == kind and r.state in COUNTED)
         if counted >= self._settings.max_attempts:
             self._fail_task(session, task, task.last_error or f"{kind} failed {counted} times")
@@ -537,6 +563,7 @@ class Scheduler:
             instructions = make(view, attempt, task.last_error)
         else:
             instructions = prompts.writer_instructions(view)
+        instructions += questions.addendum(session, task)  # earlier answers, how to ask (ADR 0025)
         limits = AgentLimits(
             max_iterations=self._settings.agent_max_iterations,
             max_seconds=self._settings.agent_max_seconds,
@@ -822,6 +849,8 @@ class Scheduler:
         last = runs[-1] if runs else None
         if last is None:
             return "worker" if task_kind == "demo" else "test-writer"
+        if last.state == questions.RUN_STATE:
+            return last.kind  # answered: the same step again, with the answer in its prompt
         if last.kind == "test-writer":
             return "worker" if last.state == AgentOutcome.DONE.value else "test-writer"
         return None if last.state == AgentOutcome.DONE.value else "worker"

@@ -119,6 +119,7 @@ export const TASK_STATES = [
   "blocked",
   "paused",
   "stopped",
+  "waiting_human",
 ] as const;
 export type TaskState = (typeof TASK_STATES)[number];
 
@@ -133,6 +134,25 @@ export interface Task {
   role: string;
   size: string;
   depends_on: string[];
+}
+
+/** A question an agent asked the user (ADR 0025). */
+export interface TaskQuestion {
+  id: string;
+  /** Reference of the task that asks (T-003). */
+  task_id: string;
+  task_title: string;
+  question: string;
+  choices: string[];
+  status: "open" | "answered" | "skipped";
+  answer: string | null;
+  created_at: string;
+  answered_at: string | null;
+}
+
+export interface QuestionList {
+  open: number;
+  items: TaskQuestion[];
 }
 
 export interface TaskRun {

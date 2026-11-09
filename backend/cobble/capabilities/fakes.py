@@ -11,6 +11,7 @@ from typing import Any
 
 from .agent import (
     AgentOutcome,
+    AgentQuestion,
     AgentResult,
     AgentRunNotFound,
     AgentTask,
@@ -147,6 +148,8 @@ class FakeAgentRunner:
         self.script = dict(script or {})
         self.polls_before_done = polls_before_done
         self.unavailable = False
+        # What a run scripted as QUESTION asks (ADR 0025).
+        self.question = AgentQuestion("Should the amount include taxes?", ("yes", "no"))
         self.runs: list[AgentTask] = []
         self.stopped: list[str] = []
         self.lost: set[str] = set()
@@ -177,6 +180,7 @@ class FakeAgentRunner:
             iterations=1,
             log=f"fake log of {run_id}",
             head_sha=f"{task.branch}@{count}" if outcome is AgentOutcome.DONE else None,
+            question=self.question if outcome is AgentOutcome.QUESTION else None,
         )
         self._polls[run_id] = 0
         return run_id
