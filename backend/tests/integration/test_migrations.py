@@ -945,10 +945,11 @@ def test_migration_0020_task_questions_up_and_down(database_url: str) -> None:
             )
             conn.execute(
                 text(
-                    "INSERT INTO tasks (id, project_id, ref, title, milestone, tests, size, role) "
-                    "VALUES ('00000000-0000-0000-0000-0000000000c1', "
-                    "'00000000-0000-0000-0000-0000000000b1', 'T-001', 't', 'M1', 'x.py', 'S', "
-                    "'backend')"
+                    "INSERT INTO tasks (id, project_id, ref, title, milestone, depends_on, files, "
+                    "acceptance, tests, size, role) VALUES "
+                    "('00000000-0000-0000-0000-0000000000c1', "
+                    "'00000000-0000-0000-0000-0000000000b1', 'T-001', 't', 'M1', '[]', '[]', '[]', "
+                    "'x.py', 'S', 'backend')"
                 )
             )
             conn.execute(

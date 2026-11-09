@@ -38,6 +38,8 @@ function mockProject(project: Partial<Project> = {}) {
   vi.spyOn(provider, "useProjectData").mockReturnValue({
     project: { ...PROJECT, ...project },
     tasks: [],
+    questions: [],
+    openQuestions: 0,
     buildError: null,
     phase: "building",
     failure: null,
