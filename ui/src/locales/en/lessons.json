@@ -1,0 +1,27 @@
+{
+  "title": "Lessons learned",
+  "description": "When a task keeps failing, Cobble keeps a short note of the cause. The most useful active notes (at most {{max}} are kept active) are added to the instructions of the next agents of this project so they do not repeat the mistake. Notes are plain text, stay in this project, and secrets are masked.",
+  "empty": "No lesson yet. They appear when a task fails repeatedly, and you can add your own.",
+  "loadError": "The lessons could not be loaded.",
+  "addLabel": "New lesson",
+  "addPlaceholder": "For example: use uv, never pip.",
+  "add": "Add",
+  "edit": "Edit",
+  "editLabel": "Lesson text",
+  "save": "Save",
+  "cancel": "Cancel",
+  "delete": "Delete",
+  "deleteLabel": "Delete the lesson: {{text}}",
+  "enabledLabel": "Use this lesson: {{text}}",
+  "injected": "Shown to agents",
+  "disabled": "Disabled",
+  "hits_one": "Seen {{count}} time",
+  "hits_other": "Seen {{count}} times",
+  "full": "There are already {{max}} active lessons. Disable or delete one first.",
+  "source": {
+    "ci_failure": "CI failure",
+    "loop": "Loop",
+    "timeout": "Timeout",
+    "manual": "Written by you"
+  }
+}

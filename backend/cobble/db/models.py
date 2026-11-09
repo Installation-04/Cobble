@@ -22,6 +22,7 @@ from sqlalchemy import (
     Uuid,
     false,
     func,
+    true,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -566,3 +567,25 @@ class PlatformState(Base):
     )
     # Per-task cap as a multiple of the task's estimate; None: the configured default, 0: none.
     task_budget_multiplier: Mapped[Decimal | None] = mapped_column(Numeric(8, 2))
+
+
+class ProjectLesson(Base):
+    """One short lesson learned inside a project, shown to later agents of that project (ADR 0026).
+
+    `hits` counts how many times the same mistake was seen (1 when first captured)."""
+
+    __tablename__ = "project_lessons"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    text: Mapped[str] = mapped_column(String(300), nullable=False)
+    # ci_failure | loop | timeout | manual
+    source: Mapped[str] = mapped_column(String(20), nullable=False)
+    task_ref: Mapped[str | None] = mapped_column(String(20))
+    active: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default=true()
+    )
+    hits: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+    created_at: Mapped[datetime] = _now_col()

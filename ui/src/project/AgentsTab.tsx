@@ -7,6 +7,7 @@ import type { Task } from "../api/types";
 import { Badge } from "../components/ui/badge";
 import { cn } from "../lib";
 import { FailureBanner } from "./FailureBanner";
+import { LessonsPanel } from "./LessonsPanel";
 import { useProjectData } from "./ProjectDataProvider";
 import { ReviewToggle } from "./ReviewToggle";
 import { groupTasks, stateTone, TASK_GROUPS } from "./taskState";
@@ -103,7 +104,7 @@ function EmptyState() {
 
 export function AgentsTab() {
   const { t } = useTranslation(["agents", "errors"]);
-  const { tasks, buildError, reloadTasks, openQuestions } = useProjectData();
+  const { project, tasks, buildError, reloadTasks, openQuestions } = useProjectData();
   const [params, setParams] = useSearchParams();
   const selectedRef = params.get("task");
   const grouped = useMemo(() => groupTasks(tasks), [tasks]);
@@ -188,6 +189,7 @@ export function AgentsTab() {
           </div>
         </>
       )}
+      <LessonsPanel projectId={project.id} />
       <TaskDrawer task={selected} onClose={close} />
     </div>
   );

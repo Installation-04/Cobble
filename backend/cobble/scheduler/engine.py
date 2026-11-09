@@ -61,7 +61,7 @@ from cobble.config import Settings
 from cobble.db import Milestone, Project, Task, TaskRun
 from cobble.events import enqueue_job, publish_project
 
-from . import control, demo, prompts, questions, review, rules
+from . import control, demo, lessons, prompts, questions, review, rules
 from .materialize import NoApprovedPlan, materialize_tasks
 
 log = logging.getLogger(__name__)
@@ -464,6 +464,14 @@ class Scheduler:
         if result.outcome not in (AgentOutcome.DONE, AgentOutcome.QUESTION):
             detail = prompts.tail(result.log, LOG_TAIL_CHARS) if result.log else ""
             task.last_error = f"agent {result.outcome.value}: {detail}".rstrip(": ")
+            source = {
+                AgentOutcome.LOOP_DETECTED: lessons.LOOP,
+                AgentOutcome.TIMEOUT: lessons.TIMEOUT,
+            }.get(result.outcome)
+            if source:
+                lessons.capture_failure(
+                    session, task, source, result.log, self._settings.escalate_after
+                )
         session.commit()
 
     def _follow_up(self, session: Session, project: Project, task: Task) -> None:
@@ -564,6 +572,8 @@ class Scheduler:
         else:
             instructions = prompts.writer_instructions(view)
         instructions += questions.addendum(session, task)  # earlier answers, how to ask (ADR 0025)
+        if task.kind != "demo":
+            instructions += lessons.prompt_block(session, task.project_id)
         limits = AgentLimits(
             max_iterations=self._settings.agent_max_iterations,
             max_seconds=self._settings.agent_max_seconds,
@@ -838,6 +848,9 @@ class Scheduler:
         if task.kind == "revert":  # no agent can fix a restore: the operator decides
             self._set_state(session, task, rules.FAILED)
             return
+        lessons.capture_failure(
+            session, task, lessons.CI_FAILURE, detail, self._settings.escalate_after
+        )
         self._set_state(session, task, rules.IMPLEMENTING)
         self._launch_or_hold(session, project, task, "worker")
 
