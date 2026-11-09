@@ -1,6 +1,6 @@
 # ADR 0015 — Local package cache: Verdaccio and devpi as modules
 
-Status: **proposed** (module level implemented in v0.3; the agent wiring is not).
+Status: **accepted**; the agent wiring left out here is done in [ADR 0027](0027-package-cache-wiring.md).
 
 ## Context
 PLAN.md §17 ("Cache local des paquets", v0.3) asks for npm and PyPI caches so that agent installs
@@ -19,7 +19,7 @@ are faster, work offline and use less bandwidth, plugged into the runners automa
 - Neither module is in a starter pack and none is installed by default: they are optional.
 - The core names neither product.
 
-## Not done: wiring to the agent runners
+## Not done here (done in ADR 0027): wiring to the agent runners
 The manifest only has `requires`, which is mandatory: if `aider` required `npm-cache` the cache
 would become a hard dependency of the agents. Wiring them automatically needs more than a manifest
 field:
@@ -34,8 +34,8 @@ it is left to a later step rather than done here as a "small addition".
 
 ## Consequences
 The caches can be installed and used by hand today (and by any module that requires the specific
-capability), and they are covered by the install / uninstall matrix test. Until the wiring is done,
-agents still download from the public registries.
+capability), and they are covered by the install / uninstall matrix test. The wiring to the agents is described in ADR 0027;
+without a cache installed, agents still download from the public registries.
 
 ## Not verified
 The images were not run (no Docker daemon where this was written): the data path of the devpi
