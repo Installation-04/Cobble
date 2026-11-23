@@ -44,7 +44,9 @@ source_url() {
       echo "$GITHUB_URL/$COBBLE_REPO/releases/download/$v/cobble.tar.gz"
       ;;
     ref)
-      { [[ "$2" =~ ^[A-Za-z0-9._/-]+$ ]] && [[ "$2" != -* ]]; } ||
+      # No "..", no leading or trailing "/": the ref must stay inside the chosen repository.
+      { [[ "$2" =~ ^[A-Za-z0-9._/-]+$ ]] && [[ "$2" != -* ]] && [[ "$2" != *..* ]] &&
+        [[ "$2" != /* ]] && [[ "$2" != */ ]]; } ||
         fail "Invalid --ref: $2" "Valeur de --ref invalide : $2"
       echo "$CODELOAD_URL/$COBBLE_REPO/tar.gz/$2"
       ;;
@@ -160,7 +162,7 @@ default_source() {
 # Piped (curl | bash) or copied alone: fetch the source first, then continue from it,
 # because the message catalogs and lib.sh ship with the source tree.
 if [ -z "$SCRIPT_DIR" ] || [ ! -f "$SCRIPT_DIR/lib.sh" ]; then
-  boot_src="" boot_version="" boot_ref="" boot_args=()
+  boot_src="" boot_version="" boot_ref="" boot_latest=0 boot_args=()
   for ((i = 0; i < ${#ORIG_ARGS[@]}; i++)); do
     a="${ORIG_ARGS[$i]}"
     case "$a" in
@@ -176,6 +178,7 @@ if [ -z "$SCRIPT_DIR" ] || [ ! -f "$SCRIPT_DIR/lib.sh" ]; then
         esac
         i=$((i + 1))
         ;;
+      --latest) boot_latest=1 ;; # the default source: not forwarded (the child would see two sources)
       --no-verify)
         NO_VERIFY=1
         boot_args+=("$a")
@@ -184,6 +187,8 @@ if [ -z "$SCRIPT_DIR" ] || [ ! -f "$SCRIPT_DIR/lib.sh" ]; then
     esac
   done
   [ -z "$boot_ref" ] || REF_MODE=1
+  [ "$boot_latest" = 0 ] || [ -z "$boot_src$boot_version$boot_ref" ] ||
+    fail "Use only one of --source, --version, --ref, --latest" "Utilisez un seul parmi --source, --version, --ref, --latest"
   boot_src="$(pick_source "$boot_src" "$boot_version" "$boot_ref")"
   [ -n "$boot_src" ] || boot_src="$(default_source)"
   boot_dir="$(mktemp -d)"

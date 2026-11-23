@@ -28,9 +28,12 @@ tarball that tells compose to use them.
   so the digest is a plain image manifest, like `images.yml`.
 - **`core/compose.release.yml`** is generated, never committed, by `scripts/make_release_compose.py`
   from `core/compose.yml` and the digests: for each built service
-  `image: ghcr.io/<owner>/cobble-<service>:<version>@sha256:<digest>`, `build: !reset null` and
-  `pull_policy: always` (`!reset` needs Compose 2.24+, which the Docker the installer installs
-  provides; checked with Compose 5.6: the merged config has no `build:` left). Output is sorted and deterministic; it fails when a built service has no
+  `image: ghcr.io/<owner>/cobble-<service>:<version>@sha256:<digest>`, and `build: !reset null`
+  (`!reset` needs Compose 2.24+, which the Docker the installer installs provides; checked with
+  Compose 5.6: the merged config has no `build:` left). There is no `pull_policy: always`: the
+  image is pinned by digest, so the default policy (`missing`) pulls it once, and the systemd unit's
+  `up -d --wait` at every boot does not need the registry (a review found that `always` made a
+  reboot without network fail). Output is sorted and deterministic; it fails when a built service has no
   digest or a digest is given for a service that does not build. The release job also checks that
   `docker compose config --images` shows no local build left and that each digest exists in the registry.
 - **Assets** of the GitHub release for `vX.Y.Z`: `cobble.tar.gz`, `cobble.tar.gz.sha256`, `install.sh`,
@@ -50,3 +53,6 @@ tarball that tells compose to use them.
 - A tag whose images fail to build creates no release; fix, delete the tag, tag again.
 - The installer must use `core/compose.yml` + `core/compose.release.yml` from the extracted tarball.
 - Not verified until the workflow has run once: the action versions' behaviour and the visibility step.
+- The release job refuses a tag whose commit is not on `main` and a catalogue that still holds the
+  placeholder digest of `cobble-sdk init` (64 zeros). It cannot tell whether real module digests
+  are stale: pinning them BEFORE tagging stays the maintainer's step (`releasing.md`).

@@ -7,8 +7,10 @@
 
 Every service of `compose.yml` that has a `build:` section gets
 `image: ghcr.io/<owner>/cobble-<service>:<version>@sha256:<digest>`, its `build:` cleared with
-`!reset null` (Compose 2.24+) and `pull_policy: always`, so Compose pulls that exact image instead
-of building the service. The profile of a service does not
+`!reset null` (Compose 2.24+). The image is pinned by digest, so Compose's default pull policy
+(`missing`) is enough: it pulls once and never contacts the registry again, which keeps a reboot
+without network (or a registry outage) from stopping the stack. A new release brings new digests,
+which are pulled because they are missing. The profile of a service does not
 matter: a service of an inactive profile (the module-manager) is still pinned. The output is
 deterministic (services sorted by name, no timestamp). Exit code 1 when a built service has no
 digest, when a digest is given for a service that does not build, or when an argument is invalid.
@@ -85,7 +87,6 @@ def generate(compose: Any, owner: str, version: str, digests: dict[str, str]) ->
             f"  {name}:",
             f"    image: ghcr.io/{owner}/cobble-{name}:{version}@{digests[name]}",
             "    build: !reset null",
-            "    pull_policy: always",
         ]
     return "\n".join(lines) + "\n"
 

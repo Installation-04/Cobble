@@ -32,7 +32,31 @@ env:
   DRY_RUN: ${{ github.event_name != 'push' }}
 
 jobs:
+  # Cheap checks that run before anything is built or pushed (ADR 0023).
+  guard:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - name: The tagged commit is on main
+        if: env.DRY_RUN == 'false'
+        run: |
+          git fetch origin main
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "The tag $TAG is not on main: merge the pinned digests first (docs/en/releasing.md)." >&2
+            exit 1
+          fi
+      - name: The catalogue holds no placeholder digest
+        run: |
+          # `cobble-sdk init` writes 64 zeros: a module still carrying it was never pinned.
+          if grep -rIn "sha256:0\{64\}" catalog; then
+            echo "A catalogue image is not pinned: run images.yml and scripts/pin_images.py first." >&2
+            exit 1
+          fi
+
   images:
+    needs: guard
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -140,7 +164,9 @@ jobs:
       - name: The override is valid for Compose and names the published images
         run: |
           # Unset secrets only produce warnings: this checks the merged file, nothing starts.
-          docker compose -f core/compose.yml -f core/compose.release.yml config --images > images.raw 2> /dev/null
+          # Errors are shown when `config` fails, so a bad override is not mistaken for a grep miss.
+          docker compose -f core/compose.yml -f core/compose.release.yml config --images \
+            > images.raw 2> config.err || { echo "docker compose config failed:" >&2; cat config.err >&2; exit 1; }
           sort -u images.raw | tee images.txt
           grep -q "^ghcr.io/.*/cobble-api:" images.txt
           if grep -q "^cobble-" images.txt; then echo "a service is still built locally" >&2; exit 1; fi
