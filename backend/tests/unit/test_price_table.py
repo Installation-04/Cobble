@@ -351,3 +351,12 @@ def test_other_failures_do_not_start_a_wait() -> None:
     limited_router(gateway, backoff).chat(Role.WORKER, [])
     assert not backoff.cooling("free")
     assert backoff.order(["a", "b"]) == ["a", "b"]
+
+
+def test_the_local_models_lookup_has_a_public_name() -> None:
+    from cobble.api import routes_costs
+    from cobble.router import factory
+
+    assert callable(factory.local_models_lookup)
+    assert routes_costs.local_models_lookup is factory.local_models_lookup
+    assert not hasattr(factory, "_local_models")
