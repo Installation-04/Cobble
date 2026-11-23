@@ -216,3 +216,30 @@ def test_a_model_that_cannot_answer_stops_the_run_with_a_code() -> None:
     rig.chat = chat  # type: ignore[method-assign]
     assert run_models(["m"], rig) == "model_error"
     assert rig.stored == []
+
+
+def test_the_benchmark_runs_in_its_own_thread_and_the_job_is_acknowledged_at_once(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import threading
+
+    from cobble.benchmark import job as bench_job
+    from cobble.config import Settings
+    from cobble.providers.module_manager import HttpModuleManager
+    from cobble.worker import make_benchmark_runner
+
+    release, started, finished = threading.Event(), threading.Event(), threading.Event()
+
+    def slow_run_job(names: list[str], rig: Any, status: Any) -> None:
+        started.set()
+        release.wait(5)
+        finished.set()
+
+    monkeypatch.setattr(bench_job, "run_job", slow_run_job)
+    monkeypatch.setattr(bench_job, "LiveBench", lambda settings, api: object())
+    monkeypatch.setattr(HttpModuleManager, "from_settings", classmethod(lambda cls, s: object()))
+    runner = make_benchmark_runner(Settings(), FakeStreamRedis())  # type: ignore[arg-type]
+    runner(["m"])  # returns while the benchmark is still going
+    assert started.wait(5) and not finished.is_set()
+    release.set()
+    assert finished.wait(5)
