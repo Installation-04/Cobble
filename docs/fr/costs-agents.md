@@ -99,7 +99,10 @@ estimation, pas une mesure.** Le rapport de coûts a `api_usd` (ce que les fourn
 n'inclut l'électricité que si `electricity_counts_in_budget` est actif (le budget du projet et le
 compteur d'économies l'incluent alors aussi). Chaque ligne `by_task` a `cap_usd` : une tâche peut
 dépenser son multiple (3 par défaut) de son estimation, au moins 0,05 USD ; 0 désactive le plafond.
-Au-delà, les appels de la tâche sont refusés (HTTP 402 `task_budget_reached`) et le projet continue.
+Au-delà, les appels de la tâche sont refusés (HTTP 402 `task_budget_reached`), la tâche échoue aussitôt
+(sans nouvelle tentative) avec ce message, et le projet continue. Les appels sur le modèle d'escalade
+ont une marge en plus : le multiple de l'estimation de la taille au prix forfaitaire configuré (un
+modèle local ou gratuit a une estimation nulle, sans cette marge l'escalade ne pourrait pas aboutir).
 Un appel déjà en cours quand un plafond est franchi se termine : un projet ou une tâche peut dépasser
 d'un appel.
 
