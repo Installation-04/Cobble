@@ -8,6 +8,7 @@ from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
 from cobble.capabilities.fakes_preview import FakePreviewProvider
@@ -205,6 +206,26 @@ def test_reopening_a_milestone_drops_its_summary(
         assert project is not None
         demo.add_comment(db, demo.redis_emitter(redis), project, "M1", "Bigger font")
     assert milestones(h, pid)["M1"].explanation is None
+
+
+def test_a_milestone_rebuilt_while_the_model_answers_gets_no_stale_summary(
+    sessions: sessionmaker[Session], h: Harness, redis: FakeStreamRedis, pid: uuid.UUID
+) -> None:
+    set_mode(sessions, pid, True)
+    build_first(h, pid)
+
+    class Slow(Teacher):
+        def chat(self, role: Role, messages: list[dict[str, Any]], **kwargs: Any) -> ChatResult:
+            with sessions() as db:  # re-opened and rebuilt during the model call
+                milestone = db.scalars(select(Milestone).where(Milestone.ref == "M1")).one()
+                milestone.revision += 1
+                db.commit()
+            return super().chat(role, messages, **kwargs)
+
+    service(sessions, Slow("Old build."), redis).run_job("explain", pid, ref="M1")
+    assert milestones(h, pid)["M1"].explanation is None
+    service(sessions, Teacher("New build."), redis).run_job("explain", pid, ref="M1")
+    assert milestones(h, pid)["M1"].explanation == "New build."
 
 
 def test_the_worker_hands_explain_jobs_to_the_planner(pid: uuid.UUID) -> None:
