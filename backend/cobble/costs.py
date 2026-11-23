@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import ColumnElement, func, select
+from sqlalchemy import ColumnElement, case, func, select
 from sqlalchemy.orm import Session
 
 from cobble.config import Settings
@@ -152,7 +152,10 @@ def project_costs(
             *_aggregates(),
             # Electricity (ADR 0021): only calls that carry an estimate count.
             func.coalesce(func.sum(LLMCall.electricity_usd), 0),
-            func.coalesce(func.sum(LLMCall.duration_ms), 0),
+            # ...and so does their time: API calls are not machine generation time.
+            func.coalesce(
+                func.sum(case((LLMCall.electricity_usd.is_not(None), LLMCall.duration_ms))), 0
+            ),
             func.count(LLMCall.electricity_usd),
         )
         .where(where)

@@ -97,6 +97,7 @@ def seed_electricity(sessions: sessionmaker[Session], pid: uuid.UUID) -> None:
                     prompt_tokens=100,
                     completion_tokens=100,
                     cost_usd=Decimal("1.00"),
+                    duration_ms=9000,  # an API call: not machine generation time
                 ),
                 LLMCall(
                     project_id=pid,
