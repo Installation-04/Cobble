@@ -307,6 +307,26 @@ def test_enabling_over_the_cap_is_refused(
     assert reply.status_code == 409
 
 
+def test_adding_a_disabled_duplicate_over_the_cap_is_refused(
+    sessions: sessionmaker[Session], api: TestClient, pid: uuid.UUID
+) -> None:
+    # Posting the text of a disabled lesson would turn it back on: the cap applies there too.
+    with sessions() as db:
+        off = lessons.record(db, pid, "Use uv", lessons.CI_FAILURE)
+        assert off is not None
+        off.active = False
+        for i in range(lessons.MAX_ACTIVE):
+            lessons.record(db, pid, f"rule {chr(97 + i)}", lessons.MANUAL)
+        db.commit()
+    reply = api.post(url(pid), json={"text": "use UV"}, headers=H)
+    assert reply.status_code == 409 and reply.json()["error"]["code"] == "lessons_full"
+    with sessions() as db:
+        assert (
+            db.scalars(select(ProjectLesson).where(ProjectLesson.text == "Use uv")).one().active
+            is False
+        )
+
+
 def test_csrf_header_is_required(api: TestClient, pid: uuid.UUID) -> None:
     assert api.post(url(pid), json={"text": "x"}).status_code in (400, 403)
 

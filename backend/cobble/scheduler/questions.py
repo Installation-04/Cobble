@@ -171,6 +171,26 @@ def close_open(session: Session, task: Task) -> None:
             q.answered_at = _now()
 
 
+def _aware(moment: datetime) -> datetime:
+    return moment if moment.tzinfo is not None else moment.replace(tzinfo=UTC)
+
+
+def waited_seconds(session: Session, task: Task, since: datetime, until: datetime) -> float:
+    """Seconds the task spent waiting for the user between `since` and `until`.
+
+    A question is waiting time from the moment it was asked to the moment it was answered or
+    skipped; an open one is still waiting (the clock of the task does not run for it, ADR 0025).
+    """
+    since, until = _aware(since), _aware(until)
+    total = 0.0
+    for q in _questions(session, task):
+        start = max(_aware(q.created_at), since)
+        end = min(_aware(q.answered_at) if q.answered_at is not None else until, until)
+        if end > start:
+            total += (end - start).total_seconds()
+    return total
+
+
 def open_count(session: Session, project_id: uuid.UUID) -> int:
     return (
         session.scalar(

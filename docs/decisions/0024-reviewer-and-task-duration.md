@@ -56,6 +56,11 @@ wall-clock time of a task (a run had its own limit, a task could chain attempts 
 
 ## Consequences
 - Reviews roughly add one cheap call per task, plus one more attempt for each requested change.
-- Time spent waiting for a free slot while `paused` is not checked (only active tasks are).
+- Time spent waiting for a free slot while `paused` is not checked (only active tasks are). The
+  clock still runs over an operator pause that is resumed later; the time spent waiting for the
+  user's answer to an agent question is subtracted (ADR 0025).
+- A retry clears the stored verdict together with the attempt counter: attempts restart at 1, and
+  a stale `{attempt: 1, approve}` would otherwise skip the review of the new attempt 1. A
+  reviewer's requests are not stored as lessons (ADR 0026): they are model text, not a CI log.
 - Not done (later): a per-project duration setting, a separate reviewer model per project (use the
   `reviewer` route in Settings → Models).

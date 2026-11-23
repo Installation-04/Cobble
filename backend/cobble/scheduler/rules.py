@@ -35,6 +35,9 @@ TASK_STATES = (
 )
 # States in which a task works on its branch: its files are taken.
 ACTIVE = frozenset({WRITING_TESTS, IMPLEMENTING, CI, REVIEW})
+# A task waiting for the user's answer holds no container but keeps its branch and its files:
+# nobody else may take them meanwhile (as for a paused task that cannot start yet).
+RESERVED = ACTIVE | {WAITING_HUMAN}
 # States in which an agent container runs (what `max_parallel` limits).
 RUNNING = frozenset({WRITING_TESTS, IMPLEMENTING})
 # A dead end: tasks that depend on one of these can never start.
@@ -82,7 +85,7 @@ def runnable(tasks: Iterable[TaskView], max_parallel: int) -> list[str]:
     """
     views = {t.ref: t for t in tasks}
     running = sum(1 for t in views.values() if t.state in RUNNING)
-    taken = {_norm(f) for t in views.values() if t.state in ACTIVE for f in t.files}
+    taken = {_norm(f) for t in views.values() if t.state in RESERVED for f in t.files}
     candidates = sorted(
         (t for t in views.values() if t.state in (PAUSED, TODO)),
         key=lambda t: (t.state != PAUSED, ref_key(t.ref)),

@@ -85,17 +85,19 @@ else
 fi
 echo "[cobble:agent-exit $agent_rc]"
 
-# The agent may ask the user instead of guessing (ADR 0025): a file .cobble/question.json
-# ({"question": "...", "choices": ["..."]}) becomes ONE marker line that agent-service reads.
-if [ -f "$WORK/.cobble/question.json" ]; then
-  q="$(tr -d '\n\r' < "$WORK/.cobble/question.json" | head -c 8000)"
-  echo "[cobble:question] $q"
-fi
-
 # Commit what the agent left behind (aider normally commits by itself).
 if [ -d .git ] && [ -n "$(git status --porcelain 2>/dev/null)" ]; then
   git add -A && git -c core.hooksPath=/dev/null commit -q \
     -m "chore: agent changes" -m "${COBBLE_MARKER:-}" || true
+fi
+
+# The agent may ask the user instead of guessing (ADR 0025): a file .cobble/question.json
+# ({"question": "...", "choices": ["..."]}) becomes ONE marker line that agent-service reads.
+# It is printed AFTER the commit above: agent-service stops the container as soon as it sees
+# the line, so anything printed before would lose the work the agent left uncommitted.
+if [ -f "$WORK/.cobble/question.json" ]; then
+  q="$(tr -d '\n\r' < "$WORK/.cobble/question.json" | head -c 8000)"
+  echo "[cobble:question] $q"
 fi
 
 [ "$agent_rc" -eq 0 ] || exit "$agent_rc"

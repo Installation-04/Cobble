@@ -32,9 +32,12 @@ core does not name any agent product: the capability `AgentRunner.poll` returns 
 - The task goes to the new state `waiting_human`. It runs nothing and holds no agent slot, so no
   token is spent while it waits; its dependents stay `todo` (not blocked); the project does not
   finish while it waits. Other tasks continue.
-- Waiting has no clock: the scheduler has no per-task duration timer (a run's limit,
-  `max_seconds`, belongs to the run, which is over), the project budget is money only, and the
-  CI timeout applies to `ci` only. Nothing punishes the wait.
+- Waiting has no clock: the CI timeout applies to `ci` only and the project budget is money only.
+  The wall-clock limit of a task (ADR 0024) is measured from its first run, so the time between
+  a question being asked and being answered or skipped is subtracted from it
+  (`questions.waited_seconds`): answering two hours later does not fail the task with
+  `task_timeout`. A task waiting for the user also keeps its files reserved (`rules.RESERVED`),
+  as a paused task does, so another task cannot merge changes to them in the meantime.
 - On answer (or skip), the task becomes `paused` (waiting for a slot) and the scheduler starts the
   next run of the SAME kind with the same attempt number, so the attempt counter reads as if the
   question never happened. The prompt gets a block with every answered question ("Q / A"); a
@@ -70,5 +73,11 @@ with the reference benchmark, not here.
 - `waiting_human` is a new task state (a text column, no schema change for it); the UI, the control
   table and the rules know it.
 - `AgentOutcome` gains `QUESTION`; an agent-service older than this change never sends it.
-- Work done before a question is kept on the branch, so the resumed run continues from it.
+- Work done before a question is kept on the branch, so the resumed run continues from it. The
+  runner prints the `[cobble:question]` line only AFTER it has committed what the agent left
+  (agent-service stops the container at the line), so uncommitted files are not lost.
+- Known limit: a resumed run reuses the attempt number, and so the agent marker, of the run that
+  asked. If the worker crashes between starting the container and saving the run id, adoption of
+  the orphan (ADR 0016) can match the earlier run and mark the new one lost instead. Rare, and
+  the next attempt starts a clean run; a run counter in the marker would fix it.
 - Migration `0020` follows `0019` (reviewer).

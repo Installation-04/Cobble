@@ -45,6 +45,17 @@ def test_every_active_state_holds_its_files() -> None:
         assert runnable(tasks, 5) == ["T-002"]
 
 
+def test_a_task_in_review_or_waiting_for_the_user_keeps_its_files() -> None:
+    # It holds no container but its branch carries the work: nobody may take its files meanwhile.
+    for state in ("review", "waiting_human"):
+        tasks = [
+            view("T-001", state, (), "app/models.py"),
+            view("T-002", "todo", (), "app/models.py"),
+            view("T-003", "todo", (), "app/other.py"),
+        ]
+        assert runnable(tasks, 5) == ["T-003"], state
+
+
 def test_candidates_do_not_overlap_each_other() -> None:
     tasks = [view("T-001", "todo", (), "x.py"), view("T-002", "todo", (), "./x.py", "y.py")]
     assert runnable(tasks, 5) == ["T-001"]

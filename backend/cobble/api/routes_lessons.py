@@ -83,6 +83,9 @@ def add_lesson(body: LessonIn, project: OwnedProject, db: Db) -> LessonOut:
         db.rollback()
         raise ApiError(409, "lessons_full", max=lessons.MAX_ACTIVE)
     if not row.active:  # a lesson the owner disabled earlier: adding it again turns it back on
+        if lessons.active_count(db, project.id) >= lessons.MAX_ACTIVE:
+            db.rollback()
+            raise ApiError(409, "lessons_full", max=lessons.MAX_ACTIVE)
         row.active = True
     db.commit()
     return _out(db, project.id, [row])[0]

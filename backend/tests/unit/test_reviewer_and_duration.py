@@ -5,6 +5,7 @@ from __future__ import annotations
 import uuid
 from collections import Counter
 from collections.abc import Callable
+from datetime import timedelta
 from typing import Any
 
 import pytest
@@ -16,7 +17,7 @@ from cobble.capabilities.ci import CIState
 from cobble.capabilities.fakes import FakeAgentRunner, FakeCIProvider, FakeGitProvider
 from cobble.capabilities.git import MergeRequestRef
 from cobble.capabilities.llm import ChatResult, Role
-from cobble.db import Project, Task, TaskRun
+from cobble.db import Project, ProjectLesson, Task, TaskQuestion, TaskRun
 from cobble.scheduler import Scheduler, control, prompts, review, rules
 from cobble.scheduler.engine import TASK_TIMEOUT
 
@@ -532,3 +533,104 @@ def test_a_retry_starts_a_fresh_clock(sessions: sessionmaker[Session], pid: uuid
     h.scheduler.tick()
     h.scheduler.tick()
     assert h.states(pid)["T-001"] == "writing_tests"  # old runs are retired: not counted again
+
+
+# --- follow-ups of the review of the merged branches -------------------------------------
+
+
+def _waiting_task_harness(
+    sessions: sessionmaker[Session], pid: uuid.UUID, *, waited_s: int | None
+) -> Harness:
+    """T-001 has been running for 3100 s on a 600 s limit; it spent `waited_s` of it waiting
+    for the user's answer (None: it never asked anything)."""
+    agents = FakeAgentRunner(polls_before_done=10_000)
+    h = Harness(sessions, agents=agents, settings=make_settings(task_max_seconds=600))
+    h.start(pid)
+    h.scheduler.tick()
+    h.scheduler.tick()
+    start = h.clock.now
+    with sessions() as db:
+        for run in db.scalars(select(TaskRun)):
+            run.started_at = start
+        if waited_s is not None:
+            task = db.scalars(select(Task).where(Task.ref == "T-001")).one()
+            asked = start + timedelta(seconds=300)
+            db.add(
+                TaskQuestion(
+                    task_id=task.id,
+                    question="Which database?",
+                    choices=[],
+                    status="answered",
+                    answer="Postgres",
+                    created_at=asked,
+                    answered_at=asked + timedelta(seconds=waited_s),
+                )
+            )
+        db.commit()
+    h.clock.advance(3100)
+    return h
+
+
+def test_the_time_waiting_for_an_answer_does_not_count_against_the_limit(
+    sessions: sessionmaker[Session], pid: uuid.UUID
+) -> None:
+    h = _waiting_task_harness(sessions, pid, waited_s=2700)  # 3100 - 2700 = 400 s of work
+    h.scheduler.tick()
+    assert h.states(pid)["T-001"] == "writing_tests"
+    assert h.tasks(pid)["T-001"].last_error is None
+
+
+def test_without_a_question_the_same_elapsed_time_is_over_the_limit(
+    sessions: sessionmaker[Session], pid: uuid.UUID
+) -> None:
+    h = _waiting_task_harness(sessions, pid, waited_s=None)
+    h.scheduler.tick()
+    t1 = h.tasks(pid)["T-001"]
+    assert (t1.state, t1.last_error) == ("failed", "task_timeout")
+
+
+def test_waiting_that_is_long_but_work_that_is_longer_still_times_out(
+    sessions: sessionmaker[Session], pid: uuid.UUID
+) -> None:
+    h = _waiting_task_harness(sessions, pid, waited_s=1000)  # 3100 - 1000 = 2100 s of work
+    h.scheduler.tick()
+    assert h.tasks(pid)["T-001"].last_error == "task_timeout"
+
+
+def test_a_retry_forgets_the_verdict_of_the_earlier_attempt(
+    sessions: sessionmaker[Session], pid: uuid.UUID
+) -> None:
+    # `attempts` restarts at 0, so a stale {attempt: 1, approve} would approve the new attempt 1
+    # without any review.
+    agents = FakeAgentRunner(polls_before_done=10_000)
+    h = Harness(sessions, agents=agents)
+    h.start(pid)
+    h.scheduler.tick()
+    with sessions() as db:
+        task = db.scalars(select(Task).where(Task.ref == "T-001")).one()
+        task.review = {"attempt": 1, "verdict": review.APPROVE, "issues": []}
+        task.state = "failed"
+        db.commit()
+    with sessions() as db:
+        task = db.scalars(select(Task).where(Task.ref == "T-001")).one()
+        control.apply(db, task, control.Action.RETRY, agents=agents)
+    assert h.tasks(pid)["T-001"].review is None
+
+
+def test_a_reviewers_requests_are_not_stored_as_lessons(
+    sessions: sessionmaker[Session], pid: uuid.UUID
+) -> None:
+    # The feedback is model text, not a CI log: it must not become a "CI failed: ..." lesson.
+    title = first_title(sessions, "T-001", pid)
+    # A remark with the words the CI extraction looks for ("raise", "expected"): the old code
+    # stored it as "CI failed: ...".
+    wordy = (
+        '{"verdict": "request_changes", "issues": '
+        '["parse() should raise ValueError when the input is empty (expected by AC 2)"]}'
+    )
+    llm = ScriptedReviewer(lambda t, n: wordy if t == title else APPROVE)
+    h = reviewed(sessions, pid, llm, max_attempts=3, escalate_after=2, escalation_model="strong")
+    h.run_until(pid)
+    assert h.tasks(pid)["T-001"].attempts == 3  # it was rejected twice, past `escalate_after`
+    with sessions() as db:
+        assert db.scalars(select(ProjectLesson)).all() == []

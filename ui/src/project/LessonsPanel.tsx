@@ -17,9 +17,9 @@ function LessonRow({
   onDelete,
 }: {
   lesson: Lesson;
-  onSave: (text: string) => Promise<void>;
-  onToggle: (active: boolean) => Promise<void>;
-  onDelete: () => Promise<void>;
+  onSave: (text: string) => Promise<boolean>;
+  onToggle: (active: boolean) => Promise<boolean>;
+  onDelete: () => Promise<boolean>;
 }) {
   const { t } = useTranslation("lessons");
   const [draft, setDraft] = useState<string | null>(null);
@@ -71,7 +71,11 @@ function LessonRow({
               size="sm"
               data-testid="lesson-save"
               disabled={!draft.trim()}
-              onClick={() => void onSave(draft).then(() => setDraft(null))}
+              onClick={() =>
+                void onSave(draft).then((ok) => {
+                  if (ok) setDraft(null);
+                })
+              }
             >
               {t("save")}
             </Button>
@@ -108,17 +112,20 @@ export function LessonsPanel({ projectId }: { projectId: string }) {
   const [text, setText] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  const act = async (action: () => Promise<unknown>): Promise<void> => {
+  /** Resolves true when the request succeeded: callers keep what the user typed otherwise. */
+  const act = async (action: () => Promise<unknown>): Promise<boolean> => {
     setError(null);
     try {
       await action();
       reload();
+      return true;
     } catch (e) {
       setError(
         e instanceof ApiError && e.code === "lessons_full"
           ? t("lessons:full", { max: MAX_ACTIVE })
           : errorMessage(t, e),
       );
+      return false;
     }
   };
 
@@ -164,7 +171,9 @@ export function LessonsPanel({ projectId }: { projectId: string }) {
           e.preventDefault();
           const value = text.trim();
           if (!value) return;
-          void act(() => lessonsApi.add(projectId, value)).then(() => setText(""));
+          void act(() => lessonsApi.add(projectId, value)).then((ok) => {
+            if (ok) setText("");
+          });
         }}
       >
         <label className="flex min-w-0 flex-1 flex-col gap-1 text-xs">

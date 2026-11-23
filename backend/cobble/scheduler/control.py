@@ -312,6 +312,7 @@ def apply(
         task.attempts = 0
         task.escalated = False
         task.pr_number = None
+        task.review = None  # the verdict of an earlier attempt 1 must not approve the new one
     session.commit()
     if previous != task.state or decision.reset:
         _emit(redis, task)

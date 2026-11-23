@@ -112,7 +112,30 @@ describe("the lessons panel", () => {
     await user.type(screen.getByTestId("lesson-new"), "x");
     await user.click(screen.getByTestId("lesson-add"));
     expect(await screen.findByTestId("lessons-error")).toHaveTextContent("already 20 active");
+    // a refused add keeps what was typed, so nothing has to be written again
+    expect(screen.getByTestId<HTMLInputElement>("lesson-new").value).toBe("x");
     await setLang("fr");
     expect(await screen.findByText("Leçons apprises")).toBeInTheDocument();
+  });
+
+  it("keeps the editor and the draft open when saving is refused", async () => {
+    const user = userEvent.setup();
+    routes({
+      "PATCH /projects/p1/lessons/l1": () => ({
+        status: 409,
+        body: { error: { code: "lessons_full", params: { max: 20 } } },
+      }),
+    });
+    await renderApp(<LessonsPanel projectId="p1" />);
+    const row = await screen.findByTestId("lesson-l1");
+    await user.click(within(row).getByRole("button", { name: "Edit" }));
+    const box = within(row).getByTestId<HTMLTextAreaElement>("lesson-edit");
+    await user.clear(box);
+    await user.type(box, "Draft that must survive");
+    await user.click(within(row).getByTestId("lesson-save"));
+    expect(await screen.findByTestId("lessons-error")).toBeInTheDocument();
+    expect(within(screen.getByTestId("lesson-l1")).getByTestId("lesson-edit")).toHaveValue(
+      "Draft that must survive",
+    );
   });
 });

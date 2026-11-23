@@ -817,7 +817,11 @@ class Scheduler:
         runs = [r for r in all_runs if r.state not in (control.RUN_RETIRED, control.RUN_STOPPED)]
         if not runs:
             return False
-        elapsed = (self._clock() - _aware(runs[0].started_at)).total_seconds()
+        now, began = self._clock(), _aware(runs[0].started_at)
+        # The time spent waiting for the user's answer is not the agents' time (ADR 0025).
+        elapsed = (now - began).total_seconds() - questions.waited_seconds(
+            session, task, began, now
+        )
         if elapsed <= limit:
             return False
         for run in all_runs:
@@ -848,9 +852,10 @@ class Scheduler:
         if task.kind == "revert":  # no agent can fix a restore: the operator decides
             self._set_state(session, task, rules.FAILED)
             return
-        lessons.capture_failure(
-            session, task, lessons.CI_FAILURE, detail, self._settings.escalate_after
-        )
+        if not detail.startswith(prompts.REVIEW_FEEDBACK):  # a reviewer's words are not a CI log
+            lessons.capture_failure(
+                session, task, lessons.CI_FAILURE, detail, self._settings.escalate_after
+            )
         self._set_state(session, task, rules.IMPLEMENTING)
         self._launch_or_hold(session, project, task, "worker")
 
