@@ -18,6 +18,7 @@ import httpx
 
 from cobble.capabilities.agent import (
     AgentOutcome,
+    AgentQuestion,
     AgentRejected,
     AgentResult,
     AgentRunNotFound,
@@ -34,7 +35,24 @@ _STATES = {
     "timeout": AgentOutcome.TIMEOUT,
     "loop_detected": AgentOutcome.LOOP_DETECTED,
     "stopped": AgentOutcome.STOPPED,
+    "question": AgentOutcome.QUESTION,
 }
+
+
+def _question(raw: Any) -> AgentQuestion | None:
+    """The question of a `question` run, bounded again here (the service is a separate process)."""
+    if not isinstance(raw, dict) or not isinstance(raw.get("question"), str):
+        return None
+    text = raw["question"].strip()
+    if not text:
+        return None
+    choices = raw.get("choices")
+    items = (
+        tuple(c.strip() for c in choices if isinstance(c, str) and c.strip())
+        if isinstance(choices, list)
+        else ()
+    )
+    return AgentQuestion(text, items)
 
 
 class HttpAgentRunner:
@@ -126,12 +144,16 @@ class HttpAgentRunner:
             outcome = AgentOutcome.FAILED
             log_tail = f"unknown run state {state!r}\n{log_tail}".rstrip()
         exit_code = data.get("exit_code")
+        question = _question(data.get("question")) if outcome is AgentOutcome.QUESTION else None
+        if outcome is AgentOutcome.QUESTION and question is None:
+            outcome = AgentOutcome.FAILED  # a question nobody can read cannot be answered
         return AgentResult(
             outcome,
             iterations=int(data.get("iterations") or 0),
             log=log_tail,
             head_sha=str(data["head_sha"]) if data.get("head_sha") else None,
             exit_code=int(exit_code) if isinstance(exit_code, int) else None,
+            question=question,
         )
 
     def stop(self, run_id: str) -> None:

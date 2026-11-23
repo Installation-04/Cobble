@@ -4,6 +4,7 @@ The runner prints machine-readable lines (see runners/aider/test-wrapper):
   [cobble:test-run N]   a local test iteration started
   [cobble:test-fail F]  it failed, with failure fingerprint F
   [cobble:test-pass]    it passed
+  [cobble:question] {..}  the agent asks the user (see questions.py)
 A run is a loop when the same normalised line repeats `threshold` times in a row, or when two
 consecutive test iterations fail with the same fingerprint.
 """
@@ -12,6 +13,10 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from typing import Any
+
+from .questions import PREFIX as _QUESTION_PREFIX
+from .questions import parse_question
 
 _ANSI = re.compile(r"\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b\][^\x07]*\x07")
 _TIME = re.compile(
@@ -52,6 +57,7 @@ class LoopDetector:
         self._last = ""
         self._repeat = 0
         self._last_fail: str | None = None
+        self.question: dict[str, Any] | None = None  # first valid `[cobble:question]` line
 
     def feed(self, data: bytes) -> Signal:
         text = self._buffer + data.decode("utf-8", errors="replace")
@@ -76,6 +82,10 @@ class LoopDetector:
             return
         if stripped == _MARK_PASS:
             self._last_fail = None
+            return
+        if stripped.startswith(_QUESTION_PREFIX):
+            if self.question is None:
+                self.question = parse_question(stripped)
             return
         if stripped.startswith("[cobble:"):
             return

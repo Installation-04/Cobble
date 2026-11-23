@@ -28,6 +28,7 @@ export interface WorkspaceValue {
       local_only?: boolean;
       explain_mode?: boolean;
       mockups_enabled?: boolean;
+      review_enabled?: boolean;
     },
   ) => Promise<void>;
   deleteProject: (id: string) => Promise<void>;

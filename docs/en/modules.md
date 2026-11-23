@@ -30,11 +30,33 @@ their data in a volume (included in backups), and are limited to 512 MB / 1 CPU 
 shared capability `package-cache` and an ecosystem one (`npm-cache`, `pypi-cache`): a consumer
 should require the specific one, since a module linked to a capability sees only one provider.
 
-**Not wired to the agents yet.** The manifest has no optional requirement, and the agents' egress
-proxy only allows the public registries, so the agent runners do not use the caches yet. Doing it
-needs a small core change (optional links in the manifest and the resolver, then the allow-list and
-the `npm` / `pip` index variables for the runner); it is described in
-[ADR 0015](../decisions/0015-package-cache.md).
+**Wired to the agents automatically, never required** ([ADR 0027](../decisions/0027-package-cache-wiring.md)).
+The `aider` manifest says `wants: [npm-cache, pypi-cache]`: an optional requirement, "use it if it
+is installed". It installs nothing and blocks nothing; whatever the order (cache first, agents
+first, or both in one go) and also when a cache is removed later, the module-manager gives the
+agents the cache address and restarts only the agent services whose configuration changed. When
+the agents' compose file is rendered it receives `COBBLE_WANT_NPM_CACHE_URL`,
+`COBBLE_WANT_PYPI_CACHE_URL` (and `..._HOST`, `..._PORT`, `..._MODULE`), which it turns into:
+
+- the agent proxy allow-list: exactly the cache host names are added, nothing else widens; the
+  agents' network is still internal and every request still goes through the proxy;
+- `npm_config_registry`, `PIP_INDEX_URL` + `PIP_TRUSTED_HOST` and `UV_DEFAULT_INDEX` in each agent
+  container (`COBBLE_NPM_REGISTRY` / `COBBLE_PYPI_INDEX` carry the same addresses), so `npm`,
+  `pnpm`, `pip` and `uv` install through the cache.
+
+On a cache miss the cache itself fetches the package from the public registry (its uplink) and
+keeps it. **If a cache is down, installs fail** with the tool's own network error (connection
+refused or 502 from the proxy): the agents do not fall back to the public registry and the
+restricted network is never bypassed. Start the cache again (`cobble modules status`) or uninstall
+it: the agents are re-wired to the public registries within seconds. Wiring or unwiring restarts
+`agent-service` and the proxy, so do it when no agent run is active. A lock file that records
+absolute download URLs (for example `uv.lock`) still points at the public registry, which stays in
+the allow-list: it works but does not use the cache for those files.
+
+Modules can use the same mechanism: `wants: [<capability>]` in the manifest (validated by
+`cobble-sdk lint`), a provider's `endpoint` for the path under its address, and the
+`COBBLE_WANT_<CAPABILITY>_*` variables in the compose file (read them with an empty default,
+`${COBBLE_WANT_X_URL:-}`, since they are unset when nobody provides the capability).
 
 ## What every module follows
 

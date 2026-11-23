@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { buildApi } from "../api/endpoints";
 import { errorMessage } from "../api/errors";
-import type { Task, TaskRun } from "../api/types";
+import type { Task, TaskReview, TaskRun } from "../api/types";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
@@ -10,6 +10,7 @@ import { Sheet, SheetContent, SheetDescription, SheetTitle } from "../components
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { DiffView } from "./DiffView";
 import { LogView } from "./LogView";
+import { QuestionPanel } from "./QuestionPanel";
 import { useProjectData } from "./ProjectDataProvider";
 import { canDo, isRunning, stateTone, TASK_ACTIONS, type TaskAction } from "./taskState";
 import { useAsyncAction } from "./useAsyncAction";
@@ -68,6 +69,64 @@ function RunsTable({ runs, lang }: { runs: TaskRun[]; lang: string }) {
         </tbody>
       </table>
     </div>
+  );
+}
+
+const FAILURE_CODES = ["task_timeout", "task_budget_reached"];
+
+/** What the reviewer agent said about the task, or that it is reading it now. */
+function ReviewSection({ task, review }: { task: Task; review: TaskReview | null | undefined }) {
+  const { t } = useTranslation("agents");
+  const inReview = task.state === "review";
+  if (!review && !inReview) return null;
+  return (
+    <section
+      aria-labelledby="review-title"
+      data-testid="task-review"
+      className="flex flex-col gap-2"
+    >
+      <h3 id="review-title" className="text-sm font-semibold">
+        {t("review.title")}
+      </h3>
+      {inReview && (
+        <p role="status" data-testid="review-in-progress" className="text-sm text-muted-foreground">
+          {t("review.inProgress")}
+        </p>
+      )}
+      {review && (
+        <div className="flex flex-col gap-2 text-sm">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge
+              tone={review.verdict === "approve" ? "success" : "warning"}
+              data-testid="review-verdict"
+              data-verdict={review.verdict}
+            >
+              {t(`review.${review.verdict}`)}
+            </Badge>
+            <span className="text-muted-foreground">
+              {t("review.attempt", { count: review.attempt })}
+            </span>
+          </div>
+          {review.warning && (
+            <p data-testid="review-warning" className="text-warning">
+              {t(`review.warning.${review.warning}`, {
+                defaultValue: t("review.warning.review_unavailable"),
+              })}
+            </p>
+          )}
+          {review.issues.length > 0 && (
+            <div>
+              <p className="font-medium">{t("review.issues")}</p>
+              <ul data-testid="review-issues" className="list-disc pl-5">
+                {review.issues.map((issue, index) => (
+                  <li key={index}>{issue}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -161,7 +220,25 @@ function DrawerBody({ task }: { task: Task }) {
         </div>
       </div>
 
+      <QuestionPanel taskRef={task.ref} />
+
       <Actions task={task} onDone={detail.reload} />
+
+      {task.state === "failed" &&
+        detail.data?.last_error != null &&
+        FAILURE_CODES.includes(detail.data.last_error) && (
+          <div
+            role="alert"
+            data-testid="task-failure"
+            data-code={detail.data.last_error}
+            className="flex flex-col gap-1 rounded-md border border-destructive p-3 text-sm text-destructive"
+          >
+            <p className="font-medium">{t("agents:failure.title")}</p>
+            <p>{t(`errors:${detail.data.last_error}`)}</p>
+          </div>
+        )}
+
+      <ReviewSection task={task} review={detail.data?.review} />
 
       <section aria-labelledby="runs-title" className="flex flex-col gap-2">
         <h3 id="runs-title" className="text-sm font-semibold">

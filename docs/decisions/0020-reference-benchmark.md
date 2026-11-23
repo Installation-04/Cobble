@@ -1,6 +1,6 @@
 # 0020 — Reference benchmark of the agents
 
-Status: accepted (v0.3 acceptance criterion, PLAN.md sections 14 and 15). The real run is NOT done: it needs the owner's API key.
+Status: **proposed** (implemented in v0.3, waiting for the owner to accept; v0.3 acceptance criterion, PLAN.md sections 14 and 15). The real run is NOT done: it needs the owner's API key.
 
 ## Context
 

@@ -27,9 +27,12 @@ def catalogs(draw: st.DrawFn) -> dict[str, Manifest]:
         pool = CAPS[:lowest]
         requires = sorted(draw(st.sets(st.sampled_from(pool), max_size=2))) if pool else []
         exclusive = sorted(draw(st.sets(st.sampled_from(provides)))) if provides else []
+        # Optional requirements may point anywhere (even upwards, making soft cycles).
+        free = [c for c in CAPS if c not in provides and c not in requires]
+        wants = sorted(draw(st.sets(st.sampled_from(free), max_size=2))) if free else []
         module_id = f"m{index}"
         result[module_id] = mod(
-            module_id, provides=provides, requires=requires, exclusive=exclusive
+            module_id, provides=provides, requires=requires, wants=wants, exclusive=exclusive
         )
     return result
 
@@ -90,6 +93,35 @@ def _assert_providers_first(
                 }:
                     assert position[provider] < position[module], f"{module} before {provider}"
     assert set(order) <= world
+
+
+def _without_wants(cat: dict[str, Manifest]) -> dict[str, Manifest]:
+    return {k: m.model_copy(update={"wants": []}) for k, m in cat.items()}
+
+
+@PROFILE
+@given(scenarios())
+def test_optional_requirements_never_change_what_is_installed(
+    scenario: tuple[dict[str, Manifest], dict[str, str], list[tuple[str, str]]],
+) -> None:
+    """`wants` only adds links: the installed set and the plan steps are those of a catalogue
+    without them (only their order may differ), and every link points at an installed provider."""
+    cat, choices, ops = scenario
+    plain = _without_wants(cat)
+    explicit: frozenset[str] = frozenset()
+    for op, module in ops:
+        try:
+            plan = _step(cat, explicit, choices, op, module)
+            base = _step(plain, explicit, choices, op, module)
+        except ResolveError:
+            continue
+        assert plan.installed == base.installed
+        assert plan.explicit == base.explicit
+        assert set(plan.steps) == set(base.steps)
+        assert plan.links_added >= base.links_added
+        explicit = plan.explicit
+    installed = resolve(cat, explicit, choices).installed
+    assert desired_links(plain, installed) <= desired_links(cat, installed)
 
 
 @PROFILE

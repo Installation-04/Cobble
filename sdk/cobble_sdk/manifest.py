@@ -52,6 +52,10 @@ class Provide(_Strict):
 
     capability: Capability
     adapter: str | None = Field(default=None, pattern=r"^[a-z][a-z0-9-]*$")
+    # Where clients reach this capability under the module's address (its `web_ui` service and
+    # port), for example the path of a package index. Handed to the modules that `wants` or
+    # `requires` the capability as part of their `..._URL` variable.
+    endpoint: str | None = Field(default=None, pattern=r"^/[A-Za-z0-9._~+/-]*$", max_length=120)
 
 
 class Hardware(_Strict):
@@ -186,6 +190,10 @@ class Manifest(_Strict):
     license: str = Field(min_length=1, max_length=80)
     provides: list[Provide] = Field(default_factory=list)
     requires: list[Capability] = Field(default_factory=list)
+    # Optional requirements: "use it if it is installed". Never installs anything and never
+    # blocks an install or an uninstall, but the module is linked to the providers that are
+    # (or later become) installed, in any order, and is told their address.
+    wants: list[Capability] = Field(default_factory=list)
     exclusive: list[Capability] = Field(default_factory=list)
     hardware: Hardware = Field(default_factory=Hardware)
     variants: list[Variant] = Field(default_factory=list)
@@ -249,6 +257,7 @@ class Manifest(_Strict):
         provided = [p.capability for p in self.provides]
         _unique(provided, "provides")
         _unique(self.requires, "requires")
+        _unique(self.wants, "wants")
         _unique(self.exclusive, "exclusive")
         _unique([s.key for s in self.settings], "settings")
         _unique(self.secrets, "secrets")
@@ -271,6 +280,10 @@ class Manifest(_Strict):
             raise ValueError("'exclusive' may only list capabilities the module provides")
         if set(self.requires) & set(provided):
             raise ValueError("a module cannot require a capability it provides")
+        if set(self.wants) & set(self.requires):
+            raise ValueError("a capability cannot be both required and wanted")
+        if set(self.wants) & set(provided):
+            raise ValueError("a module cannot want a capability it provides")
         if {s.key for s in self.settings} & set(self.secrets):
             raise ValueError("a key cannot be both a setting and a secret")
         return self

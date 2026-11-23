@@ -32,11 +32,35 @@ modules les joignent à `http://cobble-verdaccio-verdaccio:4873` et `http://cobb
 une capacité propre à son écosystème (`npm-cache`, `pypi-cache`): un consommateur doit demander la
 capacité précise, car un module relié à une capacité ne voit qu'un seul fournisseur.
 
-**Pas encore branchés aux agents.** Le manifeste n'a pas de dépendance facultative, et le proxy de
-sortie des agents n'autorise que les registres publics: les runners n'utilisent donc pas encore les
-caches. Le faire demande un petit changement du noyau (liens facultatifs dans le manifeste et le
-résolveur, puis la liste d'autorisation et les variables d'index `npm` / `pip` du runner); il est
-décrit dans l'[ADR 0015](../decisions/0015-package-cache.md).
+**Branchés aux agents automatiquement, jamais obligatoires** ([ADR 0027](../decisions/0027-package-cache-wiring.md)).
+Le manifeste de `aider` dit `wants: [npm-cache, pypi-cache]`: une dépendance facultative, « à
+utiliser si elle est installée ». Elle n'installe rien et ne bloque rien; quel que soit l'ordre (cache
+d'abord, agents d'abord, ou les deux en une fois) et aussi quand un cache est retiré plus tard, le
+gestionnaire de modules donne l'adresse du cache aux agents et ne redémarre que les services des
+agents dont la configuration a changé. Au rendu du fichier compose des agents, celui-ci reçoit
+`COBBLE_WANT_NPM_CACHE_URL`, `COBBLE_WANT_PYPI_CACHE_URL` (et `..._HOST`, `..._PORT`, `..._MODULE`),
+qu'il transforme en:
+
+- liste d'autorisation du proxy des agents: exactement les noms d'hôte des caches sont ajoutés, rien
+  d'autre ne s'élargit; le réseau des agents reste interne et chaque requête passe toujours par le proxy;
+- `npm_config_registry`, `PIP_INDEX_URL` + `PIP_TRUSTED_HOST` et `UV_DEFAULT_INDEX` dans chaque
+  conteneur d'agent (`COBBLE_NPM_REGISTRY` / `COBBLE_PYPI_INDEX` portent les mêmes adresses), pour que
+  `npm`, `pnpm`, `pip` et `uv` installent via le cache.
+
+En cas d'absence dans le cache, c'est le cache lui-même qui récupère le paquet sur le registre
+public (son amont) et le garde. **Si un cache est arrêté, les installations échouent** avec l'erreur
+réseau de l'outil (connexion refusée ou 502 du proxy): les agents ne se rabattent pas sur le
+registre public et le réseau restreint n'est jamais contourné. Relancez le cache (`cobble modules
+status`) ou désinstallez-le: les agents sont rebranchés sur les registres publics en quelques
+secondes. Brancher ou débrancher redémarre `agent-service` et le proxy: faites-le quand aucun agent
+ne travaille. Un fichier de verrouillage qui note des URL de téléchargement absolues (par exemple
+`uv.lock`) pointe toujours vers le registre public, qui reste autorisé: cela fonctionne mais le
+cache n'est pas utilisé pour ces fichiers.
+
+Les modules peuvent utiliser le même mécanisme: `wants: [<capacité>]` dans le manifeste (validé par
+`cobble-sdk lint`), l'`endpoint` d'un fournisseur pour le chemin sous son adresse, et les variables
+`COBBLE_WANT_<CAPACITÉ>_*` dans le fichier compose (à lire avec une valeur par défaut vide,
+`${COBBLE_WANT_X_URL:-}`, car elles sont absentes quand personne ne fournit la capacité).
 
 ## Ce que suit chaque module
 

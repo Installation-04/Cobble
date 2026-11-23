@@ -9,7 +9,10 @@ description:
   en: Keeps a local copy of the npm packages your projects download, so installs are faster, work offline once cached and use less bandwidth.
   fr: "Garde une copie locale des paquets npm que vos projets téléchargent: installations plus rapides, utilisables hors ligne une fois en cache, moins de bande passante."
 license: MIT
-provides: [package-cache, npm-cache]
+provides:
+  - package-cache
+  # Clients use the registry at the root of the module's address.
+  - {capability: npm-cache, endpoint: /}
 images:
   - verdaccio/verdaccio:6.9.3@sha256:3b0591ab7612f3ed232fe5bb5888b9418ac9f34d712db781a03bd8dad43b4aa8
 compose: compose.yml

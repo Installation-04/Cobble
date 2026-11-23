@@ -1,0 +1,27 @@
+{
+  "title": "Leçons apprises",
+  "description": "Quand une tâche échoue à répétition, Cobble garde une courte note de la cause. Les notes actives les plus utiles (au plus {{max}} restent actives) sont ajoutées aux instructions des prochains agents de ce projet pour qu'ils ne refassent pas l'erreur. Les notes sont du texte brut, restent dans ce projet, et les secrets sont masqués.",
+  "empty": "Aucune leçon pour l'instant. Elles apparaissent quand une tâche échoue à répétition, et vous pouvez ajouter les vôtres.",
+  "loadError": "Impossible de charger les leçons.",
+  "addLabel": "Nouvelle leçon",
+  "addPlaceholder": "Par exemple : utiliser uv, jamais pip.",
+  "add": "Ajouter",
+  "edit": "Modifier",
+  "editLabel": "Texte de la leçon",
+  "save": "Enregistrer",
+  "cancel": "Annuler",
+  "delete": "Supprimer",
+  "deleteLabel": "Supprimer la leçon : {{text}}",
+  "enabledLabel": "Utiliser cette leçon : {{text}}",
+  "injected": "Montrée aux agents",
+  "disabled": "Désactivée",
+  "hits_one": "Vue {{count}} fois",
+  "hits_other": "Vue {{count}} fois",
+  "full": "Il y a déjà {{max}} leçons actives. Désactivez ou supprimez-en une d'abord.",
+  "source": {
+    "ci_failure": "Échec de la CI",
+    "loop": "Boucle",
+    "timeout": "Délai dépassé",
+    "manual": "Écrite par vous"
+  }
+}

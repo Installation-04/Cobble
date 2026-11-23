@@ -4,7 +4,7 @@
   "group": {
     "todo": "To do",
     "running": "Running",
-    "ci": "CI",
+    "ci": "CI and review",
     "merged": "Merged",
     "attention": "Needs attention"
   },
@@ -17,7 +17,9 @@
     "failed": "Failed",
     "blocked": "Blocked",
     "paused": "Paused",
-    "stopped": "Stopped"
+    "stopped": "Stopped",
+    "review": "In review",
+    "waiting_human": "Waiting for you"
   },
   "runState": {
     "pending": "Starting",
@@ -30,7 +32,8 @@
     "budget": "Budget reached",
     "rejected": "Rejected",
     "lost": "Lost",
-    "retired": "Superseded"
+    "retired": "Superseded",
+    "question": "Asked a question"
   },
   "escalated": "Escalated",
   "attempts_one": "{{count}} attempt",
@@ -90,5 +93,43 @@
     "label": "Diff of the task branch",
     "empty": "No changes pushed yet.",
     "truncated": "The diff is too large and was truncated."
+  },
+  "review": {
+    "title": "Code review",
+    "inProgress": "The reviewer is reading the changes…",
+    "approve": "Approved",
+    "request_changes": "Changes requested",
+    "issues": "Issues to fix",
+    "attempt": "Review of attempt {{count}}",
+    "warning": {
+      "review_unparsable": "The reviewer's answer could not be read, so the task was merged without a review.",
+      "review_unavailable": "The reviewer could not answer, so the task was merged without a review.",
+      "review_unresolved": "Changes were requested but no attempt was left: the task was merged as it was."
+    },
+    "toggle": {
+      "title": "Code review",
+      "label": "Have a reviewer agent read each task before it is merged",
+      "onHelp": "When the CI is green, a reviewer checks the changes against the acceptance criteria. If it finds problems, the agent tries again with its remarks. It costs a few tokens per task and per retry.",
+      "offHelp": "Off by default, because each review costs tokens. Turn it on for a stricter result."
+    }
+  },
+  "failure": {
+    "title": "Why this task stopped"
+  },
+  "questions": {
+    "badge_one": "{{count}} question for you",
+    "badge_other": "{{count}} questions for you",
+    "waiting": "Waiting for you",
+    "title": "Question from the agent",
+    "hint": "The agent stopped to ask you instead of guessing. The task resumes when you answer.",
+    "choicesLabel": "Suggested answers",
+    "answerLabel": "Your answer",
+    "placeholder": "Type your answer",
+    "send": "Send answer",
+    "sending": "Sending…",
+    "skip": "Skip: let the agent decide",
+    "answered": "Your answer: {{answer}}",
+    "skipped": "Skipped: the agent decided.",
+    "history": "Earlier questions"
   }
 }

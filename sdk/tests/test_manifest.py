@@ -141,7 +141,26 @@ INVALID: list[tuple[str, dict[str, Any], str]] = [
     ("duplicate core secret", _with(core_secrets=["api_token", "api_token"]), "duplicate"),
     ("bad core secret name", _with(core_secrets=["Api Token"]), "core_secrets"),
     ("duplicate variant", _with(variants=[{"id": "cpu"}, {"id": "cpu"}]), "duplicate"),
+    ("duplicate wanted capability", _with(wants=["x-cache", "x-cache"]), "duplicate"),
+    ("wants a required capability", _with(requires=["ci"], wants=["ci"]), "both required"),
+    ("wants its own capability", _with(wants=["git"]), "cannot want"),
+    ("bad wanted name", _with(wants=["Bad Name"]), "wants"),
+    (
+        "endpoint without slash",
+        _with(provides=[{"capability": "git", "endpoint": "x"}]),
+        "endpoint",
+    ),
 ]
+
+
+def test_wants_and_endpoint_are_accepted() -> None:
+    manifest = parse_manifest(
+        _with(
+            wants=["npm-cache"], provides=[{"capability": "git", "endpoint": "/root/pypi/+simple/"}]
+        )
+    )
+    assert manifest.wants == ["npm-cache"]
+    assert manifest.provides[0].endpoint == "/root/pypi/+simple/"
 
 
 @pytest.mark.parametrize(("data", "needle"), [c[1:] for c in INVALID], ids=[c[0] for c in INVALID])

@@ -169,6 +169,7 @@ class FakeRunner:
     volumes: set[str] = field(default_factory=set)
     calls: list[tuple[str, str]] = field(default_factory=list)
     hook_envs: list[tuple[str, dict[str, str]]] = field(default_factory=list)
+    up_envs: list[tuple[str, dict[str, str]]] = field(default_factory=list)
     fail: set[tuple[str, str]] = field(default_factory=set)
     crash: set[tuple[str, str]] = field(default_factory=set)
     hook_exit: dict[str, int] = field(default_factory=dict)
@@ -183,6 +184,7 @@ class FakeRunner:
 
     def up(self, project: str, compose: Mapping[str, Any], env: Mapping[str, str]) -> None:
         self._check("up", project)
+        self.up_envs.append((project, dict(env)))
         self.running[project] = compose
         self.volumes.add(project)
 

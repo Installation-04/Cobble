@@ -22,6 +22,7 @@ from sqlalchemy import (
     Uuid,
     false,
     func,
+    true,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -216,6 +217,10 @@ class Project(Base):
     mockups_enabled: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default=false()
     )
+    # True: a reviewer agent reads each task's diff between CI green and merge (ADR 0024).
+    review_enabled: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=false()
+    )
     # interview -> spec_review -> plan_review -> ready -> building -> done
     phase: Mapped[str] = mapped_column(
         String(20), nullable=False, default="interview", server_default="interview"
@@ -319,7 +324,8 @@ class Task(Base):
     kind: Mapped[str] = mapped_column(
         String(10), nullable=False, default="plan", server_default="plan"
     )
-    # todo, writing_tests, implementing, ci, merged, failed, blocked, paused, stopped
+    # todo, writing_tests, implementing, ci, review, merged, failed, blocked, paused, stopped,
+    # waiting_human (an agent asked the user a question, ADR 0025)
     state: Mapped[str] = mapped_column(
         String(20), nullable=False, default="todo", server_default="todo"
     )
@@ -330,6 +336,8 @@ class Task(Base):
     branch: Mapped[str | None] = mapped_column(String(200))
     pr_number: Mapped[int | None] = mapped_column(Integer)
     last_error: Mapped[str | None] = mapped_column(Text)
+    # Latest reviewer verdict (ADR 0024): {verdict, issues, attempt, warning}. None: not reviewed.
+    review: Mapped[dict[str, Any] | None] = mapped_column(JSON)
     created_at: Mapped[datetime] = _now_col()
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -353,7 +361,7 @@ class TaskRun(Base):
     attempt: Mapped[int] = mapped_column(Integer, nullable=False)
     model: Mapped[str] = mapped_column(String(200), nullable=False)
     # pending (not started yet), running, then the outcome: done, failed, timeout,
-    # loop_detected, stopped, budget, lost
+    # loop_detected, stopped, budget, lost, question (the agent asked the user)
     state: Mapped[str] = mapped_column(String(20), nullable=False)
     agent_run_id: Mapped[str | None] = mapped_column(String(200))
     iterations: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
@@ -361,6 +369,30 @@ class TaskRun(Base):
     started_at: Mapped[datetime] = _now_col()
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     log_tail: Mapped[str | None] = mapped_column(Text)
+
+
+class TaskQuestion(Base):
+    """A question an agent asked the user instead of guessing (ADR 0025)."""
+
+    __tablename__ = "task_questions"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    task_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    run_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("task_runs.id", ondelete="SET NULL")
+    )
+    question: Mapped[str] = mapped_column(Text, nullable=False)
+    choices: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    # open (waiting for the user), answered, skipped (by the user, or by the system when the
+    # task already used its questions)
+    status: Mapped[str] = mapped_column(
+        String(10), nullable=False, default="open", server_default="open"
+    )
+    answer: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = _now_col()
+    answered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class Milestone(Base):
@@ -535,3 +567,25 @@ class PlatformState(Base):
     )
     # Per-task cap as a multiple of the task's estimate; None: the configured default, 0: none.
     task_budget_multiplier: Mapped[Decimal | None] = mapped_column(Numeric(8, 2))
+
+
+class ProjectLesson(Base):
+    """One short lesson learned inside a project, shown to later agents of that project (ADR 0026).
+
+    `hits` counts how many times the same mistake was seen (1 when first captured)."""
+
+    __tablename__ = "project_lessons"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    text: Mapped[str] = mapped_column(String(300), nullable=False)
+    # ci_failure | loop | timeout | manual
+    source: Mapped[str] = mapped_column(String(20), nullable=False)
+    task_ref: Mapped[str | None] = mapped_column(String(20))
+    active: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default=true()
+    )
+    hits: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+    created_at: Mapped[datetime] = _now_col()

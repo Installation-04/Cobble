@@ -9,7 +9,10 @@ description:
   en: Keeps a local copy of the Python packages your projects download, so installs are faster, work offline once cached and use less bandwidth.
   fr: "Garde une copie locale des paquets Python que vos projets téléchargent: installations plus rapides, utilisables hors ligne une fois en cache, moins de bande passante."
 license: MIT
-provides: [package-cache, pypi-cache]
+provides:
+  - package-cache
+  # `root/pypi` is the index that mirrors PyPI (the PEP 503 "simple" index).
+  - {capability: pypi-cache, endpoint: /root/pypi/+simple/}
 images:
   - jonasal/devpi-server:6.21.0@sha256:3f06e7c54139d74e18f44f731f5facb39dbe9b48384dd13c4f05c71ded6be39e
 compose: compose.yml

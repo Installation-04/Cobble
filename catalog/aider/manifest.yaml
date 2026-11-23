@@ -12,6 +12,10 @@ description:
 license: AGPL-3.0-or-later (Aider Apache-2.0, tinyproxy GPL-2.0-or-later)
 provides: [agent-runner]
 requires: [git]
+# Optional: if a package cache is installed (before or after this module), the agents install
+# through it. Nothing installs it for you and nothing breaks without it. The module-manager hands
+# the cache's address to the compose file (COBBLE_WANT_NPM_CACHE_*, COBBLE_WANT_PYPI_CACHE_*).
+wants: [npm-cache, pypi-cache]
 images:
   - ghcr.io/installation-04/cobble-agent-service@sha256:47c89e1cd0b43f7936f538077963d35e6adac9caac137908a6862188c75c8cd7
   - ghcr.io/installation-04/cobble-agent-proxy@sha256:372c64e0696db5ac0dbfd35e9c711be62b9bd3b5340889244c81bfb9866debad

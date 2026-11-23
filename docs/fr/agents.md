@@ -162,3 +162,27 @@ cycle de vie, authentification, validation, détection de boucle, délai, arrêt
 redémarrage, fuite de secrets, configuration `.git` hostile. Les tests d'agents n'appellent jamais un
 vrai modèle; pour des essais de bout en bout, utiliser le faux LLM avec une cassette marqueur
 (`providers/fake-llm/README.md`).
+
+## Questions à l'utilisateur (ADR 0025)
+
+Un agent qui ne peut pas continuer sans une décision de votre part peut poser une question au lieu de
+deviner. Il termine son exécution par une ligne sur sa sortie, ou écrit `.cobble/question.json` (le
+runner la transforme en ligne):
+
+```
+[cobble:question] {"question": "Le montant inclut-il les taxes ?", "choices": ["oui", "non"]}
+```
+
+`choices` est facultatif. L'agent-service arrête aussitôt le conteneur (plus rien n'est dépensé), garde
+le travail déjà commité sur la branche de la tâche et déclare l'exécution `question`. La tâche passe à
+**Attend votre réponse**: elle ne prend aucune place d'agent, n'use aucune tentative et ne compte pas
+comme un échec; les autres tâches continuent et aucun délai ne court pendant l'attente. Dans l'onglet
+Agents, un badge compte les questions ouvertes; ouvrez la tâche pour répondre par un choix suggéré ou
+du texte libre, ou passer (« laisser l'agent décider »). La tâche reprend alors la même étape avec les
+réponses dans son prompt.
+
+Limites: 3 questions par tâche (une quatrième fait échouer cette exécution), 2000 caractères par
+question ou réponse, 6 choix. API: `GET /api/v1/projects/{id}/questions`,
+`POST .../questions/{qid}/answer` (`{"answer": "..."}`) et `POST .../questions/{qid}/skip`;
+événements `task.question` et `task.answered`. Arrêter ou relancer une tâche en attente ferme sa
+question comme passée.

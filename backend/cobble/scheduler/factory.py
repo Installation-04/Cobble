@@ -9,10 +9,13 @@ there is no scheduler yet: planning (interview, spec, plan) still works, buildin
 from __future__ import annotations
 
 import logging
+import uuid
+from typing import Any
 
 from redis import Redis
 from sqlalchemy.orm import Session, sessionmaker
 
+from cobble.capabilities.llm import ChatResult, LLMClient, Role
 from cobble.config import Settings
 from cobble.db.models import PlatformState
 from cobble.router.policy import ModelPolicy
@@ -21,6 +24,42 @@ from .engine import Scheduler
 from .supervisor import BuildResult, SchedulerSupervisor
 
 log = logging.getLogger(__name__)
+
+
+class _ReviewerLLM:
+    """The cost router, built on first use: only projects that turned reviews on need it."""
+
+    def __init__(
+        self, settings: Settings, sessions: sessionmaker[Session], redis: Redis | None
+    ) -> None:
+        self._args = (settings, sessions, redis)
+        self._router: Any = None
+
+    def chat(
+        self,
+        role: Role,
+        messages: list[dict[str, Any]],
+        *,
+        project_id: uuid.UUID | None = None,
+        task_id: uuid.UUID | None = None,
+    ) -> ChatResult:
+        if self._router is None:
+            from cobble.router.factory import build_cost_router
+
+            settings, sessions, redis = self._args
+            if redis is None:
+                raise RuntimeError("the cost router needs Redis")
+            self._router = build_cost_router(settings, sessions, redis)
+        result: ChatResult = self._router.chat(
+            role, messages, project_id=project_id, task_id=task_id
+        )
+        return result
+
+
+def reviewer_llm(
+    settings: Settings, sessions: sessionmaker[Session], redis: Redis | None
+) -> LLMClient:
+    return _ReviewerLLM(settings, sessions, redis)
 
 
 def make_scheduler_supervisor(
@@ -74,6 +113,7 @@ def make_scheduler_supervisor(
                 redis=redis,
                 model_for=ModelPolicy(sessions, settings).model_for,
                 preview=built.preview,
+                llm=reviewer_llm(settings, sessions, redis),
             )
         )
 
@@ -104,6 +144,7 @@ def build_scheduler(
             settings,
             redis=redis,
             preview=fake.preview,
+            llm=reviewer_llm(settings, sessions, redis),
         )
     log.warning("scheduler disabled: no module-manager token (install the modules to build)")
     return None

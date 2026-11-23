@@ -499,6 +499,9 @@ class ModuleManager:
 
     def _secret_env(self, module_id: str) -> dict[str, str]:
         env = {**self._platform_env, "COBBLE_MODULE_ID": module_id}
+        manifest = self._manifests().get(module_id)
+        if manifest is not None:
+            env.update(self._wanted_env(manifest))
         with self._sessions() as session:
             for key in self._store.keys(session, module_id):
                 value = self._store.get(session, module_id, key)
@@ -649,6 +652,7 @@ class ModuleManager:
             }
         wanted = desired_links(manifests, running | {module_id})
         involved = [item for item in wanted if module_id in (item.consumer, item.provider)]
+        fresh: list[tuple[str, str, str]] = []
         for link in sorted(involved, key=lambda i: (i.provider, i.consumer, i.capability)):
             if (link.consumer, link.provider, link.capability) in stored:
                 continue
@@ -663,6 +667,9 @@ class ModuleManager:
                     )
                 )
                 session.commit()
+            fresh.append((link.consumer, link.provider, link.capability))
+        for consumer in self._wanting(module_id, fresh):  # a cache that arrives after its users
+            self._rewire(consumer)
 
     def _required_peers(self, manifest: Manifest) -> dict[str, str]:
         """`COBBLE_PEER_<CAPABILITY>_*` for the running module that provides each capability the
@@ -681,6 +688,77 @@ class ModuleManager:
                 prefix = f"COBBLE_PEER_{capability.upper().replace('-', '_')}_"
                 env.update(self._peer_env(providers[0], prefix))
         return env
+
+    def _wanted_env(self, manifest: Manifest) -> dict[str, str]:
+        """`COBBLE_WANT_<CAPABILITY>_*` for the running module that provides each capability the
+        module wants (the first by id): its address only, never a secret. Nothing is set for a
+        capability nobody provides, so a compose file reads them with an empty default."""
+        manifests = self._manifests()
+        with self._sessions() as session:
+            running = set(session.scalars(select(Module.id).where(Module.state == "running")))
+        env: dict[str, str] = {}
+        for capability in manifest.wants:
+            for provider_id in sorted(running):
+                provider = manifests.get(provider_id)
+                if provider is None or provider_id == manifest.id:
+                    continue
+                provided = next((p for p in provider.provides if p.capability == capability), None)
+                if provided is None or provider.web_ui is None:
+                    continue
+                prefix = f"COBBLE_WANT_{capability.upper().replace('-', '_')}_"
+                host = f"cobble-{provider_id}-{provider.web_ui.service}"
+                port = provider.web_ui.port
+                env[f"{prefix}MODULE"] = provider_id
+                env[f"{prefix}HOST"] = host
+                env[f"{prefix}PORT"] = str(port)
+                env[f"{prefix}URL"] = f"http://{host}:{port}{provided.endpoint or ''}"
+                break
+        return env
+
+    def _rewire(self, consumer_id: str) -> None:
+        """Start a running consumer again with the current addresses of what it wants.
+
+        Docker Compose only recreates the services whose configuration changed, so a consumer that
+        does not use the new provider is left alone. A failure never undoes the install or the
+        removal that caused it: it is reported (event `rewire`) and the next change retries.
+        """
+        manifest = self._manifests().get(consumer_id)
+        with self._sessions() as session:
+            row = session.get(Module, consumer_id)
+            if manifest is None or row is None or row.state != "running":
+                return
+            variant = row.variant
+        try:
+            env = self._secret_env(consumer_id)
+            raw = self._catalog.compose(consumer_id, variant, env)
+            result = rewrite_compose(
+                raw,
+                manifest,
+                module_dir=self._catalog.module_dir(consumer_id),
+                bus_network=self._bus_network,
+            )
+            self._runner.up(_project(consumer_id), result.compose, env)
+            if not self._runner.wait_healthy(_project(consumer_id), self._health_timeout_s):
+                raise RunnerError("unhealthy")
+        except Exception as exc:  # a crash (BaseException) must pass through untouched
+            code = _code_of(exc)
+            log.warning("rewiring %s failed (%s)", consumer_id, code)
+            self._event(consumer_id, "rewire", ok=False, code=code)
+            return
+        self._event(consumer_id, "rewire")
+
+    def _wanting(self, provider_id: str, links: Sequence[tuple[str, str, str]]) -> list[str]:
+        """The consumers among `links` whose link to `provider_id` is an optional one."""
+        manifests = self._manifests()
+        return sorted(
+            {
+                consumer
+                for consumer, provider, capability in links
+                if provider == provider_id
+                and consumer in manifests
+                and capability in manifests[consumer].wants
+            }
+        )
 
     def _peer_env(self, peer_id: str, prefix: str) -> dict[str, str]:
         """How a hook reaches a peer: its address and the secrets it shares with linked modules
@@ -783,6 +861,8 @@ class ModuleManager:
             self._bump_generation(session)
             session.commit()
         self._event(module_id, kind, "forget")
+        for consumer in self._wanting(module_id, links):  # forget the address of what went away
+            self._rewire(consumer)
 
     # --- rollback and recovery -----------------------------------------------------------------
 

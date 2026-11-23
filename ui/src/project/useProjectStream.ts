@@ -27,6 +27,8 @@ export interface StreamHandlers {
   onPhaseChanged?: (phase: Phase) => void;
   /** `task.updated {task_id, state, attempts}` (ADR 0006). */
   onTaskUpdated?: (update: { ref: string; state: TaskState; attempts?: number }) => void;
+  /** `task.question` / `task.answered`: the list of questions changed (ADR 0025). */
+  onQuestionEvent?: () => void;
   /** `milestone.updated {ref, status}` (ADR 0007). */
   onMilestoneUpdated?: (update: { ref: string; status: MilestoneStatus }) => void;
   /** `project.building` (tasks materialized) or `project.done` (every milestone validated). */
@@ -121,6 +123,8 @@ export function useProjectStream(projectId: string | undefined, handlers: Stream
         attempts: typeof data.attempts === "number" ? data.attempts : undefined,
       });
     });
+    on("task.question", () => handlersRef.current.onQuestionEvent?.());
+    on("task.answered", () => handlersRef.current.onQuestionEvent?.());
     on("milestone.updated", (data) => {
       if (typeof data.ref !== "string") return;
       handlersRef.current.onMilestoneUpdated?.({

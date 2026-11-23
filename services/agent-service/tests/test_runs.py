@@ -109,6 +109,44 @@ async def test_container_spec_is_locked_down(settings: Settings) -> None:
     assert env["COBBLE_FILES"] == "hello.txt" and env["COBBLE_TEST_COMMAND"] == "pytest -q"
 
 
+async def _spec_env(settings: Settings) -> tuple[dict[str, str], dict[str, Any]]:
+    captured: dict[str, Any] = {}
+
+    async def script(ctx: Ctx) -> int:
+        captured.update(ctx.spec)
+        ctx.commit()
+        return 0
+
+    await run_to_end(settings, FakeEngine(script))
+    return dict(e.split("=", 1) for e in captured["Env"]), captured
+
+
+async def test_without_a_package_cache_the_agent_gets_no_registry_setting(
+    settings: Settings,
+) -> None:
+    env, _ = await _spec_env(settings)
+    assert not {k for k in env if "registry" in k.lower() or "INDEX" in k or "TRUSTED" in k}
+
+
+async def test_a_package_cache_reaches_the_agent_through_the_proxy(settings: Settings) -> None:
+    from dataclasses import replace
+
+    cached = replace(
+        settings,
+        npm_registry="http://cobble-verdaccio-verdaccio:4873/",
+        pypi_index="http://cobble-devpi-devpi:3141/root/pypi/+simple/",
+    )
+    env, spec = await _spec_env(cached)
+    assert env["npm_config_registry"] == "http://cobble-verdaccio-verdaccio:4873/"
+    assert env["PIP_INDEX_URL"] == env["UV_DEFAULT_INDEX"] == cached.pypi_index
+    assert env["PIP_TRUSTED_HOST"] == "cobble-devpi-devpi"
+    # the cache is reached through the allow-list proxy like everything else: never bypassed
+    assert env["HTTP_PROXY"] == "http://agent-proxy:3128"
+    assert "cobble-verdaccio-verdaccio" not in env["NO_PROXY"]
+    assert spec["HostConfig"]["NetworkMode"] == "cobble_agents"
+    assert "docker.sock" not in json.dumps(spec)
+
+
 async def test_volume_mode_uses_a_subpath_mount(settings: Settings) -> None:
     captured: dict[str, Any] = {}
 

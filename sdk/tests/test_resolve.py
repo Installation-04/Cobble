@@ -9,6 +9,7 @@ from cobble_sdk import (
     DependencyCycle,
     Hardware,
     Link,
+    Manifest,
     NeedsChoice,
     NeedsConfirmation,
     NoCompatibleVariant,
@@ -25,6 +26,82 @@ from cobble_sdk import (
 from cobble_sdk.resolve import InvalidChoice, check_hardware
 
 from .catalogs import catalog, mod, real_shaped
+
+# --- optional requirements (`wants`) -----------------------------------------------------------
+
+
+def _cache_catalog() -> dict[str, Manifest]:
+    return catalog(
+        mod("forgejo", provides=["git"]),
+        mod(
+            "aider",
+            provides=["agent-runner"],
+            requires=["git"],
+            wants=["npm-cache", "pypi-cache"],
+        ),
+        mod("verdaccio", provides=["package-cache", "npm-cache"]),
+        mod("devpi", provides=["package-cache", "pypi-cache"]),
+    )
+
+
+def test_a_wanted_capability_is_not_installed_for_you() -> None:
+    plan = plan_install(_cache_catalog(), set(), ["aider"])
+    assert plan.installed == {"aider", "forgejo"}
+    assert not any(link.capability.endswith("-cache") for link in plan.links_added)
+
+
+def test_a_wanted_provider_installed_later_is_linked_without_touching_the_consumer() -> None:
+    cat = _cache_catalog()
+    first = plan_install(cat, set(), ["aider"])
+    plan = plan_install(cat, first.explicit, ["verdaccio"])
+    assert plan.steps == (Step("install", "verdaccio"),)
+    assert plan.links_added == {Link("aider", "verdaccio", "npm-cache")}
+
+
+def test_a_wanted_provider_installed_first_is_linked_when_the_consumer_arrives() -> None:
+    cat = _cache_catalog()
+    first = plan_install(cat, set(), ["verdaccio", "devpi"])
+    plan = plan_install(cat, first.explicit, ["aider"])
+    assert {link for link in plan.links_added if link.consumer == "aider"} == {
+        Link("aider", "verdaccio", "npm-cache"),
+        Link("aider", "devpi", "pypi-cache"),
+        Link("aider", "forgejo", "git"),
+    }
+
+
+def test_removing_a_wanted_provider_unlinks_without_a_cascade() -> None:
+    cat = _cache_catalog()
+    first = plan_install(cat, set(), ["aider", "verdaccio"])
+    plan = plan_uninstall(cat, first.explicit, ["verdaccio"])  # no confirmation needed
+    assert plan.cascade == ()
+    assert plan.steps == (Step("uninstall", "verdaccio"),)
+    assert plan.installed == {"aider", "forgejo"}
+    assert plan.links_removed == {Link("aider", "verdaccio", "npm-cache")}
+
+
+def test_a_wanted_provider_is_installed_first_and_a_soft_cycle_gives_way() -> None:
+    plan = plan_install(_cache_catalog(), set(), ["aider", "verdaccio"])
+    order = [s.module for s in plan.steps]
+    assert order.index("verdaccio") < order.index("aider")
+    # a cache that itself requires the runner: the preference gives way, there is no cycle error
+    cyclic = catalog(
+        mod("forgejo", provides=["git"]),
+        mod("aider", provides=["agent-runner"], requires=["git"], wants=["npm-cache"]),
+        mod("verdaccio", provides=["npm-cache"], requires=["agent-runner"]),
+    )
+    order = [s.module for s in plan_install(cyclic, set(), ["verdaccio"]).steps]
+    assert order.index("aider") < order.index("verdaccio")
+
+
+def test_the_order_of_installs_does_not_change_the_final_links() -> None:
+    cat = _cache_catalog()
+    results = set()
+    for order in itertools.permutations(["aider", "verdaccio", "devpi"]):
+        explicit: frozenset[str] = frozenset()
+        for module in order:
+            explicit = plan_install(cat, explicit, [module]).explicit
+        results.add(resolve(cat, explicit).links)
+    assert len(results) == 1
 
 
 def test_a_requirement_is_satisfied_automatically_by_the_only_provider() -> None:

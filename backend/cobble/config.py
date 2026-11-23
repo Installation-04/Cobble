@@ -83,6 +83,8 @@ class Settings(BaseSettings):
     base_branch: str = "main"
     # A merge request whose CI stays pending this long counts as a failed attempt.
     ci_timeout_s: float = 1800.0
+    # Wall-clock limit of a task, all its attempts together (ADR 0024). 0 turns it off.
+    task_max_seconds: int = 2700
     # Per-run guardrails sent to the agent-service.
     agent_max_iterations: int = 20
     agent_max_seconds: int = 900

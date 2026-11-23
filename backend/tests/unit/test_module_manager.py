@@ -590,3 +590,94 @@ def test_the_cleanup_hook_of_a_consumer_still_sees_its_provider() -> None:
     rig.manager.uninstall(["woodpecker"])
     cleanup = [env for s, env in rig.runner.hook_envs if s == SCRIPTS["pre-uninstall"]]
     assert cleanup and cleanup[0]["COBBLE_PEER_GIT_HOST"] == "cobble-forgejo-forgejo"
+
+
+# --- optional requirements (`wants`): a cache the consumer uses if it is there ------------------
+
+NPM_CACHE = manifest(
+    "npmcache",
+    provides=[{"capability": "npm-cache", "endpoint": "/registry/"}],
+    web_ui={"service": "cache", "port": 4873, "path": "/npm"},
+)
+PYPI_CACHE = manifest(
+    "pycache",
+    provides=["pypi-cache"],
+    web_ui={"service": "index", "port": 3141, "path": "/pypi"},
+)
+RUNNER = manifest("runner", wants=["npm-cache", "pypi-cache"])
+
+
+def _wiring(rig: Rig, project: str = "cobble-runner") -> dict[str, str]:
+    """The `COBBLE_WANT_*` variables the consumer was last started with."""
+    ups = [env for name, env in rig.runner.up_envs if name == project]
+    return {k: v for k, v in ups[-1].items() if k.startswith("COBBLE_WANT_")}
+
+
+def _ups(rig: Rig) -> int:
+    return len([1 for name, _ in rig.runner.up_envs if name == "cobble-runner"])
+
+
+def test_a_wanted_cache_is_not_installed_and_the_consumer_starts_without_it() -> None:
+    rig = Rig([RUNNER, NPM_CACHE, PYPI_CACHE])
+    rig.manager.install(["runner"])
+    assert set(rig.runner.running) == {"cobble-runner"}
+    assert _wiring(rig) == {}
+    assert rig.counts()["links"] == 0
+
+
+def test_a_cache_installed_before_the_consumer_is_in_its_first_start() -> None:
+    rig = Rig([RUNNER, NPM_CACHE, PYPI_CACHE])
+    rig.manager.install(["npmcache", "runner"])
+    assert _wiring(rig) == {
+        "COBBLE_WANT_NPM_CACHE_MODULE": "npmcache",
+        "COBBLE_WANT_NPM_CACHE_HOST": "cobble-npmcache-cache",
+        "COBBLE_WANT_NPM_CACHE_PORT": "4873",
+        "COBBLE_WANT_NPM_CACHE_URL": "http://cobble-npmcache-cache:4873/registry/",
+    }
+    assert _ups(rig) == 1  # one start, no second one
+    assert not [e for e in rig.events() if e.kind == "rewire"]
+
+
+def test_a_cache_installed_after_the_consumer_rewires_it_and_removal_unwires_it() -> None:
+    rig = Rig([RUNNER, NPM_CACHE, PYPI_CACHE])
+    rig.manager.install(["runner"])
+    before = _ups(rig)
+    rig.manager.install(["pycache"])
+    assert _ups(rig) == before + 1
+    assert _wiring(rig)["COBBLE_WANT_PYPI_CACHE_URL"] == "http://cobble-pycache-index:3141"
+    assert "COBBLE_WANT_NPM_CACHE_URL" not in _wiring(rig)
+    rig.manager.install(["npmcache"])
+    assert set(_wiring(rig)) >= {"COBBLE_WANT_NPM_CACHE_HOST", "COBBLE_WANT_PYPI_CACHE_HOST"}
+    # removing one cache: no cascade, the consumer stays and forgets only that address
+    rig.manager.uninstall(["pycache"])
+    assert set(rig.runner.running) == {"cobble-runner", "cobble-npmcache"}
+    assert set(_wiring(rig)) == {
+        "COBBLE_WANT_NPM_CACHE_MODULE",
+        "COBBLE_WANT_NPM_CACHE_HOST",
+        "COBBLE_WANT_NPM_CACHE_PORT",
+        "COBBLE_WANT_NPM_CACHE_URL",
+    }
+    rig.manager.uninstall(["npmcache"])
+    assert _wiring(rig) == {}
+    assert rig.counts()["links"] == 0
+    assert rig.modules()["runner"].state == "running"
+
+
+def test_the_wiring_does_not_depend_on_the_order_of_installs() -> None:
+    results = set()
+    for order in ([["runner"], ["npmcache"]], [["npmcache"], ["runner"]], [["npmcache", "runner"]]):
+        rig = Rig([RUNNER, NPM_CACHE, PYPI_CACHE])
+        for step in order:
+            rig.manager.install(step)
+        results.add(tuple(sorted(_wiring(rig).items())))
+    assert len(results) == 1
+
+
+def test_a_failed_rewire_does_not_undo_the_cache_install() -> None:
+    rig = Rig([RUNNER, NPM_CACHE, PYPI_CACHE])
+    rig.manager.install(["runner"])
+    rig.runner.fail.add(("health", "cobble-runner"))
+    rig.manager.install(["npmcache"])
+    assert "npmcache" in rig.modules()
+    failed = [e for e in rig.events() if e.kind == "rewire" and e.outcome == "error"]
+    assert failed and failed[0].code == "unhealthy"

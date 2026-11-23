@@ -66,6 +66,7 @@ class Record:
     deadline: float | None = None
     finished_at: float | None = None
     stop_requested: bool = False
+    question: dict[str, Any] | None = None  # the agent asked the user (ADR 0025)
 
 
 class RunManager:
@@ -194,6 +195,7 @@ class RunManager:
             commits=rec.commits,
             diff_stat=rec.diff_stat,
             pushed=rec.pushed,
+            question=rec.question,
             started_at=rec.started_at,
             finished_at=rec.finished_at,
         )
@@ -326,6 +328,17 @@ class RunManager:
             "COBBLE_TASK_ID": req.task_id,
             "COBBLE_ROLE": req.role,
         }
+        # Package caches: the tools still go out through the proxy (its allow-list names the
+        # cache), so a cache that is down makes an install fail instead of reaching the internet.
+        if s.npm_registry:
+            env["npm_config_registry"] = s.npm_registry
+            env["COBBLE_NPM_REGISTRY"] = s.npm_registry
+        if s.pypi_index:
+            env["PIP_INDEX_URL"] = s.pypi_index
+            env["UV_DEFAULT_INDEX"] = s.pypi_index
+            env["COBBLE_PYPI_INDEX"] = s.pypi_index
+            if s.pypi_index.startswith("http://"):
+                env["PIP_TRUSTED_HOST"] = s.pypi_host
         if s.agent_cmd:
             env["COBBLE_AGENT_CMD"] = s.agent_cmd
         return {
@@ -393,6 +406,7 @@ class RunManager:
         already = log_path.stat().st_size if log_path.exists() else 0
         if already:  # restart recovery: replay what was already captured
             detector.feed(log_path.read_bytes())
+            rec.question = rec.question or detector.question
         trigger = asyncio.Event()
         reason: dict[str, str] = {}
 
@@ -415,6 +429,11 @@ class RunManager:
                         out.write(b"\n[cobble:log-truncated]\n")
                         truncated = True
                     signal = detector.feed(chunk)
+                    if detector.question and rec.question is None:
+                        rec.question = detector.question
+                        reason.setdefault("why", "question")  # stop it: nothing more to burn
+                        reason.setdefault("detail", "question")
+                        trigger.set()
                     rec.iterations = max(rec.iterations, signal.iterations)
                     if signal.loop and "why" not in reason:
                         reason["why"] = "loop"
@@ -478,7 +497,17 @@ class RunManager:
             except GitError as exc:
                 if outcome == "exit" and rec.exit_code == 0:
                     reason = exc.code
-        if outcome == "stopped":
+        if rec.question is not None and outcome in ("question", "exit"):
+            # The agent asked the user: keep its work on the branch (best effort) and report
+            # `question`; the scheduler resumes with the answer (ADR 0025).
+            if collected is not None and collected.commits > 0:
+                try:
+                    await self.git.push(run_dir, rec.branch)
+                    rec.pushed = True
+                except GitError as exc:
+                    self._log_line(rec, f"[cobble:error] {exc.code}")
+            state, reason = "question", "question"
+        elif outcome == "stopped":
             state = "stopped"
         elif outcome == "timeout":
             state = "timeout"

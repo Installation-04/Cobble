@@ -51,6 +51,7 @@ def create_project(body: ProjectIn, user: CurrentUser, db: Db, settings: AppSett
         budget_usd=settings.default_budget_usd,
         local_only=body.local_only,
         explain_mode=body.explain_mode,
+        review_enabled=body.review_enabled,
     )
     db.add(project)
     db.commit()
@@ -75,6 +76,8 @@ def update_project(project_id: str, body: ProjectPatch, user: CurrentUser, db: D
         project.explain_mode = body.explain_mode
     if body.mockups_enabled is not None:
         project.mockups_enabled = body.mockups_enabled
+    if body.review_enabled is not None:
+        project.review_enabled = body.review_enabled
     db.commit()
     return project
 

@@ -116,6 +116,7 @@ class ProjectIn(BaseModel):
     folder_id: uuid.UUID | None = None
     local_only: bool = False
     explain_mode: bool = False
+    review_enabled: bool = False
 
     _check_name = field_validator("name")(_name)
 
@@ -127,6 +128,7 @@ class ProjectPatch(BaseModel):
     local_only: bool | None = None
     explain_mode: bool | None = None
     mockups_enabled: bool | None = None
+    review_enabled: bool | None = None
 
     @field_validator("name")
     @classmethod
@@ -147,6 +149,7 @@ class ProjectOut(BaseModel):
     local_only: bool
     explain_mode: bool
     mockups_enabled: bool
+    review_enabled: bool
     status: Literal["active", "paused"]
     phase: Phase
 
@@ -233,3 +236,8 @@ class TaskRunOut(BaseModel):
 
 class TaskDetailOut(TaskOut):
     runs: list[TaskRunOut]
+    # A stable code (`task_timeout`, `task_budget_reached`...) the UI translates, else free
+    # text the UI never shows.
+    last_error: str | None = None
+    # Latest reviewer verdict: {verdict, issues, attempt, warning} (ADR 0024).
+    review: dict[str, Any] | None = None
