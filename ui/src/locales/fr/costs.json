@@ -81,6 +81,7 @@
     "counts": "Compter l'électricité dans le montant dépensé et dans le budget du projet",
     "taskTitle": "Plafond de coût par tâche",
     "taskHelp": "Une tâche peut dépenser ce multiple de sa propre estimation (au moins {{floor}} USD), toutes ses tentatives comprises. 0 désactive le plafond. Un appel déjà en cours quand le plafond est franchi se termine quand même : une tâche peut dépasser d'un appel. Par défaut : {{default}}.",
+    "wattsInvalid": "Saisissez la puissance en watts, sous forme de nombre entier (par exemple 300), ou laissez le champ vide.",
     "multiplier": "Multiple de l'estimation de la tâche",
     "save": "Enregistrer",
     "saved": "Enregistré."

@@ -35,12 +35,21 @@ function CostSettingsFields({ data }: { data: CostSettings }) {
   const [counts, setCounts] = useState(data.electricity_counts_in_budget);
   const [multiplier, setMultiplier] = useState(data.task_budget_multiplier ?? "");
   const [saved, setSaved] = useState(false);
+  const [invalid, setInvalid] = useState(false);
 
   async function save() {
+    // Not a whole number of watts: say so instead of sending NaN (null on the wire, which
+    // would silently switch the electricity off).
+    if (watts.trim() !== "" && !/^\d+$/.test(watts.trim())) {
+      setInvalid(true);
+      setSaved(false);
+      return;
+    }
+    setInvalid(false);
     const ok = await action.run(async () => {
       await costSettingsApi.save({
         electricity_price_kwh_usd: price.trim() === "" ? null : price.trim(),
-        electricity_watts: watts.trim() === "" ? null : Number.parseInt(watts, 10),
+        electricity_watts: watts.trim() === "" ? null : Number.parseInt(watts.trim(), 10),
         electricity_counts_in_budget: counts,
         task_budget_multiplier: multiplier.trim() === "" ? null : multiplier.trim(),
       });
@@ -77,6 +86,7 @@ function CostSettingsFields({ data }: { data: CostSettings }) {
               data-testid="cost-watts"
               onChange={(e) => {
                 setSaved(false);
+                setInvalid(false);
                 setWatts(e.target.value);
               }}
             />
@@ -118,6 +128,11 @@ function CostSettingsFields({ data }: { data: CostSettings }) {
           />
         </div>
       </fieldset>
+      {invalid && (
+        <p role="alert" className="text-sm text-destructive" data-testid="cost-watts-invalid">
+          {t("costs:settings.wattsInvalid")}
+        </p>
+      )}
       {action.error && (
         <p role="alert" className="text-sm text-destructive" data-testid="cost-settings-error">
           {action.error}
