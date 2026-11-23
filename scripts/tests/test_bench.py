@@ -182,6 +182,17 @@ def test_a_build_that_never_ends_times_out() -> None:
     assert result.outcome == "timeout"
 
 
+def test_a_project_over_its_cap_or_timed_out_is_stopped_and_its_final_cost_read() -> None:
+    fake, (result,) = run_bench({"todo": Scenario(ends="runaway")}, ["todo"])
+    assert result.outcome == "budget_paused" and result.detail == "over_cap"
+    (pid,) = fake._projects
+    assert f"stop:{pid}" in fake.calls
+    frozen = fake.costs(pid)["spent_usd"]
+    assert fake.costs(pid)["spent_usd"] == frozen == f"{result.spent_usd:.2f}"
+    fake, (result,) = run_bench({"todo": Scenario(ends="never")}, ["todo"], timeout_scale=0.01)
+    assert result.outcome == "timeout" and any(c.startswith("stop:") for c in fake.calls)
+
+
 def test_code_that_fails_the_hidden_tests_is_not_a_success() -> None:
     _, (result,) = run_bench({"todo": Scenario(broken_code=True)}, ["todo"])
     assert result.outcome == "tests_failed"

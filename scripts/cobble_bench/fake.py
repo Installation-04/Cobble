@@ -23,7 +23,7 @@ from .validate import build_tree
 class Scenario:
     """How the fake build of one reference project goes."""
 
-    ends: str = "done"  # done | failed | budget | overspend | never
+    ends: str = "done"  # done | failed | budget | overspend | never | runaway (spends until stopped)
     cost_usd: str = "0.12"
     prompt_tokens: int = 40_000
     completion_tokens: int = 9_000
@@ -77,12 +77,18 @@ class FakeCobble:
         self._projects[pid] = {
             "name": name, "budget": None, "phase": "interview", "status": "active",
             "messages": [], "spec": None, "plan": None, "polls": 0, "validated": set(),
+            "runaway": Decimal(0), "stopped": False,
         }  # fmt: skip
         self.calls.append(f"create:{name}")
         return pid
 
     def set_budget(self, project_id: str, budget_usd: str) -> None:
         self._get(project_id)["budget"] = Decimal(budget_usd)
+
+    def stop(self, project_id: str) -> None:
+        state = self._get(project_id)
+        state["stopped"], state["status"] = True, "paused"
+        self.calls.append(f"stop:{project_id}")
 
     def project(self, project_id: str) -> dict[str, Any]:
         state = self._get(project_id)
@@ -160,6 +166,10 @@ class FakeCobble:
             spent = Decimal(scenario.cost_usd)
         if scenario.ends == "budget":
             spent = state["budget"] or Decimal(0)
+        if scenario.ends == "runaway" and state["phase"] == "building":
+            if not state["stopped"]:
+                state["runaway"] += Decimal("0.40")
+            spent = state["runaway"]
         if scenario.ends == "overspend" and state["polls"] >= 1:
             spent = (state["budget"] or Decimal(0)) + Decimal("0.50")
         return {
