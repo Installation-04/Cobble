@@ -23,7 +23,8 @@ from .validate import build_tree
 class Scenario:
     """How the fake build of one reference project goes."""
 
-    ends: str = "done"  # done | failed | budget | overspend | never | runaway (spends until stopped)
+    # done | failed | budget | overspend | never | runaway (spends until stopped)
+    ends: str = "done"
     cost_usd: str = "0.12"
     prompt_tokens: int = 40_000
     completion_tokens: int = 9_000
