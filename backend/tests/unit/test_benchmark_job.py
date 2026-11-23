@@ -7,7 +7,7 @@ from typing import Any
 import pytest
 from sqlalchemy.orm import Session, sessionmaker
 
-from cobble.benchmark.job import LOCK_KEY, BenchmarkStatus, run_job, run_models
+from cobble.benchmark.job import LOCK_KEY, BenchmarkStatus, LiveBench, run_job, run_models
 from cobble.events import JOBS_STREAM
 from cobble.providers.module_manager import ModuleManagerRejected, ModuleManagerUnavailable
 from cobble.worker import consume_jobs_once, ensure_jobs_group, make_job_handler
@@ -222,6 +222,7 @@ def test_the_benchmark_runs_in_its_own_thread_and_the_job_is_acknowledged_at_onc
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     import threading
+    import time
 
     from cobble.benchmark import job as bench_job
     from cobble.config import Settings
@@ -236,10 +237,31 @@ def test_the_benchmark_runs_in_its_own_thread_and_the_job_is_acknowledged_at_onc
         finished.set()
 
     monkeypatch.setattr(bench_job, "run_job", slow_run_job)
-    monkeypatch.setattr(bench_job, "LiveBench", lambda settings, api: object())
+    closed: list[bool] = []
+
+    class FakeRig:
+        def close(self) -> None:
+            closed.append(True)
+
+    monkeypatch.setattr(bench_job, "LiveBench", lambda settings, api: FakeRig())
     monkeypatch.setattr(HttpModuleManager, "from_settings", classmethod(lambda cls, s: object()))
     runner = make_benchmark_runner(Settings(), FakeStreamRedis())  # type: ignore[arg-type]
     runner(["m"])  # returns while the benchmark is still going
     assert started.wait(5) and not finished.is_set()
     release.set()
     assert finished.wait(5)
+    deadline = time.monotonic() + 5
+    while not closed and time.monotonic() < deadline:
+        time.sleep(0.01)
+    assert closed == [True]  # the rig (and its database engine) is released when the run ends
+
+
+def test_the_live_rig_disposes_its_engine(monkeypatch: pytest.MonkeyPatch) -> None:
+    from sqlalchemy.engine import Engine
+
+    from cobble.config import Settings
+
+    disposed: list[bool] = []
+    monkeypatch.setattr(Engine, "dispose", lambda self, close=True: disposed.append(True))
+    LiveBench(Settings(database_url="sqlite://"), None).close()
+    assert disposed == [True]

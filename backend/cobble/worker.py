@@ -237,7 +237,10 @@ def make_benchmark_runner(settings: Settings, redis: Redis) -> Callable[[list[st
         def work() -> None:
             try:
                 rig = LiveBench(settings, HttpModuleManager.from_settings(settings))
-                run_job(names, rig, BenchmarkStatus(redis))
+                try:
+                    run_job(names, rig, BenchmarkStatus(redis))
+                finally:
+                    rig.close()
             except Exception:  # never leave the lock behind
                 log.exception("benchmark thread crashed")
                 BenchmarkStatus(redis).finish("internal_error")

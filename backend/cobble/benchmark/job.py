@@ -52,9 +52,14 @@ class LiveBench:
         from cobble.db import make_engine, make_session_factory
         from cobble.router.gateway import LiteLLMGateway
 
-        self._sessions = make_session_factory(make_engine(settings.database_url))
+        self._engine = make_engine(settings.database_url)
+        self._sessions = make_session_factory(self._engine)
         self._gateway = LiteLLMGateway(settings.litellm_url, settings.litellm_key, self._sessions)
         self._api = api
+
+    def close(self) -> None:
+        """Release the database connections: the job builds one rig per run."""
+        self._engine.dispose()
 
     def chat(self, model: str) -> Callable[[list[dict[str, str]]], Any]:
         def ask(messages: list[dict[str, str]]) -> Any:
