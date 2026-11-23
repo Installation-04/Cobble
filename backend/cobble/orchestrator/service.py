@@ -335,11 +335,7 @@ class PlannerService:
             milestone = db.scalars(
                 select(Milestone).where(Milestone.project_id == project_id, Milestone.ref == ref)
             ).first()
-            if (
-                milestone is None
-                or milestone.status == "pending"
-                or milestone.revision != revision
-            ):
+            if milestone is None or milestone.status == "pending" or milestone.revision != revision:
                 # Re-opened (maybe already rebuilt) while the model was answering: the summary
                 # describes a build that no longer stands; the rebuild queues its own job.
                 return
