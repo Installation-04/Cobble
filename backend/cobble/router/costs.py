@@ -160,7 +160,9 @@ class CostRouter:
             candidates = [m for m in candidates if m in local]
             if not candidates:
                 raise LocalOnlyUnavailable(project_id)
-        result = self._first_answer(candidates, role, messages, project_id, task_id)
+        result = self._first_answer(
+            candidates, role, messages, project_id, task_id, pinned=model is not None
+        )
         if project_id is not None:
             self._budget.after_call(project_id)
         return result
@@ -172,10 +174,15 @@ class CostRouter:
         messages: list[dict[str, Any]],
         project_id: uuid.UUID | None,
         task_id: uuid.UUID | None,
+        *,
+        pinned: bool = False,
     ) -> ChatResult:
         last: Exception | None = None
         failed: list[str] = []
-        ordered = self._backoff.order(candidates)
+        # The model the caller asked for (the escalation) stays first even if it is cooling
+        # down: demoting it would let the cheap models that just failed answer the escalation.
+        head, rest = (candidates[:1], candidates[1:]) if pinned else ([], candidates)
+        ordered = head + self._backoff.order(rest)
         if ordered != candidates:
             log.info("rate-limited models are tried last for now: %s", candidates)
             candidates = ordered

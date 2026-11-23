@@ -308,6 +308,15 @@ def test_a_rate_limited_model_is_tried_last_until_its_wait_is_over() -> None:
     assert not backoff.cooling("free")
 
 
+def test_an_explicit_model_stays_first_even_while_it_cools_down() -> None:
+    backoff = RateLimitBackoff(clock=Clock())
+    backoff.hit("strong")
+    gateway = Gateway({})
+    router = limited_router(gateway, backoff)
+    assert router.chat(Role.WORKER, [], model="strong").model == "strong"
+    assert gateway.tried == ["strong"]  # not the cheap models that just failed
+
+
 def test_the_wait_doubles_up_to_a_limit_and_is_forgotten_at_the_first_answer() -> None:
     clock = Clock()
     backoff = RateLimitBackoff(base_s=10, max_s=25, clock=clock)
