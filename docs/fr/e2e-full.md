@@ -10,7 +10,7 @@ scripts/e2e_full.sh --keep --timeout 5400 --lang fr
 ```
 
 Options: `--keep` (laisse la pile active), `--timeout SECONDES` (durée de construction, 3600 par défaut),
-`--lang en|fr`, `--comment` (après `done`, commente la dernière démo et suit la tâche `C-001`). `E2E_PORT` fixe le port hôte (18080). `E2E_HOST` est l'adresse que les conteneurs de CI utilisent
+`--lang en|fr`, `--comment` (après `done`, commente la dernière démo et suit la tâche `C-001`), `--review` (active l'agent réviseur sur le projet, puis vérifie que des tâches portent un verdict enregistré et que les appels de relecture sont rattachés au rôle `reviewer`; le faux modèle n'a pas de script de réviseur, un avertissement enregistré est donc attendu, ADR 0024). `E2E_PORT` fixe le port hôte (18080). `E2E_HOST` est l'adresse que les conteneurs de CI utilisent
 pour joindre la pile (par défaut: la première adresse de cette machine; `localhost` ne marcherait pas
 depuis un conteneur). `E2E_BUILD_CA` est un paquet de CA pour les machines derrière un proxy qui
 inspecte TLS: il est passé aux constructions d'images du noyau et monté dans les conteneurs d'étapes de CI

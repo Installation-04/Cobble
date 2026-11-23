@@ -9,10 +9,12 @@
 # (validated here through the API). Prints the final task table, tokens, cost and elapsed time,
 # then tears everything down.
 #
-# Usage: scripts/e2e_full.sh [--keep] [--timeout SECONDS] [--lang en|fr] [--comment]
+# Usage: scripts/e2e_full.sh [--keep] [--timeout SECONDS] [--lang en|fr] [--comment] [--review]
 #   --keep      leave the stack running (and print how to remove it)
 #   --timeout   give up after this many seconds of building (default 3600)
 #   --comment   after `done`, comment on the last demo and follow the new C-001 task
+#   --review    turn the reviewer agent on for the project, then check that tasks were reviewed
+#               (the fake LLM has no reviewer script: expect a recorded warning, see ADR 0024)
 # Environment: E2E_PORT (host port of Caddy, default 18080), E2E_EMAIL, E2E_PASSWORD,
 # E2E_HOST (address CI containers use to reach the stack, default: first address of this host),
 # E2E_BUILD_CA (path of a CA bundle passed to the core image builds as the optional `ca` BuildKit
@@ -32,12 +34,14 @@ KEEP=0
 TIMEOUT=3600
 LANG_CODE=en
 COMMENT=0
+REVIEW=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --keep) KEEP=1 ;;
     --timeout) TIMEOUT="${2:?--timeout needs a value}"; shift ;;
     --lang) LANG_CODE="${2:?--lang needs en or fr}"; shift ;;
     --comment) COMMENT=1 ;;
+    --review) REVIEW=1 ;;
     -h | --help) sed -n 2,23p "${BASH_SOURCE[0]}"; exit 0 ;;
     *) echo "unknown option: $1" >&2; exit 2 ;;
   esac
@@ -179,6 +183,10 @@ status="$(api POST /projects '{"name":"Todo list"}')"
 [ "$status" = 201 ] || die "project creation answered $status"
 PID="$(jget 'd["id"]')"
 log "project $PID"
+if [ "$REVIEW" -eq 1 ]; then
+  [ "$(api PATCH "/projects/$PID" '{"review_enabled": true}')" = 200 ] || die "turning the review on was refused"
+  log "reviewer agent: on"
+fi
 
 # The scripted user messages live in the cassette generator (parsed, not imported).
 mapfile -t MESSAGES < <(python3 - "$ROOT/providers/fake-llm/scripts/make_todo_cassettes.py" "$LANG_CODE" <<'PY'
@@ -294,6 +302,26 @@ print(f"{'task':<9}{'milestone':<10}{'state':<14}{'attempts':<9}escalated  depen
 for t in tasks:
     print(f"{t['ref']:<9}{t['milestone']:<10}{t['state']:<14}{t['attempts']:<9}{str(t['escalated']):<11}{','.join(t['depends_on'])}")
 PY
+fi
+
+if [ "$REVIEW" -eq 1 ]; then
+  # Every merged task of the plan (not the demos) must carry a stored verdict, and the review calls
+  # must be accounted to the `reviewer` role: this is the real worker, router and gateway, not a stub.
+  reviewed=0 expected=0
+  for ref in $(api GET "/projects/$PID/tasks" >/dev/null; jget '" ".join(t["ref"] for t in d if not t["ref"].startswith("DEMO"))'); do
+    expected=$((expected + 1))
+    api GET "/projects/$PID/tasks/$ref" >/dev/null
+    verdict="$(jget '(d.get("review") or {}).get("verdict", "none") + ":" + str((d.get("review") or {}).get("warning"))')"
+    log "review $ref: $verdict"
+    [ "${verdict%%:*}" = "none" ] || reviewed=$((reviewed + 1))
+  done
+  log "reviewed $reviewed of $expected tasks"
+  [ "$reviewed" -ge 1 ] || { log "no task was reviewed although the review is on"; FAILED=1; }
+  if [ "$(api GET "/projects/$PID/costs")" = 200 ]; then
+    calls="$(jget 'sum(r["calls"] for r in d["by_role"] if r["role"] == "reviewer")')"
+    log "reviewer calls recorded: $calls"
+    [ "$calls" -ge 1 ] || { log "no call is accounted to the reviewer role"; FAILED=1; }
+  fi
 fi
 
 status="$(api GET "/projects/$PID/costs")"

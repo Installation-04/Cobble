@@ -10,7 +10,7 @@ scripts/e2e_full.sh --keep --timeout 5400 --lang fr
 ```
 
 Options: `--keep` (leave the stack up), `--timeout SECONDS` (building time, default 3600), `--lang en|fr`,
-`--comment` (after `done`, comment on the last demo and follow the new `C-001` task). `E2E_PORT` sets the host port (18080). `E2E_HOST` is the address CI containers use to reach the
+`--comment` (after `done`, comment on the last demo and follow the new `C-001` task), `--review` (turn the reviewer agent on for the project, then check that tasks carry a stored verdict and that review calls are accounted to the `reviewer` role; the fake LLM has no reviewer script, so a recorded warning is expected, ADR 0024). `E2E_PORT` sets the host port (18080). `E2E_HOST` is the address CI containers use to reach the
 stack (default: the first address of this host; `localhost` would not work from inside a container).
 `E2E_BUILD_CA` is a CA bundle for hosts behind a TLS-inspecting proxy: it is passed to the core image
 builds and mounted in the CI step containers (unset by default). The agent and preview images are pulled
