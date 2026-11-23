@@ -79,7 +79,13 @@ def generate_mockups(
 def choose_mockup(
     variant_id: uuid.UUID, project: OwnedProject, db: Db, redis: RedisDep
 ) -> list[MockupVariant]:
+    if not project.mockups_enabled:
+        raise ApiError(409, "mockups_disabled")
     _require_phase(project, "spec_review", "plan_review")
+    spec: Spec | None = _latest_spec(db, project.id)
+    if spec is None or spec.status != "approved":
+        raise ApiError(409, "wrong_phase", phase=project.phase)
+    _require_active(project)
     variants = _variants(db, project.id)
     if not any(v.id == variant_id for v in variants):
         raise ApiError(404, "not_found")
