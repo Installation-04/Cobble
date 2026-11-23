@@ -37,6 +37,8 @@ same model and the same two sandbox slots.
   "task x of 8", and reloads the results when it ends.
 
 ## Consequences
-The worker runs jobs one by one: during a benchmark (minutes) planner jobs of projects wait. The
-benchmark is an occasional, deliberate action, so we accept it rather than add a second worker
-loop; if it hurts, a dedicated consumer can be added later without changing the API.
+The `benchmark` job is handed to its own thread of the worker and acknowledged at once, so the jobs
+loop keeps serving chat replies, specs, plans, mockups, explanations and starts during a run of tens
+of minutes. The state in Redis stays the source of truth. Because the job is acknowledged before it
+ends, a worker that dies mid-run does not replay it: the lock expires (30 min) and the status reads
+`interrupted`; the owner starts it again on purpose.

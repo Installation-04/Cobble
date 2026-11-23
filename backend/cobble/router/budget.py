@@ -73,9 +73,16 @@ class BudgetService:
         self._events = events
         self._settings = settings  # None: no per-task cap
 
-    def ensure_can_spend(self, project_id: uuid.UUID, task_id: uuid.UUID | None = None) -> None:
+    def ensure_can_spend(
+        self,
+        project_id: uuid.UUID,
+        task_id: uuid.UUID | None = None,
+        *,
+        escalated: bool = False,
+    ) -> None:
         """Raise BudgetExceeded if the project is paused or already at its cap, and
-        TaskBudgetExceeded if `task_id` already spent its own cap."""
+        TaskBudgetExceeded if `task_id` already spent its own cap (`escalated`: the call is on
+        the escalation model, which has an allowance on top of the cap)."""
         with self._sessions() as session:
             project = session.get(Project, project_id)
             if project is None:
@@ -86,10 +93,17 @@ class BudgetService:
                 self._pause(session, project)
                 raise BudgetExceeded(project_id)
             if task_id is not None and self._settings is not None:
-                self._ensure_task_within_cap(session, project_id, task_id, self._settings)
+                self._ensure_task_within_cap(
+                    session, project_id, task_id, self._settings, escalated
+                )
 
     def _ensure_task_within_cap(
-        self, session: Session, project_id: uuid.UUID, task_id: uuid.UUID, settings: Settings
+        self,
+        session: Session,
+        project_id: uuid.UUID,
+        task_id: uuid.UUID,
+        settings: Settings,
+        escalated: bool,
     ) -> None:
         facts = task_budget.task_facts(session, task_id)
         if facts is None or facts[0] != project_id:
@@ -97,7 +111,11 @@ class BudgetService:
         _, ref, size = facts
         values = cost_settings.read(session)
         cap = task_budget.cap_for(
-            task_budget.plan_estimate_doc(session, project_id), size, values, settings
+            task_budget.plan_estimate_doc(session, project_id),
+            size,
+            values,
+            settings,
+            escalated=escalated,
         )
         if cap is None:
             return

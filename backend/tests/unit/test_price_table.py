@@ -308,6 +308,15 @@ def test_a_rate_limited_model_is_tried_last_until_its_wait_is_over() -> None:
     assert not backoff.cooling("free")
 
 
+def test_an_explicit_model_stays_first_even_while_it_cools_down() -> None:
+    backoff = RateLimitBackoff(clock=Clock())
+    backoff.hit("strong")
+    gateway = Gateway({})
+    router = limited_router(gateway, backoff)
+    assert router.chat(Role.WORKER, [], model="strong").model == "strong"
+    assert gateway.tried == ["strong"]  # not the cheap models that just failed
+
+
 def test_the_wait_doubles_up_to_a_limit_and_is_forgotten_at_the_first_answer() -> None:
     clock = Clock()
     backoff = RateLimitBackoff(base_s=10, max_s=25, clock=clock)
@@ -342,3 +351,12 @@ def test_other_failures_do_not_start_a_wait() -> None:
     limited_router(gateway, backoff).chat(Role.WORKER, [])
     assert not backoff.cooling("free")
     assert backoff.order(["a", "b"]) == ["a", "b"]
+
+
+def test_the_local_models_lookup_has_a_public_name() -> None:
+    from cobble.api import routes_costs
+    from cobble.router import factory
+
+    assert callable(factory.local_models_lookup)
+    assert routes_costs.local_models_lookup is factory.local_models_lookup
+    assert not hasattr(factory, "_local_models")

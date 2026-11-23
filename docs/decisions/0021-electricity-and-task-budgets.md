@@ -40,13 +40,17 @@ flat price whatever models the routes name.
   counted). Over the cap: `TaskBudgetExceeded` (a `BudgetExceeded`), HTTP 402 `task_budget_reached` on the
   internal LLM endpoint, `task.budget_reached` project event (once), and `tasks.last_error =
   "task_budget_reached"`. **The project is not paused**: other tasks go on. The agent's run fails; the
-  scheduler (not changed here) retries up to `max_attempts` — each retry is refused at once, for free —
-  and then fails the task. The failure text and the error banner have an i18n message
-  (`task_budget_reached`). Raising the multiplier lets the owner retry.
+  scheduler then **keeps the code and fails the task at once** (no retry: it would be refused again), so
+  the UI shows the translated `task_budget_reached` message. Raising the multiplier and retrying the task
+  lets the owner go on.
+- **Escalation allowance.** The estimate is priced at the first-choice models, which are often local or
+  free (estimate ~0, cap = floor). A call made on the escalation model (the router receives it as an
+  explicit model) therefore has an allowance added to the cap: `multiplier x` the estimate of the size at
+  the flat configured price (`COBBLE_ESTIMATE_USD_PER_1K_TOKENS`, a paid-model rate). The cheap-then-strong
+  path can thus finish, and the escalated attempts are still bounded.
 - The Costs tab shows each task's cap next to its cost.
 - **Honest limit** (same as the project budget): a call already in flight when the cap is crossed still
-  completes, so a task can overshoot by one call. The scheduler's `last_error` may be overwritten by the
-  agent failure text of the run that hit the 402; the 402 code is in that text.
+  completes, so a task can overshoot by one call.
 
 ### 3. Model-aware estimate
 - `estimate_plan` splits the base tokens of a task between worker (1.0), test-writer (0.25) and reviewer
@@ -60,5 +64,4 @@ flat price whatever models the routes name.
 ## Consequences
 - New columns: `llm_calls.duration_ms`, `llm_calls.electricity_usd`, `platform_state.electricity_*`,
   `task_budget_multiplier`. Migration `0018` is tested up and down.
-- Not done: failing the task in the scheduler at the first refusal (the scheduler is outside this change),
-  measuring real power draw, per-model watts.
+- Not done: measuring real power draw, per-model watts.

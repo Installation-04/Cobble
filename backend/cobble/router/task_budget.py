@@ -5,6 +5,7 @@ or tiny estimate does not stop a task that costs a few cents). The estimate of a
 the approved plan (`size_cost_usd` by size, stored with the plan); a plan stored before that
 existed falls back to the flat settings. The cap is checked before each call: a call already in
 flight when the cap is crossed still completes, so a task can overshoot by that one call.
+A call made on the escalation model has an allowance added to the cap (see `cap_for`).
 """
 
 from __future__ import annotations
@@ -62,14 +63,32 @@ def multiplier(values: CostSettings, settings: Settings) -> Decimal:
     return chosen if chosen is not None else settings.task_budget_multiplier
 
 
+def flat_estimate(size: str, settings: Settings) -> Decimal:
+    """What a task of `size` would cost at the flat configured price (a paid-model rate)."""
+    return size_estimate(None, size, settings)
+
+
 def cap_for(
-    estimate: dict[str, object] | None, size: str, values: CostSettings, settings: Settings
+    estimate: dict[str, object] | None,
+    size: str,
+    values: CostSettings,
+    settings: Settings,
+    *,
+    escalated: bool = False,
 ) -> Decimal | None:
-    """The cap of a task of `size` in USD, or None when the owner turned the cap off (0)."""
+    """The cap of a task of `size` in USD, or None when the owner turned the cap off (0).
+
+    An escalated call (the strong model, after repeated failures) gets an allowance on top: the
+    plan estimate is priced at the first-choice models, often free or local, so without it the
+    attempt on the paid model could never fit. The allowance is the multiplier times the flat
+    estimate of the size."""
     factor = multiplier(values, settings)
     if factor <= 0:
         return None
-    return max(settings.task_budget_floor_usd, size_estimate(estimate, size, settings) * factor)
+    cap = max(settings.task_budget_floor_usd, size_estimate(estimate, size, settings) * factor)
+    if escalated:
+        cap += flat_estimate(size, settings) * factor
+    return cap
 
 
 def task_spent(session: Session, task_id: uuid.UUID, *, with_electricity: bool) -> Decimal:

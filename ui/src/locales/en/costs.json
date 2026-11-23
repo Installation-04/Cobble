@@ -81,6 +81,7 @@
     "counts": "Count the electricity in the amount spent and in the project budget",
     "taskTitle": "Cost cap per task",
     "taskHelp": "A task may spend this multiple of its own estimate (at least {{floor}} USD), all its attempts together. 0 turns the cap off. A call already running when the cap is crossed still finishes, so a task can overshoot by one call. Default: {{default}}.",
+    "wattsInvalid": "Enter the power draw as a whole number of watts (for example 300), or leave it empty.",
     "multiplier": "Multiple of the task estimate",
     "save": "Save",
     "saved": "Saved."
