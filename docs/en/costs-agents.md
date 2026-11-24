@@ -96,7 +96,10 @@ measure.** The costs report gets `api_usd` (what providers charged) and `electri
 when `electricity_counts_in_budget` is on (then the project budget and the savings counter include it
 too). Each `by_task` line has `cap_usd`: a task may spend its multiple (default 3) of its estimate, at
 least 0.05 USD; 0 turns the cap off. Over its cap a task's calls are refused (HTTP 402
-`task_budget_reached`) while the project goes on. A call already running when a cap is crossed still
+`task_budget_reached`), the task fails at once (no retry) with that message, and the project goes on.
+Calls on the escalation model get an allowance on top: the multiple of the estimate of the size at the
+configured flat price (a local or free model has a zero estimate; without it escalation could not
+succeed). A call already running when a cap is crossed still
 completes: a project or a task can overshoot by one call.
 
 ## End-of-project report

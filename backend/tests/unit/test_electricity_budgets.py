@@ -97,6 +97,7 @@ def seed_electricity(sessions: sessionmaker[Session], pid: uuid.UUID) -> None:
                     prompt_tokens=100,
                     completion_tokens=100,
                     cost_usd=Decimal("1.00"),
+                    duration_ms=9000,  # an API call: not machine generation time
                 ),
                 LLMCall(
                     project_id=pid,
@@ -398,3 +399,49 @@ def test_free_and_local_roles_estimate_to_zero() -> None:
 def test_blended_price() -> None:
     # 75 % prompt at 1e-6, 25 % completion at 5e-6 per token -> 0.002 per 1k
     assert blended_per_1k(Decimal("0.000001"), Decimal("0.000005")) == Decimal("0.002")
+
+
+def test_a_run_refused_by_the_task_cap_fails_the_task_at_once(
+    sessions: sessionmaker[Session],
+) -> None:
+    from cobble.capabilities.agent import AgentOutcome
+    from cobble.capabilities.fakes import FakeAgentRunner
+    from cobble.db import TaskRun
+
+    from .scheduling import Harness as SchedHarness
+    from .scheduling import make_ready_project as make_project
+
+    pid = make_project(sessions)
+    agents = FakeAgentRunner(AgentOutcome.FAILED, polls_before_done=1)
+    h = SchedHarness(sessions, agents=agents)
+    h.start(pid)
+    h.scheduler.tick()
+    h.scheduler.tick()
+    with sessions() as db:  # the router wrote the code while the run was refused
+        task = db.query(Task).filter(Task.project_id == pid, Task.ref == "T-001").one()
+        task.last_error = "task_budget_reached"
+        db.commit()
+    for _ in range(4):
+        h.scheduler.tick()
+    task = h.tasks(pid)["T-001"]
+    assert (task.state, task.last_error) == ("failed", "task_budget_reached")
+    with sessions() as db:
+        assert db.query(TaskRun).filter(TaskRun.task_id == task.id).count() == 1
+
+
+def test_an_escalated_call_has_an_allowance_over_a_free_estimate(
+    sessions: sessionmaker[Session],
+) -> None:
+    pid, ids, service, _ = task_world(sessions)
+    with sessions() as db:  # a free local worker: the estimate is 0, the cap is the floor
+        plan = db.scalars(select(Plan).where(Plan.project_id == pid)).one()
+        plan.estimate = {"cost_usd": "0.00", "size_cost_usd": {"S": "0", "M": "0"}}
+        db.commit()
+    ref = next(iter(ids))
+    spend(sessions, pid, ids[ref], "0.06")  # over the 0.05 floor
+    with pytest.raises(TaskBudgetExceeded):
+        service.ensure_can_spend(pid, ids[ref])
+    service.ensure_can_spend(pid, ids[ref], escalated=True)  # the strong model can still work
+    spend(sessions, pid, ids[ref], "1.00")
+    with pytest.raises(TaskBudgetExceeded):  # but not without limit
+        service.ensure_can_spend(pid, ids[ref], escalated=True)

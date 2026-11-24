@@ -11,7 +11,7 @@ from fastapi import APIRouter, Query, Request, Response
 from cobble import costs, report
 from cobble.capabilities.llm import Role
 from cobble.router import price_table
-from cobble.router.factory import _local_models
+from cobble.router.factory import local_models_lookup
 from cobble.router.policy import ModelPolicy
 from cobble.router.prices import PriceBook, Prices
 
@@ -41,7 +41,7 @@ def sync_prices(request: Request, settings: Any, db: Any) -> None:
         state = request.app.state
         local = getattr(state, "local_models", None)
         if local is None:
-            local = state.local_models = _local_models(settings)
+            local = state.local_models = local_models_lookup(settings)
         listed = getattr(price_book(request, settings), "listed", None)
         if listed is not None:
             price_table.sync(db, listed(), local=local())

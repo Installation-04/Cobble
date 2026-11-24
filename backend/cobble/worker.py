@@ -231,8 +231,21 @@ def make_benchmark_runner(settings: Settings, redis: Redis) -> Callable[[list[st
     from cobble.providers.module_manager import HttpModuleManager
 
     def run_benchmark_job(names: list[str]) -> None:
-        rig = LiveBench(settings, HttpModuleManager.from_settings(settings))
-        run_job(names, rig, BenchmarkStatus(redis))
+        # A run takes tens of minutes: it gets its own thread so the jobs loop goes on with
+        # chat replies, specs and plans, and the job is acknowledged at once. The state lives in
+        # Redis; a crash leaves the lock to expire and the status reads `interrupted` (ADR 0019).
+        def work() -> None:
+            try:
+                rig = LiveBench(settings, HttpModuleManager.from_settings(settings))
+                try:
+                    run_job(names, rig, BenchmarkStatus(redis))
+                finally:
+                    rig.close()
+            except Exception:  # never leave the lock behind
+                log.exception("benchmark thread crashed")
+                BenchmarkStatus(redis).finish("internal_error")
+
+        threading.Thread(target=work, name="benchmark", daemon=True).start()
 
     return run_benchmark_job
 

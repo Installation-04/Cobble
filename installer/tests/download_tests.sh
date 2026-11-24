@@ -70,6 +70,12 @@ t_remote_url_resolution() {
   out="$(run_remote --version v1.2.3 --ref main)" && fail="$fail conflict-accepted" || [[ "$out" == *"only one of"* && "$out" == *"un seul"* ]] || fail="$fail conflict-msg($out)"
   out="$(run_remote --version banana)" && fail="$fail bad-version-accepted" || [[ "$out" == *"Invalid --version"* ]] || fail="$fail bad-version-msg($out)"
   out="$(run_remote --ref 'a;b')" && fail="$fail bad-ref-accepted" || [[ "$out" == *"Invalid --ref"* ]] || fail="$fail bad-ref-msg($out)"
+  for bad in '../other/repo/tar.gz/main' '/abs' 'trailing/' 'a..b'; do
+    out="$(run_remote --ref "$bad")" && fail="$fail ref-escape-accepted($bad)" || [[ "$out" == *"Invalid --ref"* ]] || fail="$fail ref-escape-msg($bad:$out)"
+  done
+  # --latest is the default source: the bootstrap must not hand it on (the installed tree would see two sources)
+  out="$(run_remote --latest --yes)" && [[ "$out" == "RAN:latest:--yes --source "* && "$out" != *"--latest"* ]] || fail="$fail latest-flag($out)"
+  out="$(run_remote --latest --version v1.2.3)" && fail="$fail latest-conflict-accepted" || [[ "$out" == *"only one of"* && "$out" == *"un seul"* ]] || fail="$fail latest-conflict-msg($out)"
   out="$(COBBLE_REPO='x y' run_remote)" && fail="$fail bad-repo-accepted" || [[ "$out" == *"Invalid COBBLE_REPO"* ]] || fail="$fail bad-repo-msg($out)"
   stop_server
   [ -z "$fail" ] && ok remote_url_resolution || ko remote_url_resolution "$fail"

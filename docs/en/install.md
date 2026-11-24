@@ -76,6 +76,7 @@ A VM is recommended. In Proxmox LXC the container must be privileged with `nesti
 | `--ref <branch\|tag\|sha>` | install a GitHub archive of that ref (`codeload.github.com`), built from source. **Not a verified release** (no checksum exists): a warning is printed. For testing and development |
 | `--no-verify` | skip the SHA-256 check of a downloaded tarball. **Unsafe**: only for tests or an air-gapped mirror you trust |
 | `COBBLE_REPO=owner/name` | environment variable: download from another GitHub repository (a fork). Default `Installation-04/Cobble` |
+| `COBBLE_TARBALL_URL=URL` | environment variable: the tarball to install instead of the latest release (an air-gapped mirror). It is checked like any download: a `URL.sha256` file must sit next to it, or pass `--no-verify` and accept the risk |
 | `--lang fr\|en` | language of the installer, the CLI and the app (default: from `$LANG`) |
 | `--gpu auto\|nvidia\|amd\|none` | GPU handling (default `auto`). In v0.1 the GPU is only detected and recorded |
 | `--yes`, `-y` | no confirmation prompt (non-interactive) |
@@ -87,7 +88,7 @@ Example: `sudo bash install.sh --yes --lang en --dir /opt/cobble`.
 ## Published images and updates
 
 A release tarball contains `core/compose.release.yml`, an override that replaces the local
-`build:` of the core services by `image: ghcr.io/installation-04/cobble-<service>@sha256:<digest>`.
+`build:` of the core services by `image: ghcr.io/installation-04/cobble-<service>:<version>@sha256:<digest>`.
 When this file is present in `/opt/cobble/src/core/`, the installer, the systemd unit and the
 `cobble` command add it to every `docker compose` call, so the images are **pulled** and nothing
 is built. A tree without it (a checkout, `--ref`) is built from source as before.

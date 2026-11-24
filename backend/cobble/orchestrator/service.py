@@ -311,6 +311,7 @@ class PlannerService:
                 return
             if milestone.explanation and not force:
                 return
+            revision = milestone.revision  # a re-open (and rebuild) changes it
             lang = _language(db, project)
             tasks = [
                 (t.title, list(t.acceptance or []))
@@ -334,8 +335,10 @@ class PlannerService:
             milestone = db.scalars(
                 select(Milestone).where(Milestone.project_id == project_id, Milestone.ref == ref)
             ).first()
-            if milestone is None or milestone.status == "pending":
-                return  # re-opened while the model was answering: the summary would be stale
+            if milestone is None or milestone.status == "pending" or milestone.revision != revision:
+                # Re-opened (maybe already rebuilt) while the model was answering: the summary
+                # describes a build that no longer stands; the rebuild queues its own job.
+                return
             milestone.explanation = text
             status = milestone.status
             db.commit()

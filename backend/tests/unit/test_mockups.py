@@ -277,6 +277,42 @@ def test_choose_marks_exactly_one_and_plan_generation_waits_for_it(
     assert code(missing) == "not_found"
 
 
+def test_choose_has_the_same_preconditions_as_generate(
+    sessions: sessionmaker[Session], redis: FakeStreamRedis, ready: uuid.UUID
+) -> None:
+    enable(sessions, ready)
+    service(sessions, ScriptedLLM(variants_reply(3))).run_job("mockups", ready)
+    api = client_for(sessions, redis, owner_of(sessions, ready))
+    first = api.get(f"{API}/projects/{ready}/mockups").json()[0]["id"]
+    url = f"{API}/projects/{ready}/mockups/{first}/choose"
+
+    def set_project(**values: Any) -> None:
+        with sessions() as db:
+            project = db.get(Project, ready)
+            assert project is not None
+            for key, value in values.items():
+                setattr(project, key, value)
+            db.commit()
+
+    set_project(mockups_enabled=False)
+    assert code(api.post(url, headers=H)) == "mockups_disabled"
+    set_project(mockups_enabled=True, status="paused")
+    assert api.post(url, headers=H).status_code == 409
+    set_project(status="active")
+    with sessions() as db:
+        spec = db.scalars(select(Spec)).first()
+        assert spec is not None
+        spec.status = "draft"
+        db.commit()
+    assert code(api.post(url, headers=H)) == "wrong_phase"
+    with sessions() as db:
+        spec = db.scalars(select(Spec)).first()
+        assert spec is not None
+        spec.status = "approved"
+        db.commit()
+    assert api.post(url, headers=H).status_code == 200
+
+
 def test_without_the_switch_plan_generation_is_not_gated(
     sessions: sessionmaker[Session], redis: FakeStreamRedis, ready: uuid.UUID
 ) -> None:

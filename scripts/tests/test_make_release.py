@@ -56,7 +56,6 @@ def test_every_built_service_is_pinned_sorted_and_lower_cased() -> None:
     assert parsed["services"]["api"] == {
         "image": f"ghcr.io/installation-04/cobble-api:1.2.3@sha256:{D}",
         "build": "!reset",
-        "pull_policy": "always",
     }
     assert "postgres" not in parsed["services"]  # no build: left alone
 

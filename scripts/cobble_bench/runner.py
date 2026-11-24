@@ -179,6 +179,7 @@ class BenchRunner:
             self._plan(project, pid, result)
         except TimeoutError as exc:
             result.outcome, result.detail = TIMEOUT, f"planning:{exc}"
+            self._halt(pid, project)
             self._collect(pid, result)
             result.duration_s = self._clock() - started
             return
@@ -186,6 +187,8 @@ class BenchRunner:
         self._log(f"[{project.name}] build started")
         outcome, detail = self._follow(project, pid, result, started)
         result.outcome, result.detail = outcome, detail
+        if outcome in (TIMEOUT, BUILD_FAILED) or detail == "over_cap":
+            self._halt(pid, project)  # the project must not keep spending unseen
         self._collect(pid, result)
         if result.tasks_merged > 0:
             self._run_hidden(project, pid, result)
@@ -194,6 +197,16 @@ class BenchRunner:
         ):
             result.outcome = TESTS_FAILED
         result.duration_s = self._clock() - started
+
+    def _halt(self, pid: str, project: ReferenceProject) -> None:
+        """Stop the project, give a call already in flight one poll to land, so the costs read
+        next are final (they feed the next project's remaining budget and the report)."""
+        try:
+            self.api.stop(pid)
+        except Exception as exc:  # recorded: the figures below may still grow
+            self._log(f"[{project.name}] could not stop the project: {type(exc).__name__}")
+            return
+        self._sleep(self.config.poll_s)
 
     def _plan(self, project: ReferenceProject, pid: str, result: ProjectResult) -> None:
         lang, api, limit = self.config.lang, self.api, self.config.step_timeout_s

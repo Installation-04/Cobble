@@ -77,6 +77,7 @@ Une VM est recommandée. Dans un LXC Proxmox, le conteneur doit être privilégi
 | `--ref <branche\|tag\|sha>` | installer l'archive GitHub de cette réf (`codeload.github.com`), construite depuis les sources. **Pas une version vérifiée** (aucune somme n'existe) : un avertissement s'affiche. Pour tester et développer |
 | `--no-verify` | ne pas vérifier le SHA-256 d'une archive téléchargée. **Risqué** : seulement pour des tests ou un miroir hors ligne de confiance |
 | `COBBLE_REPO=owner/nom` | variable d'environnement : télécharger depuis un autre dépôt GitHub (un fork). Défaut `Installation-04/Cobble` |
+| `COBBLE_TARBALL_URL=URL` | variable d'environnement : l'archive à installer au lieu de la dernière version (un miroir hors ligne). Elle est vérifiée comme tout téléchargement : un fichier `URL.sha256` doit se trouver à côté, ou passez `--no-verify` en acceptant le risque |
 | `--lang fr\|en` | langue de l'installateur, de la CLI et de l'application (défaut : selon `$LANG`) |
 | `--gpu auto\|nvidia\|amd\|none` | gestion du GPU (défaut `auto`). En v0.1 le GPU est seulement détecté et noté |
 | `--yes`, `-y` | aucune confirmation (mode non interactif) |
@@ -88,7 +89,7 @@ Exemple : `sudo bash install.sh --yes --lang fr --dir /opt/cobble`.
 ## Images publiées et mises à jour
 
 L'archive d'une version contient `core/compose.release.yml`, un fichier qui remplace le
-`build:` local des services du noyau par `image: ghcr.io/installation-04/cobble-<service>@sha256:<empreinte>`.
+`build:` local des services du noyau par `image: ghcr.io/installation-04/cobble-<service>:<version>@sha256:<empreinte>`.
 Quand ce fichier est présent dans `/opt/cobble/src/core/`, l'installateur, l'unité systemd et la
 commande `cobble` l'ajoutent à chaque appel de `docker compose` : les images sont **téléchargées**
 et rien n'est construit. Une arborescence sans lui (un dépôt cloné, `--ref`) est construite

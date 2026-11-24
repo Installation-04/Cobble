@@ -45,6 +45,24 @@ describe("cost settings form", () => {
     expect(calls.some((c) => c.method === "PUT")).toBe(true);
   });
 
+  it("refuses a power draw that is not a whole number instead of sending it", async () => {
+    const { calls } = mockFetch({
+      "GET /settings/costs": () => ({ body: EMPTY }),
+      "PUT /settings/costs": () => ({ body: EMPTY }),
+    });
+    await renderApp(<CostSettingsForm />);
+    const user = userEvent.setup();
+    await user.type(await screen.findByTestId("cost-watts"), "abc");
+    await user.click(screen.getByTestId("cost-settings-save"));
+    expect(await screen.findByTestId("cost-watts-invalid")).toBeInTheDocument();
+    expect(screen.queryByTestId("cost-settings-saved")).toBeNull();
+    await user.clear(screen.getByTestId("cost-watts"));
+    await user.type(screen.getByTestId("cost-watts"), "12.5");
+    await user.click(screen.getByTestId("cost-settings-save"));
+    expect(screen.getByTestId("cost-watts-invalid")).toBeInTheDocument();
+    expect(calls.some((c) => c.method === "PUT")).toBe(false);
+  });
+
   it("sends nulls when left empty and speaks French", async () => {
     let saved: unknown = null;
     mockFetch({

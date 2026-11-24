@@ -39,3 +39,8 @@ terms; the owner must read them. For confidential code use a *local only* projec
 No automatic price import from provider websites (the gateway's table is the source); no automatic
 choice of the cheapest model; no `Retry-After` handling (the gateway does not pass it on); the
 "free" mark of a model the gateway cannot price relies on its name.
+
+## Known limit (review of PR 13)
+The Costs and report `GET` handlers call `sync_prices`: an outbound request to the gateway (cached a
+few minutes) and a write to `model_prices`. It is best effort (a failure is logged and rolled back) and
+cheap, so it stays; moving it to a periodic job in the worker is the clean fix and was left out of v0.3.

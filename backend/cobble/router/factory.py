@@ -21,7 +21,7 @@ from .policy import ModelPolicy
 from .prices import PriceBook
 
 
-def _local_models(settings: Settings) -> LocalModels:
+def local_models_lookup(settings: Settings) -> LocalModels:
     def fetch() -> dict[str, object]:
         from cobble.providers.module_manager import HttpModuleManager
 
@@ -39,7 +39,7 @@ def _local_models(settings: Settings) -> LocalModels:
 def build_cost_router(
     settings: Settings, sessions: sessionmaker[Session], redis: Redis
 ) -> CostRouter:
-    local_models = _local_models(settings)
+    local_models = local_models_lookup(settings)
     gateway = LiteLLMGateway(
         settings.litellm_url,
         settings.litellm_key,
@@ -72,7 +72,7 @@ def build_role_price(
     from . import price_table
 
     policy = ModelPolicy(sessions, settings)
-    local = _local_models(settings)
+    local = local_models_lookup(settings)
     headers = {"Authorization": f"Bearer {settings.litellm_key}"} if settings.litellm_key else {}
     book = PriceBook(httpx.Client(base_url=settings.litellm_url.rstrip("/"), headers=headers))
 

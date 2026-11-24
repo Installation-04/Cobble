@@ -60,6 +60,7 @@ from cobble.capabilities.preview import (
 from cobble.config import Settings
 from cobble.db import Milestone, Project, Task, TaskRun
 from cobble.events import enqueue_job, publish_project
+from cobble.router.budget import TASK_BUDGET_CODE
 
 from . import control, demo, lessons, prompts, questions, review, rules
 from .materialize import NoApprovedPlan, materialize_tasks
@@ -84,6 +85,7 @@ LOG_TAIL_CHARS = 4000
 RUN_TOKEN_SLACK_S = 60
 PENDING_GRACE_S = 120  # a pending row younger than this may be a start in flight
 TASK_TIMEOUT = "task_timeout"  # `last_error` of a task that used up its wall-clock limit
+TASK_BUDGET = TASK_BUDGET_CODE  # set by the router when a task hit its cost cap (ADR 0021)
 
 
 class StartError(Exception):
@@ -396,6 +398,8 @@ class Scheduler:
             if result is None:
                 return
             self._finish_run(session, task, last, result)
+            if task.state == rules.FAILED:
+                return
         self._follow_up(session, project, task)
 
     def _retry_pending(self, project_id: uuid.UUID) -> None:
@@ -462,6 +466,13 @@ class Scheduler:
         run.finished_at = self._clock()
         run.log_tail = prompts.tail(result.log, LOG_TAIL_CHARS) if result.log else None
         if result.outcome not in (AgentOutcome.DONE, AgentOutcome.QUESTION):
+            session.refresh(task, ["last_error"])  # the router wrote it from another session
+            if task.last_error == TASK_BUDGET:
+                # The run died on the 402 of the task cap: keep the code the UI translates and
+                # fail the task now; a retry would be refused again (ADR 0021).
+                session.commit()
+                self._set_state(session, task, rules.FAILED)
+                return
             detail = prompts.tail(result.log, LOG_TAIL_CHARS) if result.log else ""
             task.last_error = f"agent {result.outcome.value}: {detail}".rstrip(": ")
             source = {

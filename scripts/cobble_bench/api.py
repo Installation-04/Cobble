@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import urllib.error
 import urllib.request
+from decimal import ROUND_DOWN, Decimal
 from http.cookiejar import CookieJar
 from typing import Any, Protocol
 
@@ -46,6 +47,9 @@ class CobbleApi(Protocol):
     def milestones(self, project_id: str) -> list[dict[str, Any]]: ...
     def validate_milestone(self, project_id: str, ref: str) -> None: ...
     def costs(self, project_id: str) -> dict[str, Any]: ...
+    def stop(self, project_id: str) -> None:
+        """Stop the project from spending more (a call already in flight may still finish)."""
+        ...
 
 
 class HttpCobble:
@@ -145,3 +149,9 @@ class HttpCobble:
 
     def costs(self, project_id: str) -> dict[str, Any]:
         return dict(self._call("GET", f"/projects/{project_id}/costs"))
+
+    def stop(self, project_id: str) -> None:
+        """There is no pause route: cap the budget at what was spent. The router then refuses
+        every further call and pauses the project (ADR 0014)."""
+        spent = Decimal(str(self.costs(project_id).get("spent_usd") or 0))
+        self.set_budget(project_id, str(max(spent.quantize(Decimal("0.01"), ROUND_DOWN), 0)))
